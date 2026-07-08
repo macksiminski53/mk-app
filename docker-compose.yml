@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  server:
+    build: ./server
+    ports:
+      - "4000:4000"
+    volumes:
+      - server_data:/app/data
+      - server_uploads:/app/uploads
+    environment:
+      - JWT_SECRET=change-me-in-production
+      - CLIENT_ORIGIN=http://localhost:5173
+      - DB_PATH=/app/data/data.sqlite
+
+  client:
+    build:
+      context: ./client
+      args:
+        VITE_API_URL: http://localhost:4000
+    ports:
+      - "5173:3000"
+    depends_on:
+      - server
+
+volumes:
+  server_data:
+  server_uploads:
