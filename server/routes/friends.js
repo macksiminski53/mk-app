@@ -30,8 +30,8 @@ function friendshipStatus(meId, otherId) {
 router.get('/', (req, res) => {
   const meId = req.user.id;
   const rows = db.prepare(`
-    SELECT fr.*, u1.username as fromUsername, u1.avatar_color as fromColor, u1.avatar_url as fromUrl,
-           u2.username as toUsername, u2.avatar_color as toColor, u2.avatar_url as toUrl
+    SELECT fr.*, u1.username as fromUsername, u1.avatar_color as fromColor, u1.avatar_url as fromUrl, u1.status_text as fromStatus,
+           u2.username as toUsername, u2.avatar_color as toColor, u2.avatar_url as toUrl, u2.status_text as toStatus
     FROM friend_requests fr
     JOIN users u1 ON u1.id = fr.from_id
     JOIN users u2 ON u2.id = fr.to_id
@@ -43,12 +43,14 @@ router.get('/', (req, res) => {
     const otherUsername = r.from_id === meId ? r.toUsername : r.fromUsername;
     const otherColor = r.from_id === meId ? r.toColor : r.fromColor;
     const otherUrl = r.from_id === meId ? r.toUrl : r.fromUrl;
+    const otherStatus = r.from_id === meId ? r.toStatus : r.fromStatus;
     const thread = getOrCreateThread(meId, otherId);
     return {
       id: otherId,
       username: otherUsername,
       avatarColor: otherColor,
       avatarUrl: otherUrl,
+      statusText: otherStatus,
       online: isOnline(otherId),
       threadId: thread.id,
     };

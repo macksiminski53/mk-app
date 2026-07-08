@@ -43,6 +43,8 @@ CREATE TABLE IF NOT EXISTS users (
   password_hash TEXT NOT NULL,
   avatar_color TEXT NOT NULL,
   avatar_url TEXT,
+  status_text TEXT,
+  status_updated_at TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 

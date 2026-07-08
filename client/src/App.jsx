@@ -43,14 +43,19 @@ export default function App() {
     function onAvatarChanged() {
       refreshFriends();
     }
+    function onStatusChanged() {
+      refreshFriends();
+    }
     socket.on('presence:update', onPresence);
     socket.on('friend:request-received', onRequestReceived);
     socket.on('friend:avatar-changed', onAvatarChanged);
+    socket.on('friend:status-changed', onStatusChanged);
 
     return () => {
       socket.off('presence:update', onPresence);
       socket.off('friend:request-received', onRequestReceived);
       socket.off('friend:avatar-changed', onAvatarChanged);
+      socket.off('friend:status-changed', onStatusChanged);
       disconnectSocket();
     };
   }, [token]);
@@ -102,6 +107,14 @@ export default function App() {
     getSocket().emit('avatar:changed');
   }
 
+  async function handleSetStatus(statusText) {
+    const res = await api.setStatus(token, statusText);
+    const updatedUser = { ...user, statusText: res.statusText };
+    setUser(updatedUser);
+    localStorage.setItem('user', JSON.stringify(updatedUser));
+    getSocket().emit('status:changed');
+  }
+
   if (!token || !user) {
     return <AuthScreen onAuthed={handleAuthed} />;
   }
@@ -124,6 +137,7 @@ export default function App() {
           currentUser={user}
           onLogout={handleLogout}
           onChangeAvatar={handleChangeAvatar}
+          onSetStatus={handleSetStatus}
         />
         <ChatArea
           token={token}

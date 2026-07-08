@@ -49,7 +49,7 @@ router.post('/register', async (req, res) => {
 
   const user = { id: info.lastInsertRowid, username };
   const token = signToken(user);
-  res.json({ token, user: { id: user.id, username, avatarColor: color, avatarUrl: null } });
+  res.json({ token, user: { id: user.id, username, avatarColor: color, avatarUrl: null, statusText: null } });
 });
 
 router.post('/login', async (req, res) => {
@@ -61,7 +61,13 @@ router.post('/login', async (req, res) => {
   const token = signToken(row);
   res.json({
     token,
-    user: { id: row.id, username: row.username, avatarColor: row.avatar_color, avatarUrl: row.avatar_url },
+    user: {
+      id: row.id,
+      username: row.username,
+      avatarColor: row.avatar_color,
+      avatarUrl: row.avatar_url,
+      statusText: row.status_text,
+    },
   });
 });
 
@@ -70,6 +76,15 @@ router.post('/avatar', requireAuth, upload.single('avatar'), (req, res) => {
   const avatarUrl = `/uploads/${req.file.filename}`;
   db.prepare('UPDATE users SET avatar_url = ? WHERE id = ?').run(avatarUrl, req.user.id);
   res.json({ avatarUrl });
+});
+
+router.patch('/status', requireAuth, (req, res) => {
+  const { statusText } = req.body;
+  const clean = typeof statusText === 'string' ? statusText.trim().slice(0, 120) : null;
+  const value = clean ? clean : null;
+  db.prepare("UPDATE users SET status_text = ?, status_updated_at = datetime('now') WHERE id = ?")
+    .run(value, req.user.id);
+  res.json({ statusText: value });
 });
 
 export default router;

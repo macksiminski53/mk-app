@@ -107,6 +107,12 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('status:changed', () => {
+    for (const friendId of friendIdsOf(userId)) {
+      io.to(`user:${friendId}`).emit('friend:status-changed', { userId });
+    }
+  });
+
   socket.on('disconnect', () => {
     markOffline(userId);
     setTimeout(() => {

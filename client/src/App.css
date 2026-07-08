@@ -149,17 +149,72 @@ body {
 
 .friend-avatar-wrap { position: relative; }
 
+.friend-info { display: flex; flex-direction: column; min-width: 0; }
+
 .friend-name { font-size: 15px; color: #e8d5d5; font-weight: 500; }
 
-.user-footer {
-  height: 56px;
+.friend-status {
+  font-size: 12px;
+  color: #c99;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* --- Activity panel (own status/profile) --- */
+.activity-panel {
+  border-bottom: 1px solid #2b0f0f;
   background: #0d0505;
+  flex-shrink: 0;
+}
+
+.activity-panel-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #ff4d4d;
+  font-weight: 700;
+  padding: 10px 12px 4px;
+}
+
+.activity-panel-body {
   display: flex;
   align-items: center;
-  padding: 0 8px;
-  gap: 8px;
-  flex-shrink: 0;
-  border-top: 1px solid #2b0f0f;
+  gap: 10px;
+  padding: 4px 12px 12px;
+}
+
+.activity-info { flex: 1; min-width: 0; }
+
+.activity-username {
+  font-size: 14px;
+  font-weight: 700;
+  color: white;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.activity-status {
+  font-size: 12px;
+  color: #c99;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.activity-status:hover { color: #ff9999; text-decoration: underline; }
+
+.status-edit-form input {
+  width: 100%;
+  background: #1a0d0d;
+  border: 1px solid #4a1414;
+  border-radius: 4px;
+  padding: 4px 6px;
+  color: #e8d5d5;
+  font-size: 12px;
+  outline: none;
 }
 
 .pfp-change-wrap {
@@ -182,8 +237,6 @@ body {
 }
 
 .pfp-change-wrap:hover .pfp-overlay { opacity: 1; }
-
-.user-footer-name { flex: 1; font-size: 14px; font-weight: 600; color: white; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .logout-btn {
   background: none;

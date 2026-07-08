@@ -22,6 +22,7 @@ export const api = {
     form.append('avatar', file);
     return request('/auth/avatar', { method: 'POST', body: form, token, isForm: true });
   },
+  setStatus: (token, statusText) => request('/auth/status', { method: 'PATCH', body: { statusText }, token }),
 
   listFriends: (token) => request('/friends', { token }),
   listRequests: (token) => request('/friends/requests', { token }),
