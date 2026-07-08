@@ -68,10 +68,6 @@ export default function FriendsSidebar({ friends, activeFriendId, onSelect, curr
         </div>
       </div>
 
-      <div className="friends-sidebar-header">
-        <span className="friends-title">MK Connect</span>
-      </div>
-
       <div className="friends-list">
         {friends.length === 0 && (
           <div className="friends-empty">No friends yet. Add one from the Friend Request panel above.</div>

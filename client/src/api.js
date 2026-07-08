@@ -17,6 +17,7 @@ async function request(path, { method = 'GET', body, token, isForm } = {}) {
 export const api = {
   register: (username, password) => request('/auth/register', { method: 'POST', body: { username, password } }),
   login: (username, password) => request('/auth/login', { method: 'POST', body: { username, password } }),
+  getMe: (token) => request('/auth/me', { token }),
   uploadAvatar: (token, file) => {
     const form = new FormData();
     form.append('avatar', file);
@@ -31,6 +32,11 @@ export const api = {
   removeFriend: (token, friendId) => request('/friends/remove', { method: 'POST', body: { friendId }, token }),
 
   listMessages: (token, threadId) => request(`/threads/${threadId}/messages`, { token }),
+  uploadAttachment: (token, threadId, file) => {
+    const form = new FormData();
+    form.append('image', file);
+    return request(`/threads/${threadId}/attachments`, { method: 'POST', body: form, token, isForm: true });
+  },
 };
 
 export function resolveAvatarUrl(url) {

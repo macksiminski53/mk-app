@@ -27,6 +27,17 @@ export default function App() {
     api.listRequests(token).then(setRequests).catch(() => {});
   }, [token]);
 
+  const refreshSelf = useCallback(() => {
+    if (!token) return;
+    api.getMe(token).then((fresh) => {
+      setUser((prev) => {
+        const updated = { ...prev, ...fresh };
+        localStorage.setItem('user', JSON.stringify(updated));
+        return updated;
+      });
+    }).catch(() => {});
+  }, [token]);
+
   useEffect(() => {
     if (!token) return;
     connectSocket(token);
@@ -40,22 +51,18 @@ export default function App() {
     function onRequestReceived() {
       refreshRequests();
     }
-    function onAvatarChanged() {
-      refreshFriends();
-    }
-    function onStatusChanged() {
-      refreshFriends();
+    function onProfileChanged({ self }) {
+      if (self) refreshSelf();
+      else refreshFriends();
     }
     socket.on('presence:update', onPresence);
     socket.on('friend:request-received', onRequestReceived);
-    socket.on('friend:avatar-changed', onAvatarChanged);
-    socket.on('friend:status-changed', onStatusChanged);
+    socket.on('profile:changed', onProfileChanged);
 
     return () => {
       socket.off('presence:update', onPresence);
       socket.off('friend:request-received', onRequestReceived);
-      socket.off('friend:avatar-changed', onAvatarChanged);
-      socket.off('friend:status-changed', onStatusChanged);
+      socket.off('profile:changed', onProfileChanged);
       disconnectSocket();
     };
   }, [token]);
@@ -101,18 +108,20 @@ export default function App() {
 
   async function handleChangeAvatar(file) {
     const res = await api.uploadAvatar(token, file);
-    const updatedUser = { ...user, avatarUrl: res.avatarUrl };
-    setUser(updatedUser);
-    localStorage.setItem('user', JSON.stringify(updatedUser));
-    getSocket().emit('avatar:changed');
+    setUser((prev) => {
+      const updated = { ...prev, avatarUrl: res.avatarUrl };
+      localStorage.setItem('user', JSON.stringify(updated));
+      return updated;
+    });
   }
 
   async function handleSetStatus(statusText) {
     const res = await api.setStatus(token, statusText);
-    const updatedUser = { ...user, statusText: res.statusText };
-    setUser(updatedUser);
-    localStorage.setItem('user', JSON.stringify(updatedUser));
-    getSocket().emit('status:changed');
+    setUser((prev) => {
+      const updated = { ...prev, statusText: res.statusText };
+      localStorage.setItem('user', JSON.stringify(updated));
+      return updated;
+    });
   }
 
   if (!token || !user) {

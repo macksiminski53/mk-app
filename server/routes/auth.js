@@ -5,6 +5,7 @@ import { fileURLToPath } from 'url';
 import multer from 'multer';
 import { db } from '../db.js';
 import { signToken, requireAuth } from '../auth.js';
+import { emitProfileChanged } from '../events.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const uploadsDir = path.join(__dirname, '..', 'uploads');
@@ -71,10 +72,23 @@ router.post('/login', async (req, res) => {
   });
 });
 
+router.get('/me', requireAuth, (req, res) => {
+  const row = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
+  if (!row) return res.status(404).json({ error: 'User not found' });
+  res.json({
+    id: row.id,
+    username: row.username,
+    avatarColor: row.avatar_color,
+    avatarUrl: row.avatar_url,
+    statusText: row.status_text,
+  });
+});
+
 router.post('/avatar', requireAuth, upload.single('avatar'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
   const avatarUrl = `/uploads/${req.file.filename}`;
   db.prepare('UPDATE users SET avatar_url = ? WHERE id = ?').run(avatarUrl, req.user.id);
+  emitProfileChanged(req.user.id);
   res.json({ avatarUrl });
 });
 
@@ -84,6 +98,7 @@ router.patch('/status', requireAuth, (req, res) => {
   const value = clean ? clean : null;
   db.prepare("UPDATE users SET status_text = ?, status_updated_at = datetime('now') WHERE id = ?")
     .run(value, req.user.id);
+  emitProfileChanged(req.user.id);
   res.json({ statusText: value });
 });
 

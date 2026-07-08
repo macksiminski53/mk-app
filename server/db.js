@@ -70,6 +70,8 @@ CREATE TABLE IF NOT EXISTS messages (
   thread_id INTEGER NOT NULL REFERENCES dm_threads(id) ON DELETE CASCADE,
   user_id INTEGER NOT NULL REFERENCES users(id),
   content TEXT NOT NULL,
+  reply_to_id INTEGER REFERENCES messages(id) ON DELETE SET NULL,
+  image_url TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
