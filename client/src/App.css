@@ -315,51 +315,119 @@ body {
 .call-header-btn:hover { background: #23a55a; }
 .call-header-btn:disabled { opacity: 0.5; cursor: default; background: #2b0f0f; }
 
-/* --- Voice call bar --- */
-.call-bar {
+/* --- Voice call overlay ---
+   A centered floating card instead of a thin full-width bar: bigger
+   avatar, a pulsing ring while ringing, larger controls. Ringing states
+   (incoming/outgoing) use a dim backdrop so the card reads as modal;
+   the active-call state is a smaller anchored card that doesn't block
+   the rest of the app. */
+.call-overlay-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 300;
   display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 8px 16px;
-  background: #0d0505;
-  border-bottom: 1px solid #3f4147;
-  flex-shrink: 0;
+  justify-content: center;
+  padding-top: 72px;
 }
 
-.call-bar-info { flex: 1; min-width: 0; }
+.call-overlay-anchor {
+  position: fixed;
+  top: 72px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 300;
+  display: flex;
+  justify-content: center;
+}
 
-.call-bar-name { font-size: 14px; font-weight: 700; color: white; }
+.call-overlay {
+  background: #150808;
+  border: 1px solid #3a1212;
+  border-radius: 16px;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.65);
+  padding: 28px 32px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 260px;
+}
 
-.call-bar-sub { font-size: 12px; color: #949ba4; }
+.call-overlay-active {
+  padding: 16px 20px 14px;
+  min-width: 200px;
+}
 
-.call-bar-incoming .call-bar-sub { color: #23a55a; }
+.call-overlay-avatar-wrap {
+  position: relative;
+  border-radius: 50%;
+  margin-bottom: 6px;
+}
 
-.call-bar-actions { display: flex; align-items: center; gap: 8px; }
+.call-overlay-pulse::before {
+  content: '';
+  position: absolute;
+  inset: -10px;
+  border-radius: 50%;
+  border: 2px solid #23a55a;
+  animation: call-pulse 1.6s ease-out infinite;
+}
 
-.call-btn {
-  width: 36px;
-  height: 36px;
+@keyframes call-pulse {
+  0% { transform: scale(0.85); opacity: 0.9; }
+  70% { transform: scale(1.25); opacity: 0; }
+  100% { transform: scale(1.25); opacity: 0; }
+}
+
+.call-overlay-live-dot {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #23a55a;
+  border: 2px solid #150808;
+}
+
+.call-overlay-name { font-size: 18px; font-weight: 700; color: white; }
+
+.call-overlay-sub { font-size: 13px; color: #949ba4; margin-bottom: 14px; }
+
+.call-overlay-sub-ringing { color: #23a55a; }
+
+.call-overlay-actions { display: flex; align-items: center; gap: 16px; }
+
+.call-overlay-btn {
+  width: 52px;
+  height: 52px;
   border-radius: 50%;
   border: none;
   cursor: pointer;
-  font-size: 15px;
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
+  transition: transform 0.1s ease, background 0.15s ease;
 }
 
-.call-btn-accept { background: #23a55a; }
-.call-btn-accept:hover { background: #1e8e4d; }
+.call-overlay-btn:hover { transform: scale(1.06); }
+.call-overlay-btn:active { transform: scale(0.96); }
 
-.call-btn-decline { background: #f23f43; }
-.call-btn-decline:hover { background: #d3373b; }
+.call-overlay-active .call-overlay-btn { width: 42px; height: 42px; }
 
-.call-btn-muted-off { background: #2b0f0f; }
-.call-btn-muted-off:hover { background: #4a1414; }
+.call-overlay-btn-accept { background: #23a55a; }
+.call-overlay-btn-accept:hover { background: #1e8e4d; }
 
-.call-btn-muted-on { background: #5865F2; }
-.call-btn-muted-on:hover { background: #4752c4; }
+.call-overlay-btn-decline { background: #f23f43; }
+.call-overlay-btn-decline:hover { background: #d3373b; }
+
+.call-overlay-btn-muted-off { background: #2b0f0f; }
+.call-overlay-btn-muted-off:hover { background: #4a1414; }
+
+.call-overlay-btn-muted-on { background: #5865F2; }
+.call-overlay-btn-muted-on:hover { background: #4752c4; }
 
 .message-list {
   flex: 1;
