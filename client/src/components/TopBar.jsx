@@ -2,6 +2,10 @@ import { useRef, useState } from 'react';
 import { LANGUAGES } from '../i18n.js';
 
 const CHANGELOG = [
+  { version: '0.9.0', notes: 'Added MK ULTRA: a one-time $1 upgrade for permanent chats, animated GIF profile pictures, a custom accent color, and a badge next to your name.' },
+  { version: '0.8.0', notes: 'Merged friend profile and chat settings into one panel, added a 24-hour auto-reset option per chat, and switched the whole UI accent from blue to white.' },
+  { version: '0.7.0', notes: 'Redesigned voice calls with a centered call screen, smoother call icons, and custom/looping ringtones you can set in Settings.' },
+  { version: '0.6.0', notes: 'Added a zoom/position profile picture cropper with persistence across redeploys, image/audio attachments with auto-delete for large files, and mutual-consent Delete Chat.' },
   { version: '0.5.0', notes: 'Added Settings: pick a language and switch between bubble or list chat layout.' },
   { version: '0.4.0', notes: 'Added changeable profile pictures and a new dark red theme.' },
   { version: '0.3.0', notes: 'Switched to a friends-list layout with 1:1 chat instead of servers/channels.' },
