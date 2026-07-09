@@ -95,6 +95,19 @@ CREATE TABLE IF NOT EXISTS messages (
   } catch (e) {
     if (!/duplicate column/i.test(e.message || '')) throw e;
   }
+
+  // Mutual-consent "delete chat" votes -- one flag per participant, reset to
+  // 0/0 once both are set (which triggers the actual message wipe).
+  try {
+    await client.execute('ALTER TABLE dm_threads ADD COLUMN delete_vote_a INTEGER NOT NULL DEFAULT 0');
+  } catch (e) {
+    if (!/duplicate column/i.test(e.message || '')) throw e;
+  }
+  try {
+    await client.execute('ALTER TABLE dm_threads ADD COLUMN delete_vote_b INTEGER NOT NULL DEFAULT 0');
+  } catch (e) {
+    if (!/duplicate column/i.test(e.message || '')) throw e;
+  }
 }
 
 export default db;

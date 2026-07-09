@@ -167,6 +167,47 @@ io.on('connection', (socket) => {
     io.to(`user:${toUserId}`).emit('call:signal', { fromUserId: userId, data });
   });
 
+  // ---- Mutual-consent "delete chat" ----
+  // Either user can toggle their own vote; once both are yes, every message
+  // in the thread is wiped and both votes reset to 0. Each participant gets
+  // a payload phrased as "myVote"/"otherVote" so the client doesn't need to
+  // know which of user_a/user_b it is.
+  socket.on('chat:delete-vote', async ({ threadId, vote }, ack) => {
+    try {
+      const thread = await userInThread(userId, threadId);
+      if (!thread) return ack?.({ error: 'No access' });
+      const isA = thread.user_a_id === userId;
+      const column = isA ? 'delete_vote_a' : 'delete_vote_b';
+      await db.prepare(`UPDATE dm_threads SET ${column} = ? WHERE id = ?`).run(vote ? 1 : 0, threadId);
+
+      const updated = await db.prepare(
+        'SELECT delete_vote_a, delete_vote_b, user_a_id, user_b_id FROM dm_threads WHERE id = ?'
+      ).get(threadId);
+      const bothYes = !!updated.delete_vote_a && !!updated.delete_vote_b;
+
+      if (bothYes) {
+        await db.prepare('DELETE FROM messages WHERE thread_id = ?').run(threadId);
+        await db.prepare('UPDATE dm_threads SET delete_vote_a = 0, delete_vote_b = 0 WHERE id = ?').run(threadId);
+        io.to(`thread:${threadId}`).emit('chat:deleted', { threadId: Number(threadId) });
+      } else {
+        io.to(`user:${updated.user_a_id}`).emit('chat:delete-vote-update', {
+          threadId: Number(threadId),
+          myVote: !!updated.delete_vote_a,
+          otherVote: !!updated.delete_vote_b,
+        });
+        io.to(`user:${updated.user_b_id}`).emit('chat:delete-vote-update', {
+          threadId: Number(threadId),
+          myVote: !!updated.delete_vote_b,
+          otherVote: !!updated.delete_vote_a,
+        });
+      }
+      ack?.({ ok: true });
+    } catch (err) {
+      console.error('chat:delete-vote error', err);
+      ack?.({ error: 'Server error' });
+    }
+  });
+
   socket.on('disconnect', () => {
     markOffline(userId);
     setTimeout(() => {

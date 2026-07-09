@@ -32,6 +32,7 @@ export default function App() {
   const [requests, setRequests] = useState([]);
   const [activeFriendId, setActiveFriendId] = useState(null);
   const [settings, setSettings] = useState(loadSettings);
+  const [chatSettingsTrigger, setChatSettingsTrigger] = useState(0);
 
   // --- Voice call state ---
   // call is one of: null | { status: 'incoming', fromUserId, fromUsername, fromAvatarColor, fromAvatarUrl }
@@ -235,6 +236,11 @@ export default function App() {
     }
   }
 
+  function handleOpenChatSettings(friend) {
+    setActiveFriendId(friend.id);
+    setChatSettingsTrigger((n) => n + 1);
+  }
+
   async function handleRemoveFriend(friendId) {
     await api.removeFriend(token, friendId);
     setFriends((prev) => prev.filter((f) => f.id !== friendId));
@@ -386,6 +392,7 @@ export default function App() {
           onChangeAvatar={handleChangeAvatar}
           onSetStatus={handleSetStatus}
           onSetBio={handleSetBio}
+          onOpenChatSettings={handleOpenChatSettings}
         />
         <ChatArea
           token={token}
@@ -395,6 +402,7 @@ export default function App() {
           onStartCall={handleStartCall}
           callActive={!!call}
           chatLayout={settings.chatLayout}
+          openSettingsTrigger={chatSettingsTrigger}
           t={t}
         />
       </div>

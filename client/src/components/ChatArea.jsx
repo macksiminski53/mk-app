@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { api, resolveAvatarUrl } from '../api.js';
 import { getSocket } from '../socket.js';
 import Avatar from './Avatar.jsx';
+import { PhoneIcon } from './CallIcons.jsx';
 
 function formatTime(iso) {
   const d = new Date(iso + 'Z');
@@ -17,11 +18,13 @@ function isAudioUrl(url) {
   return /\.(mp3|m4a|wav|ogg)$/i.test(url || '');
 }
 
-export default function ChatArea({ token, friend, currentUser, onRemoveFriend, onStartCall, callActive, chatLayout = 'bubble', t }) {
+export default function ChatArea({ token, friend, currentUser, onRemoveFriend, onStartCall, callActive, chatLayout = 'bubble', openSettingsTrigger, t }) {
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState('');
   const [typing, setTyping] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showDeletePanel, setShowDeletePanel] = useState(false);
+  const [deleteVotes, setDeleteVotes] = useState({ myVote: false, otherVote: false });
   const [replyTo, setReplyTo] = useState(null); // { id, username, content }
   const [pendingImage, setPendingImage] = useState(null); // { file, previewUrl, isAudio }
   const [uploading, setUploading] = useState(false);
@@ -33,15 +36,32 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
   const threadId = friend?.threadId;
   const isBubble = chatLayout === 'bubble';
 
+  // Force-open the settings dropdown when requested from elsewhere (e.g. a
+  // friend's profile card "Chat Settings" link). The trigger is a counter
+  // that only ever increments, so any change (after the initial mount)
+  // means "please open it now".
+  const prevTriggerRef = useRef(openSettingsTrigger);
+  useEffect(() => {
+    if (openSettingsTrigger !== undefined && openSettingsTrigger !== prevTriggerRef.current) {
+      prevTriggerRef.current = openSettingsTrigger;
+      setShowSettings(true);
+    }
+  }, [openSettingsTrigger]);
+
   useEffect(() => {
     if (!threadId) return;
     let cancelled = false;
     setMessages([]);
     setReplyTo(null);
     setPendingImage(null);
+    setShowDeletePanel(false);
+    setDeleteVotes({ myVote: false, otherVote: false });
     api.listMessages(token, threadId).then((msgs) => {
       if (!cancelled) setMessages(msgs);
     });
+    api.getDeleteVotes(token, threadId).then((votes) => {
+      if (!cancelled) setDeleteVotes(votes);
+    }).catch(() => {});
 
     const socket = getSocket();
     socket.emit('thread:join', threadId);
@@ -53,17 +73,36 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
       if (tid !== threadId || username === currentUser.username) return;
       setTyping(isTyping);
     }
+    function onDeleteVoteUpdate({ threadId: tid, myVote, otherVote }) {
+      if (tid === threadId) setDeleteVotes({ myVote, otherVote });
+    }
+    function onChatDeleted({ threadId: tid }) {
+      if (tid !== threadId) return;
+      setMessages([]);
+      setDeleteVotes({ myVote: false, otherVote: false });
+      setShowDeletePanel(false);
+    }
 
     socket.on('message:new', onNewMessage);
     socket.on('typing', onTyping);
+    socket.on('chat:delete-vote-update', onDeleteVoteUpdate);
+    socket.on('chat:deleted', onChatDeleted);
 
     return () => {
       cancelled = true;
       socket.emit('thread:leave', threadId);
       socket.off('message:new', onNewMessage);
       socket.off('typing', onTyping);
+      socket.off('chat:delete-vote-update', onDeleteVoteUpdate);
+      socket.off('chat:deleted', onChatDeleted);
     };
   }, [threadId]);
+
+  function castDeleteVote(vote) {
+    getSocket().emit('chat:delete-vote', { threadId, vote }, (res) => {
+      if (res?.error) console.error(res.error);
+    });
+  }
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -136,21 +175,48 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
           disabled={callActive}
           title={callActive ? 'Already on a call' : `Call ${friend.username}`}
         >
-          📞
+          <PhoneIcon size={16} />
         </button>
         <div className="dropdown-wrap chat-settings-wrap">
-          <span className="gear-icon" onClick={() => setShowSettings((v) => !v)} title={t('chatSettings')}>⚙</span>
+          <span
+            className="gear-icon"
+            onClick={() => { setShowSettings((v) => !v); setShowDeletePanel(false); }}
+            title={t('chatSettings')}
+          >⚙</span>
           {showSettings && (
-            <div className="dropdown-menu right" onMouseLeave={() => setShowSettings(false)}>
-              <div
-                className="dropdown-item danger"
-                onClick={() => {
-                  setShowSettings(false);
-                  onRemoveFriend(friend.id);
-                }}
-              >
-                {t('removeFriend')}
-              </div>
+            <div className="dropdown-menu right" onMouseLeave={() => { setShowSettings(false); setShowDeletePanel(false); }}>
+              {!showDeletePanel ? (
+                <>
+                  <div
+                    className="dropdown-item danger"
+                    onClick={() => {
+                      setShowSettings(false);
+                      onRemoveFriend(friend.id);
+                    }}
+                  >
+                    {t('removeFriend')}
+                  </div>
+                  <div className="dropdown-item danger" onClick={() => setShowDeletePanel(true)}>
+                    Delete Chat
+                  </div>
+                </>
+              ) : (
+                <div className="delete-chat-panel">
+                  <div className="delete-chat-panel-text">
+                    Both people must agree to permanently delete every message in this chat.
+                  </div>
+                  <div className="delete-chat-panel-status">
+                    You: {deleteVotes.myVote ? '✅ Yes' : '⬜ No vote'}<br />
+                    {friend.username}: {deleteVotes.otherVote ? '✅ Yes' : '⬜ No vote'}
+                  </div>
+                  {deleteVotes.myVote ? (
+                    <button className="secondary" onClick={() => castDeleteVote(false)}>Cancel my vote</button>
+                  ) : (
+                    <button className="danger-btn" onClick={() => castDeleteVote(true)}>Vote to delete</button>
+                  )}
+                  <div className="dropdown-item" onClick={() => setShowDeletePanel(false)}>‹ Back</div>
+                </div>
+              )}
             </div>
           )}
         </div>

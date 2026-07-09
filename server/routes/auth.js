@@ -1,14 +1,9 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import multer from 'multer';
 import { db } from '../db.js';
 import { signToken, requireAuth } from '../auth.js';
 import { emitProfileChanged } from '../events.js';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const uploadsDir = path.join(__dirname, '..', 'uploads');
 
 const router = Router();
 
@@ -17,16 +12,15 @@ function randomColor() {
   return COLORS[Math.floor(Math.random() * COLORS.length)];
 }
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, uploadsDir),
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase() || '.png';
-    cb(null, `avatar-${req.user.id}-${Date.now()}${ext}`);
-  },
-});
-
+// Avatars are kept in memory (not written to disk) and stored as a base64
+// data URI directly in the users.avatar_url column. Render's free tier has
+// no persistent disk, so anything written to server/uploads/ disappears on
+// every redeploy -- storing the bytes in the database (which lives in
+// Turso, not on Render's disk) is what actually survives a redeploy. The
+// client already crops avatars down to a small 256x256 PNG before
+// uploading, so these stay small.
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     if (!file.mimetype.startsWith('image/')) return cb(new Error('Only image files are allowed'));
@@ -93,7 +87,7 @@ router.get('/me', requireAuth, asyncHandler(async (req, res) => {
 
 router.post('/avatar', requireAuth, upload.single('avatar'), asyncHandler(async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-  const avatarUrl = `/uploads/${req.file.filename}`;
+  const avatarUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
   await db.prepare('UPDATE users SET avatar_url = ? WHERE id = ?').run(avatarUrl, req.user.id);
   emitProfileChanged(req.user.id);
   res.json({ avatarUrl });

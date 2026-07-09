@@ -33,6 +33,7 @@ export const api = {
   removeFriend: (token, friendId) => request('/friends/remove', { method: 'POST', body: { friendId }, token }),
 
   listMessages: (token, threadId) => request(`/threads/${threadId}/messages`, { token }),
+  getDeleteVotes: (token, threadId) => request(`/threads/${threadId}/delete-votes`, { token }),
   uploadAttachment: (token, threadId, file) => {
     const form = new FormData();
     form.append('image', file);
@@ -42,7 +43,11 @@ export const api = {
 
 export function resolveAvatarUrl(url) {
   if (!url) return null;
-  return url.startsWith('http') ? url : `${API_BASE}${url}`;
+  // Avatars are stored as base64 data URIs (so they survive redeploys on
+  // hosts with no persistent disk); message/attachment images still come
+  // back as relative /uploads/... paths served by the API.
+  if (url.startsWith('http') || url.startsWith('data:')) return url;
+  return `${API_BASE}${url}`;
 }
 
 export const API_BASE_URL = API_BASE;

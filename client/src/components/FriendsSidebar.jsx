@@ -1,8 +1,9 @@
 import { useRef, useState } from 'react';
 import Avatar from './Avatar.jsx';
 import ProfileCard from './ProfileCard.jsx';
+import AvatarCropper from './AvatarCropper.jsx';
 
-export default function FriendsSidebar({ friends, activeFriendId, onSelect, currentUser, onLogout, onChangeAvatar, onSetStatus, onSetBio }) {
+export default function FriendsSidebar({ friends, activeFriendId, onSelect, currentUser, onLogout, onChangeAvatar, onSetStatus, onSetBio, onOpenChatSettings }) {
   const fileInputRef = useRef(null);
   const [uploading, setUploading] = useState(false);
   const [editingStatus, setEditingStatus] = useState(false);
@@ -10,25 +11,22 @@ export default function FriendsSidebar({ friends, activeFriendId, onSelect, curr
   const [showProfileCard, setShowProfileCard] = useState(false);
   const [viewingFriend, setViewingFriend] = useState(null);
   const [showEditProfile, setShowEditProfile] = useState(false);
-  const [avatarSize, setAvatarSize] = useState(() => {
-    const saved = Number(localStorage.getItem('mk-avatar-size'));
-    return saved >= 40 && saved <= 120 ? saved : 44;
-  });
+  const [croppingFile, setCroppingFile] = useState(null);
 
-  function handleAvatarSizeChange(size) {
-    setAvatarSize(size);
-    localStorage.setItem('mk-avatar-size', String(size));
-  }
-
-  async function handleFileChange(e) {
+  function handleFileChange(e) {
     const file = e.target.files?.[0];
     if (!file) return;
+    setCroppingFile(file);
+    e.target.value = '';
+  }
+
+  async function handleCropConfirm(blob) {
+    setCroppingFile(null);
     setUploading(true);
     try {
-      await onChangeAvatar(file);
+      await onChangeAvatar(new File([blob], 'avatar.png', { type: 'image/png' }));
     } finally {
       setUploading(false);
-      e.target.value = '';
     }
   }
 
@@ -48,7 +46,7 @@ export default function FriendsSidebar({ friends, activeFriendId, onSelect, curr
             onClick={() => setShowEditProfile(true)}
             title="Edit profile"
           >
-            <Avatar username={currentUser.username} avatarColor={currentUser.avatarColor} avatarUrl={currentUser.avatarUrl} size={avatarSize} />
+            <Avatar username={currentUser.username} avatarColor={currentUser.avatarColor} avatarUrl={currentUser.avatarUrl} size={44} />
             <div className="pfp-overlay">✎</div>
           </div>
           <input
@@ -131,6 +129,11 @@ export default function FriendsSidebar({ friends, activeFriendId, onSelect, curr
           user={viewingFriend}
           isOwn={false}
           onClose={() => setViewingFriend(null)}
+          onOpenChatSettings={() => {
+            const friend = viewingFriend;
+            setViewingFriend(null);
+            onOpenChatSettings(friend);
+          }}
         />
       )}
 
@@ -151,21 +154,10 @@ export default function FriendsSidebar({ friends, activeFriendId, onSelect, curr
                     username={currentUser.username}
                     avatarColor={currentUser.avatarColor}
                     avatarUrl={currentUser.avatarUrl}
-                    size={avatarSize}
+                    size={72}
                   />
                   <div className="pfp-overlay">{uploading ? '…' : '✎'}</div>
                 </div>
-              </div>
-              <div className="avatar-size-row">
-                <span className="avatar-size-label">Size</span>
-                <input
-                  type="range"
-                  min="40"
-                  max="120"
-                  value={avatarSize}
-                  onChange={(e) => handleAvatarSizeChange(Number(e.target.value))}
-                />
-                <span className="avatar-size-value">{avatarSize}px</span>
               </div>
             </div>
 
@@ -187,6 +179,14 @@ export default function FriendsSidebar({ friends, activeFriendId, onSelect, curr
             </div>
           </div>
         </div>
+      )}
+
+      {croppingFile && (
+        <AvatarCropper
+          file={croppingFile}
+          onCancel={() => setCroppingFile(null)}
+          onConfirm={handleCropConfirm}
+        />
       )}
     </div>
   );

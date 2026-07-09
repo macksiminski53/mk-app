@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import Avatar from './Avatar.jsx';
+import { PhoneIcon, PhoneHangupIcon, MicIcon, MicMutedIcon, CallCloseIcon } from './CallIcons.jsx';
 
 function formatDuration(seconds) {
   const m = Math.floor(seconds / 60);
@@ -34,8 +35,8 @@ export default function CallBar({ call, onAccept, onDecline, onCancel, onHangUp,
           <div className="call-bar-sub">Incoming call…</div>
         </div>
         <div className="call-bar-actions">
-          <button className="call-btn call-btn-decline" onClick={onDecline} title="Decline">✕</button>
-          <button className="call-btn call-btn-accept" onClick={onAccept} title="Accept">📞</button>
+          <button className="call-btn call-btn-decline" onClick={onDecline} title="Decline"><CallCloseIcon /></button>
+          <button className="call-btn call-btn-accept" onClick={onAccept} title="Accept"><PhoneIcon /></button>
         </div>
       </div>
     );
@@ -50,7 +51,7 @@ export default function CallBar({ call, onAccept, onDecline, onCancel, onHangUp,
           <div className="call-bar-sub">Calling…</div>
         </div>
         <div className="call-bar-actions">
-          <button className="call-btn call-btn-decline" onClick={onCancel} title="Cancel">✕</button>
+          <button className="call-btn call-btn-decline" onClick={onCancel} title="Cancel"><CallCloseIcon /></button>
         </div>
       </div>
     );
@@ -66,9 +67,9 @@ export default function CallBar({ call, onAccept, onDecline, onCancel, onHangUp,
       </div>
       <div className="call-bar-actions">
         <button className={`call-btn ${muted ? 'call-btn-muted-on' : 'call-btn-muted-off'}`} onClick={onToggleMute} title={muted ? 'Unmute' : 'Mute'}>
-          {muted ? '🔇' : '🎙'}
+          {muted ? <MicMutedIcon /> : <MicIcon />}
         </button>
-        <button className="call-btn call-btn-decline" onClick={onHangUp} title="Hang up">📞</button>
+        <button className="call-btn call-btn-decline" onClick={onHangUp} title="Hang up"><PhoneHangupIcon /></button>
       </div>
     </div>
   );

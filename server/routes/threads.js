@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import fs from 'fs';
 import multer from 'multer';
 import { db } from '../db.js';
 import { requireAuth } from '../auth.js';
@@ -39,14 +40,44 @@ function isAllowedAttachment(file) {
   return false;
 }
 
+// Large attachments (>50MB) are allowed but get auto-deleted after an hour
+// (see scheduleAutoDelete below); cap hard at 200MB so uploads can't grow
+// unbounded.
+const LARGE_FILE_THRESHOLD = 50 * 1024 * 1024;
+const AUTO_DELETE_MS = 60 * 60 * 1000;
+
+function scheduleAutoDelete(filePath) {
+  setTimeout(() => {
+    fs.unlink(filePath, (err) => {
+      if (err && err.code !== 'ENOENT') {
+        console.error('Failed to auto-delete expired attachment:', filePath, err);
+      }
+    });
+  }, AUTO_DELETE_MS);
+}
+
 const upload = multer({
   storage,
-  limits: { fileSize: 15 * 1024 * 1024 },
+  limits: { fileSize: 200 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     if (!isAllowedAttachment(file)) return cb(new Error('Only image or mp3 files are allowed'));
     cb(null, true);
   },
 });
+
+// Current mutual-delete-vote state for this thread, from the caller's
+// perspective (so the client doesn't need to know internal user_a/user_b
+// ordering).
+router.get('/:threadId/delete-votes', asyncHandler(async (req, res) => {
+  const { threadId } = req.params;
+  const thread = await userInThread(req.user.id, threadId);
+  if (!thread) return res.status(403).json({ error: 'No access to this conversation' });
+  const isA = thread.user_a_id === req.user.id;
+  res.json({
+    myVote: !!(isA ? thread.delete_vote_a : thread.delete_vote_b),
+    otherVote: !!(isA ? thread.delete_vote_b : thread.delete_vote_a),
+  });
+}));
 
 router.get('/:threadId/messages', asyncHandler(async (req, res) => {
   const { threadId } = req.params;
@@ -77,7 +108,10 @@ router.post('/:threadId/attachments', upload.single('image'), asyncHandler(async
     return res.status(403).json({ error: 'No access to this conversation' });
   }
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-  res.json({ imageUrl: `/uploads/${req.file.filename}` });
+  if (req.file.size > LARGE_FILE_THRESHOLD) {
+    scheduleAutoDelete(req.file.path);
+  }
+  res.json({ imageUrl: `/uploads/${req.file.filename}`, expiresInMs: req.file.size > LARGE_FILE_THRESHOLD ? AUTO_DELETE_MS : null });
 }));
 
 export default router;

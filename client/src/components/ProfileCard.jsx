@@ -27,7 +27,7 @@ function formatMemberSince(createdAt) {
 // isOwn=true renders the editable version (bio + status are click-to-edit,
 // with Edit Profile / Log Out actions). isOwn=false renders a read-only
 // popout for viewing a friend's profile, closer to Discord's user popup.
-export default function ProfileCard({ user, isOwn, onClose, onEditProfile, onLogout, onSetBio }) {
+export default function ProfileCard({ user, isOwn, onClose, onEditProfile, onLogout, onSetBio, onOpenChatSettings }) {
   const [editingBio, setEditingBio] = useState(false);
   const [bioDraft, setBioDraft] = useState(user.bio || '');
 
@@ -138,12 +138,20 @@ export default function ProfileCard({ user, isOwn, onClose, onEditProfile, onLog
               </div>
             </>
           ) : (
-            <div className="profile-card-row">
-              <span className="profile-card-row-left">
-                <span className="profile-card-row-dot" style={{ background: user.online ? '#3ba55d' : '#747f8d' }} />
-                <span>{user.online ? 'Online' : 'Offline'}</span>
-              </span>
-            </div>
+            <>
+              <div className="profile-card-row">
+                <span className="profile-card-row-left">
+                  <span className="profile-card-row-dot" style={{ background: user.online ? '#3ba55d' : '#747f8d' }} />
+                  <span>{user.online ? 'Online' : 'Offline'}</span>
+                </span>
+              </div>
+              {onOpenChatSettings && (
+                <div className="profile-card-row profile-card-row-clickable" onClick={onOpenChatSettings}>
+                  <span className="profile-card-row-left">⚙ Chat Settings</span>
+                  <span className="profile-card-row-chevron">›</span>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
