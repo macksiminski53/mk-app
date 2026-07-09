@@ -54,7 +54,7 @@ router.post('/register', asyncHandler(async (req, res) => {
 
   const user = { id: info.lastInsertRowid, username };
   const token = signToken(user);
-  res.json({ token, user: { id: user.id, username, avatarColor: color, avatarUrl: null, statusText: null } });
+  res.json({ token, user: { id: user.id, username, avatarColor: color, avatarUrl: null, statusText: null, bio: null } });
 }));
 
 router.post('/login', asyncHandler(async (req, res) => {
@@ -72,6 +72,7 @@ router.post('/login', asyncHandler(async (req, res) => {
       avatarColor: row.avatar_color,
       avatarUrl: row.avatar_url,
       statusText: row.status_text,
+      bio: row.bio,
     },
   });
 }));
@@ -85,6 +86,8 @@ router.get('/me', requireAuth, asyncHandler(async (req, res) => {
     avatarColor: row.avatar_color,
     avatarUrl: row.avatar_url,
     statusText: row.status_text,
+    bio: row.bio,
+    createdAt: row.created_at,
   });
 }));
 
@@ -104,6 +107,15 @@ router.patch('/status', requireAuth, asyncHandler(async (req, res) => {
     .run(value, req.user.id);
   emitProfileChanged(req.user.id);
   res.json({ statusText: value });
+}));
+
+router.patch('/bio', requireAuth, asyncHandler(async (req, res) => {
+  const { bio } = req.body;
+  const clean = typeof bio === 'string' ? bio.trim().slice(0, 190) : null;
+  const value = clean ? clean : null;
+  await db.prepare('UPDATE users SET bio = ? WHERE id = ?').run(value, req.user.id);
+  emitProfileChanged(req.user.id);
+  res.json({ bio: value });
 }));
 
 export default router;

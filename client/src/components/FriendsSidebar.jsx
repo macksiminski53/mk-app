@@ -2,12 +2,13 @@ import { useRef, useState } from 'react';
 import Avatar from './Avatar.jsx';
 import ProfileCard from './ProfileCard.jsx';
 
-export default function FriendsSidebar({ friends, activeFriendId, onSelect, currentUser, onLogout, onChangeAvatar, onSetStatus }) {
+export default function FriendsSidebar({ friends, activeFriendId, onSelect, currentUser, onLogout, onChangeAvatar, onSetStatus, onSetBio }) {
   const fileInputRef = useRef(null);
   const [uploading, setUploading] = useState(false);
   const [editingStatus, setEditingStatus] = useState(false);
   const [statusDraft, setStatusDraft] = useState(currentUser.statusText || '');
   const [showProfileCard, setShowProfileCard] = useState(false);
+  const [viewingFriend, setViewingFriend] = useState(null);
 
   async function handleFileChange(e) {
     const file = e.target.files?.[0];
@@ -86,7 +87,11 @@ export default function FriendsSidebar({ friends, activeFriendId, onSelect, curr
             className={`friend-row ${activeFriendId === f.id ? 'active' : ''}`}
             onClick={() => onSelect(f)}
           >
-            <div className="friend-avatar-wrap">
+            <div
+              className="friend-avatar-wrap"
+              onClick={(e) => { e.stopPropagation(); setViewingFriend(f); }}
+              title={`View ${f.username}'s profile`}
+            >
               <Avatar username={f.username} avatarColor={f.avatarColor} avatarUrl={f.avatarUrl} size={40} />
               <span className="status-dot" style={{ background: f.online ? '#3ba55d' : '#747f8d' }} />
             </div>
@@ -101,12 +106,22 @@ export default function FriendsSidebar({ friends, activeFriendId, onSelect, curr
       {showProfileCard && (
         <ProfileCard
           user={currentUser}
+          isOwn
           onClose={() => setShowProfileCard(false)}
           onLogout={onLogout}
+          onSetBio={onSetBio}
           onEditProfile={() => {
             setShowProfileCard(false);
             setEditingStatus(true);
           }}
+        />
+      )}
+
+      {viewingFriend && (
+        <ProfileCard
+          user={viewingFriend}
+          isOwn={false}
+          onClose={() => setViewingFriend(null)}
         />
       )}
     </div>

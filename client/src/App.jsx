@@ -124,6 +124,15 @@ export default function App() {
     });
   }
 
+  async function handleSetBio(bio) {
+    const res = await api.setBio(token, bio);
+    setUser((prev) => {
+      const updated = { ...prev, bio: res.bio };
+      localStorage.setItem('user', JSON.stringify(updated));
+      return updated;
+    });
+  }
+
   if (!token || !user) {
     return <AuthScreen onAuthed={handleAuthed} />;
   }
@@ -147,6 +156,7 @@ export default function App() {
           onLogout={handleLogout}
           onChangeAvatar={handleChangeAvatar}
           onSetStatus={handleSetStatus}
+          onSetBio={handleSetBio}
         />
         <ChatArea
           token={token}

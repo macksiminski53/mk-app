@@ -86,6 +86,15 @@ CREATE TABLE IF NOT EXISTS messages (
 
   await client.execute('CREATE INDEX IF NOT EXISTS idx_messages_thread ON messages(thread_id)');
   await client.execute('CREATE INDEX IF NOT EXISTS idx_friend_requests_to ON friend_requests(to_id)');
+
+  // "bio" was added after the users table already existed in production, so
+  // CREATE TABLE IF NOT EXISTS above won't add it to existing databases --
+  // ALTER TABLE is needed instead. Ignore the error if it already exists.
+  try {
+    await client.execute('ALTER TABLE users ADD COLUMN bio TEXT');
+  } catch (e) {
+    if (!/duplicate column/i.test(e.message || '')) throw e;
+  }
 }
 
 export default db;

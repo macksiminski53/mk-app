@@ -24,6 +24,7 @@ export const api = {
     return request('/auth/avatar', { method: 'POST', body: form, token, isForm: true });
   },
   setStatus: (token, statusText) => request('/auth/status', { method: 'PATCH', body: { statusText }, token }),
+  setBio: (token, bio) => request('/auth/bio', { method: 'PATCH', body: { bio }, token }),
 
   listFriends: (token) => request('/friends', { token }),
   listRequests: (token) => request('/friends/requests', { token }),
