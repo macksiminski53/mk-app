@@ -5,7 +5,20 @@ import TopBar from './components/TopBar.jsx';
 import ChatArea from './components/ChatArea.jsx';
 import { api } from './api.js';
 import { connectSocket, disconnectSocket, getSocket } from './socket.js';
+import { getTranslator } from './i18n.js';
 import './App.css';
+
+const DEFAULT_SETTINGS = { language: 'en', chatLayout: 'bubble' };
+
+function loadSettings() {
+  try {
+    const raw = localStorage.getItem('mk-settings');
+    if (!raw) return DEFAULT_SETTINGS;
+    return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
+  } catch {
+    return DEFAULT_SETTINGS;
+  }
+}
 
 export default function App() {
   const [token, setToken] = useState(() => localStorage.getItem('token'));
@@ -16,6 +29,17 @@ export default function App() {
   const [friends, setFriends] = useState([]);
   const [requests, setRequests] = useState([]);
   const [activeFriendId, setActiveFriendId] = useState(null);
+  const [settings, setSettings] = useState(loadSettings);
+
+  const t = getTranslator(settings.language);
+
+  const updateSettings = useCallback((patch) => {
+    setSettings((prev) => {
+      const updated = { ...prev, ...patch };
+      localStorage.setItem('mk-settings', JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
 
   const refreshFriends = useCallback(() => {
     if (!token) return;
@@ -146,6 +170,9 @@ export default function App() {
         onRefreshRequests={refreshRequests}
         onRespond={handleRespond}
         onSendRequest={handleSendFriendRequest}
+        settings={settings}
+        onUpdateSettings={updateSettings}
+        t={t}
       />
       <div className="app-shell">
         <FriendsSidebar
@@ -163,6 +190,8 @@ export default function App() {
           friend={activeFriend}
           currentUser={user}
           onRemoveFriend={handleRemoveFriend}
+          chatLayout={settings.chatLayout}
+          t={t}
         />
       </div>
     </div>

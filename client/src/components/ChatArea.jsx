@@ -13,7 +13,7 @@ function truncate(text, max = 80) {
   return text.length > max ? text.slice(0, max) + '…' : text;
 }
 
-export default function ChatArea({ token, friend, currentUser, onRemoveFriend }) {
+export default function ChatArea({ token, friend, currentUser, onRemoveFriend, chatLayout = 'bubble', t }) {
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState('');
   const [typing, setTyping] = useState(false);
@@ -26,6 +26,7 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend })
   const fileInputRef = useRef(null);
 
   const threadId = friend?.threadId;
+  const isBubble = chatLayout === 'bubble';
 
   useEffect(() => {
     if (!threadId) return;
@@ -113,18 +114,18 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend })
   }
 
   if (!friend) {
-    return <div className="chat-area empty">Select a friend to start chatting.</div>;
+    return <div className="chat-area empty">{t('selectFriend')}</div>;
   }
 
   return (
-    <div className="chat-area">
+    <div className={`chat-area layout-${isBubble ? 'bubble' : 'flat'}`}>
       <div className="chat-header">
         <span className="chat-header-name">{friend.username}</span>
         <span className={`chat-header-status ${friend.online ? 'online' : ''}`}>
-          {friend.online ? 'Online' : 'Offline'}
+          {friend.online ? t('online') : t('offline')}
         </span>
         <div className="dropdown-wrap chat-settings-wrap">
-          <span className="gear-icon" onClick={() => setShowSettings((v) => !v)} title="Chat settings">⚙</span>
+          <span className="gear-icon" onClick={() => setShowSettings((v) => !v)} title={t('chatSettings')}>⚙</span>
           {showSettings && (
             <div className="dropdown-menu right" onMouseLeave={() => setShowSettings(false)}>
               <div
@@ -134,7 +135,7 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend })
                   onRemoveFriend(friend.id);
                 }}
               >
-                Remove Friend
+                {t('removeFriend')}
               </div>
             </div>
           )}
@@ -142,51 +143,62 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend })
       </div>
 
       <div className="message-list">
-        {messages.map((m) => (
-          <div key={m.id} className="message-row">
-            <Avatar username={m.username} avatarColor={m.avatarColor} avatarUrl={m.avatarUrl} size={40} />
-            <div className="message-body">
-              <div className="message-header">
-                <span className="message-author">{m.username}</span>
-                <span className="message-time">{formatTime(m.createdAt)}</span>
+        {messages.map((m) => {
+          const isOwn = m.username === currentUser.username;
+          return (
+            <div key={m.id} className={`message-row ${isOwn ? 'own' : 'friend'}`}>
+              {(!isBubble || !isOwn) && (
+                <Avatar username={m.username} avatarColor={m.avatarColor} avatarUrl={m.avatarUrl} size={isBubble ? 32 : 40} />
+              )}
+              <div className="message-body">
+                {(!isBubble || !isOwn) && (
+                  <div className="message-header">
+                    <span className="message-author">{m.username}</span>
+                    <span className="message-time">{formatTime(m.createdAt)}</span>
+                  </div>
+                )}
+
+                {m.replyToId && (
+                  <div className="reply-reference">
+                    ↩ <span className="reply-author">@{m.replyToUsername || 'unknown'}</span>{' '}
+                    {truncate(m.replyToContent, 60)}
+                  </div>
+                )}
+
+                {m.content && <div className="message-content">{m.content}</div>}
+                {m.imageUrl && (
+                  <img
+                    className="message-image"
+                    src={resolveAvatarUrl(m.imageUrl)}
+                    alt="attachment"
+                  />
+                )}
+
+                {isBubble && isOwn && (
+                  <span className="message-time bubble-time">{formatTime(m.createdAt)}</span>
+                )}
+
+                <button
+                  className="reply-btn"
+                  onClick={() => setReplyTo({ id: m.id, username: m.username, content: m.content })}
+                  title={t('reply')}
+                >
+                  ↩ {t('reply')}
+                </button>
               </div>
-
-              {m.replyToId && (
-                <div className="reply-reference">
-                  ↩ <span className="reply-author">@{m.replyToUsername || 'unknown'}</span>{' '}
-                  {truncate(m.replyToContent, 60)}
-                </div>
-              )}
-
-              {m.content && <div className="message-content">{m.content}</div>}
-              {m.imageUrl && (
-                <img
-                  className="message-image"
-                  src={resolveAvatarUrl(m.imageUrl)}
-                  alt="attachment"
-                />
-              )}
-
-              <button
-                className="reply-btn"
-                onClick={() => setReplyTo({ id: m.id, username: m.username, content: m.content })}
-                title="Reply"
-              >
-                ↩ Reply
-              </button>
             </div>
-          </div>
-        ))}
+          );
+        })}
         <div ref={bottomRef} />
       </div>
 
       <div className="typing-indicator">
-        {typing && `${friend.username} is typing…`}
+        {typing && t('isTyping', friend.username)}
       </div>
 
       {replyTo && (
         <div className="reply-banner">
-          Replying to <strong>@{replyTo.username}</strong>: {truncate(replyTo.content, 60)}
+          {t('replyingTo')} <strong>@{replyTo.username}</strong>: {truncate(replyTo.content, 60)}
           <span className="reply-cancel" onClick={() => setReplyTo(null)}>✕</span>
         </div>
       )}
@@ -203,7 +215,7 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend })
           type="button"
           className="attach-btn"
           onClick={() => fileInputRef.current?.click()}
-          title="Attach an image"
+          title={t('attachImage')}
         >
           📎
         </button>
@@ -217,9 +229,9 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend })
         <input
           value={draft}
           onChange={handleChange}
-          placeholder={`Message ${friend.username}`}
+          placeholder={t('messagePlaceholder', friend.username)}
         />
-        <button type="submit" disabled={uploading}>{uploading ? 'Sending…' : 'Send'}</button>
+        <button type="submit" disabled={uploading}>{uploading ? t('sending') : t('send')}</button>
       </form>
     </div>
   );

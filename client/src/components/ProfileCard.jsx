@@ -54,7 +54,11 @@ export default function ProfileCard({ user, isOwn, onClose, onEditProfile, onLog
           </div>
 
           <div className="profile-card-name">{user.username}</div>
-          <div className="profile-card-sub">MK Member</div>
+          <div className="profile-card-sub">
+            <span>{user.username.toLowerCase()}</span>
+            <span className="profile-card-sub-dot">•</span>
+            <span className="profile-card-sub-badge">MK</span>
+          </div>
 
           <div className="profile-card-divider" />
 
@@ -100,6 +104,9 @@ export default function ProfileCard({ user, isOwn, onClose, onEditProfile, onLog
                     <div className="profile-card-playing-title">{playing.title}</div>
                     {playing.artist && <div className="profile-card-playing-artist">{playing.artist}</div>}
                   </div>
+                  <div className="profile-card-eq" aria-hidden="true">
+                    <span /><span /><span /><span />
+                  </div>
                 </div>
               </div>
             ) : isOwn ? (
@@ -120,17 +127,22 @@ export default function ProfileCard({ user, isOwn, onClose, onEditProfile, onLog
             <>
               <button className="profile-card-edit-btn" onClick={onEditProfile}>✎ Edit Status</button>
               <div className="profile-card-row">
-                <span className="profile-card-row-dot" />
-                <span>Online</span>
+                <span className="profile-card-row-left">
+                  <span className="profile-card-row-dot" />
+                  <span>Online</span>
+                </span>
               </div>
               <div className="profile-card-row profile-card-row-clickable" onClick={onLogout}>
-                <span>⏻ Log Out</span>
+                <span className="profile-card-row-left">⏻ Log Out</span>
+                <span className="profile-card-row-chevron">›</span>
               </div>
             </>
           ) : (
             <div className="profile-card-row">
-              <span className="profile-card-row-dot" style={{ background: user.online ? '#3ba55d' : '#747f8d' }} />
-              <span>{user.online ? 'Online' : 'Offline'}</span>
+              <span className="profile-card-row-left">
+                <span className="profile-card-row-dot" style={{ background: user.online ? '#3ba55d' : '#747f8d' }} />
+                <span>{user.online ? 'Online' : 'Offline'}</span>
+              </span>
             </div>
           )}
         </div>
