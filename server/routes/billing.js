@@ -1,5 +1,4 @@
 import { Router } from 'express';
-import Stripe from 'stripe';
 import { db } from '../db.js';
 import { requireAuth } from '../auth.js';
 import { emitProfileChanged } from '../events.js';
@@ -18,12 +17,22 @@ const stripeSecret = process.env.STRIPE_SECRET_KEY;
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 const paymentLink = process.env.STRIPE_PAYMENT_LINK;
 
-// Used for both real API calls (if stripeSecret is set) and purely-local
-// webhook signature verification (which never hits the network, so a
-// placeholder key is fine when only the payment-link path is configured).
-const stripe = new Stripe(stripeSecret || 'sk_test_unconfigured_placeholder');
-
 const checkoutConfigured = !!(paymentLink || stripeSecret);
+
+// The `stripe` package is loaded lazily (only the first time it's actually
+// needed) instead of at server boot. This keeps it from ever being able to
+// affect startup at all -- if loading/constructing it ever fails for any
+// reason, only the specific request that needed it gets a 500, instead of
+// the whole server crashing before it can even start listening.
+let stripePromise = null;
+async function getStripe() {
+  if (!stripePromise) {
+    stripePromise = import('stripe').then(({ default: Stripe }) => {
+      return new Stripe(stripeSecret || 'sk_test_unconfigured_placeholder');
+    });
+  }
+  return stripePromise;
+}
 
 function asyncHandler(fn) {
   return (req, res, next) => fn(req, res, next).catch(next);
@@ -46,6 +55,7 @@ router.post('/checkout', requireAuth, asyncHandler(async (req, res) => {
 
   if (!stripeSecret) return res.status(503).json({ error: 'Payments are not configured yet' });
 
+  const stripe = await getStripe();
   const origin = process.env.CLIENT_ORIGIN || 'http://localhost:5173';
   const session = await stripe.checkout.sessions.create({
     mode: 'payment',
@@ -109,6 +119,7 @@ export async function handleStripeWebhook(req, res) {
   let event;
   try {
     if (webhookSecret) {
+      const stripe = await getStripe();
       event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
     } else {
       // No webhook secret configured yet -- accept unsigned events so local
@@ -123,6 +134,7 @@ export async function handleStripeWebhook(req, res) {
 
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
+    
     const userId = Number(session.client_reference_id || session.metadata?.userId);
     if (userId) {
       await db.prepare("UPDATE ultra_purchases SET status = 'completed' WHERE stripe_session_id = ?").run(session.id);
