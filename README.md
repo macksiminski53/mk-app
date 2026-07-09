@@ -4,7 +4,7 @@ A lightweight, real-time chat app in your browser: register/login, add friends b
 
 ## Stack
 
-- **Backend**: Node.js, Express, Socket.io, SQLite (via Node's built-in `node:sqlite`, requires Node 22+), JWT auth, Multer for avatar uploads.
+- **Backend**: Node.js, Express, Socket.io, SQLite-compatible database via `@libsql/client` (works with a local file for dev, or a hosted [Turso](https://turso.tech) database in production so data survives redeploys), JWT auth, Multer for avatar uploads.
 - **Frontend**: React + Vite, socket.io-client, dark red themed CSS.
 
 ## Project layout
@@ -31,7 +31,7 @@ Runs on http://localhost:4000 by default. Config via environment variables:
 - `PORT` (default 4000)
 - `JWT_SECRET` (set this to a long random string in production)
 - `CLIENT_ORIGIN` (the frontend's URL, for CORS — defaults to `*`)
-- `DB_PATH` (where the SQLite file lives — defaults to `server/data.sqlite`)
+- `TURSO_DATABASE_URL` / `TURSO_AUTH_TOKEN` — if set, the server connects to a hosted Turso database (persists across deploys). If left unset, it falls back to a local SQLite file at `server/data.sqlite` (fine for local dev, but resets on every redeploy on a host with no persistent disk — see the Turso setup section below).
 
 Uploaded profile pictures are stored in `server/uploads/` and served at `/uploads/<filename>`.
 
@@ -59,6 +59,29 @@ Builds and runs both services — backend on http://localhost:4000 (SQLite + upl
 
 The app is two independent pieces — deploy the backend as a **web service** and the frontend as a **static site**. Render and Railway are the easiest options for something this size.
 
+### Setting up Turso (persistent database — do this first)
+
+Render's free tier has no persistent disk, so a local SQLite file resets to empty on every redeploy. Turso is a free, hosted, SQLite-compatible database that fixes this — the app already talks to it via `@libsql/client`, you just need to create a database and give the server its URL/token.
+
+1. Install the Turso CLI and sign up (free tier, no credit card required): see [docs.turso.tech/quickstart](https://docs.turso.tech/quickstart) — sign up with GitHub or email.
+2. Create a database:
+   ```
+   turso db create mk-app
+   ```
+3. Get the connection URL:
+   ```
+   turso db show mk-app --url
+   ```
+   This prints something like `libsql://mk-app-yourname.turso.io` — this is your `TURSO_DATABASE_URL`.
+4. Create an auth token:
+   ```
+   turso db tokens create mk-app
+   ```
+   This is your `TURSO_AUTH_TOKEN`.
+5. On Render, open the backend web service → **Environment** → add both `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` → save (this triggers a redeploy). From then on, friends/messages/status/avatars survive every redeploy.
+
+You can also do all of the above from [turso.tech](https://turso.tech)'s web dashboard instead of the CLI if you'd rather click through a UI.
+
 ### Render
 
 1. Push this project to a GitHub repo.
@@ -66,8 +89,7 @@ The app is two independent pieces — deploy the backend as a **web service** an
    - Root directory: `server`
    - Build command: `npm install`
    - Start command: `node index.js`
-   - Environment variables: `JWT_SECRET` (random string), `CLIENT_ORIGIN` (fill in once you know the frontend URL).
-   - Add a **persistent disk** mounted at `/app/data` (and ideally another at `/app/uploads` for profile pictures), set `DB_PATH=/app/data/data.sqlite` — without a persistent disk, the SQLite file and uploaded avatars reset on every deploy/restart on the free tier.
+   - Environment variables: `JWT_SECRET` (random string), `CLIENT_ORIGIN` (fill in once you know the frontend URL), `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN` (from the Turso setup above).
 3. **Frontend** — New "Static Site":
    - Root directory: `client`
    - Build command: `npm run build`
@@ -76,13 +98,15 @@ The app is two independent pieces — deploy the backend as a **web service** an
 4. Go back to the backend service, set `CLIENT_ORIGIN` to the frontend's URL, and redeploy.
 5. Send your friend the frontend's URL — that's the link that "just works" for them.
 
+Note: uploaded avatars/attachments in `server/uploads/` still live on local disk, so they'll still reset on redeploy unless you also add a Render persistent disk mounted there. Friends, messages, and status text (the things that broke most often) are now safe once Turso is wired up.
+
 ### Railway
 
-Same shape — one service from `server/` with a volume for `/app/data` and `/app/uploads`, one static/service from `client/` (build with `npm run build`, serve `dist/`). Railway's volumes make persistence simpler than Render's free tier.
+Same shape — one service from `server/` (with the same `TURSO_DATABASE_URL`/`TURSO_AUTH_TOKEN` env vars), one static/service from `client/` (build with `npm run build`, serve `dist/`).
 
-### A note on SQLite in production
+### A note on the database layer
 
-SQLite works well for a small app but only if the file persists on disk and only one server instance writes to it. If you outgrow that, swap `server/db.js` for a hosted Postgres database — the rest of the app doesn't need to change much since all queries live in `db.js` and the route files.
+All database access lives in `server/db.js` via a small `db.prepare(sql).run/get/all(...)` wrapper around `@libsql/client`. Locally (no `TURSO_DATABASE_URL` set) it just points at a local SQLite file; in production it points at your hosted Turso database. If you ever outgrow SQLite/Turso entirely, this is the one file you'd swap out.
 
 ## Features
 

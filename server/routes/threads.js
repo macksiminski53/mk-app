@@ -11,7 +11,11 @@ const uploadsDir = path.join(__dirname, '..', 'uploads');
 const router = Router();
 router.use(requireAuth);
 
-function userInThread(userId, threadId) {
+function asyncHandler(fn) {
+  return (req, res, next) => fn(req, res, next).catch(next);
+}
+
+async function userInThread(userId, threadId) {
   return db.prepare(
     'SELECT * FROM dm_threads WHERE id = ? AND (user_a_id = ? OR user_b_id = ?)'
   ).get(threadId, userId, userId);
@@ -34,13 +38,13 @@ const upload = multer({
   },
 });
 
-router.get('/:threadId/messages', (req, res) => {
+router.get('/:threadId/messages', asyncHandler(async (req, res) => {
   const { threadId } = req.params;
-  if (!userInThread(req.user.id, threadId)) {
+  if (!(await userInThread(req.user.id, threadId))) {
     return res.status(403).json({ error: 'No access to this conversation' });
   }
   const limit = Math.min(parseInt(req.query.limit) || 50, 200);
-  const rows = db.prepare(`
+  const rows = await db.prepare(`
     SELECT msg.id, msg.content, msg.image_url as imageUrl, msg.created_at as createdAt,
            u.id as userId, u.username, u.avatar_color as avatarColor, u.avatar_url as avatarUrl,
            msg.reply_to_id as replyToId,
@@ -54,16 +58,16 @@ router.get('/:threadId/messages', (req, res) => {
     LIMIT ?
   `).all(threadId, limit);
   res.json(rows.reverse());
-});
+}));
 
 // upload an image to attach to a message you're about to send
-router.post('/:threadId/attachments', upload.single('image'), (req, res) => {
+router.post('/:threadId/attachments', upload.single('image'), asyncHandler(async (req, res) => {
   const { threadId } = req.params;
-  if (!userInThread(req.user.id, threadId)) {
+  if (!(await userInThread(req.user.id, threadId))) {
     return res.status(403).json({ error: 'No access to this conversation' });
   }
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
   res.json({ imageUrl: `/uploads/${req.file.filename}` });
-});
+}));
 
 export default router;

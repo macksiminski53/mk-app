@@ -6,7 +6,7 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { Server } from 'socket.io';
-import { db } from './db.js';
+import { db, initSchema } from './db.js';
 import { verifySocketToken, requireAuth } from './auth.js';
 import { markOnline, markOffline } from './presence.js';
 import { events } from './events.js';
@@ -41,22 +41,23 @@ io.use((socket, next) => {
   next();
 });
 
-function userInThread(userId, threadId) {
+async function userInThread(userId, threadId) {
   return db.prepare(
     'SELECT * FROM dm_threads WHERE id = ? AND (user_a_id = ? OR user_b_id = ?)'
   ).get(threadId, userId, userId);
 }
 
-function friendIdsOf(userId) {
-  const rows = db.prepare(`
+async function friendIdsOf(userId) {
+  const rows = await db.prepare(`
     SELECT from_id, to_id FROM friend_requests
     WHERE status = 'accepted' AND (from_id = ? OR to_id = ?)
   `).all(userId, userId);
   return rows.map((r) => (r.from_id === userId ? r.to_id : r.from_id));
 }
 
-function broadcastPresence(userId, online) {
-  for (const friendId of friendIdsOf(userId)) {
+async function broadcastPresence(userId, online) {
+  const friendIds = await friendIdsOf(userId);
+  for (const friendId of friendIds) {
     io.to(`user:${friendId}`).emit('presence:update', { userId, online });
   }
 }
@@ -65,14 +66,15 @@ function broadcastPresence(userId, online) {
 // regardless of whether the caller was the browser UI or an external tool
 // like the music reporter. Notify the user's own other sessions (so their
 // own open tabs refresh) and all their friends.
-events.on('user:profile-changed', ({ userId }) => {
+events.on('user:profile-changed', async ({ userId }) => {
   io.to(`user:${userId}`).emit('profile:changed', { userId, self: true });
-  for (const friendId of friendIdsOf(userId)) {
+  const friendIds = await friendIdsOf(userId);
+  for (const friendId of friendIds) {
     io.to(`user:${friendId}`).emit('profile:changed', { userId, self: false });
   }
 });
 
-function loadMessageRow(id) {
+async function loadMessageRow(id) {
   return db.prepare(`
     SELECT msg.id, msg.content, msg.image_url as imageUrl, msg.created_at as createdAt,
            u.id as userId, u.username, u.avatar_color as avatarColor, u.avatar_url as avatarUrl,
@@ -90,35 +92,44 @@ io.on('connection', (socket) => {
   const userId = socket.user.id;
   socket.join(`user:${userId}`);
   markOnline(userId);
-  broadcastPresence(userId, true);
+  broadcastPresence(userId, true).catch((err) => console.error('broadcastPresence error', err));
 
-  socket.on('thread:join', (threadId) => {
-    if (userInThread(userId, threadId)) socket.join(`thread:${threadId}`);
+  socket.on('thread:join', async (threadId) => {
+    try {
+      if (await userInThread(userId, threadId)) socket.join(`thread:${threadId}`);
+    } catch (err) {
+      console.error('thread:join error', err);
+    }
   });
 
   socket.on('thread:leave', (threadId) => {
     socket.leave(`thread:${threadId}`);
   });
 
-  socket.on('message:send', ({ threadId, content, replyToId, imageUrl }, ack) => {
-    const trimmed = (content || '').trim();
-    if (!trimmed && !imageUrl) return ack?.({ error: 'Empty message' });
-    if (!userInThread(userId, threadId)) return ack?.({ error: 'No access' });
+  socket.on('message:send', async ({ threadId, content, replyToId, imageUrl }, ack) => {
+    try {
+      const trimmed = (content || '').trim();
+      if (!trimmed && !imageUrl) return ack?.({ error: 'Empty message' });
+      if (!(await userInThread(userId, threadId))) return ack?.({ error: 'No access' });
 
-    let validReplyToId = null;
-    if (replyToId) {
-      const replyRow = db.prepare('SELECT id FROM messages WHERE id = ? AND thread_id = ?').get(replyToId, threadId);
-      if (replyRow) validReplyToId = replyRow.id;
+      let validReplyToId = null;
+      if (replyToId) {
+        const replyRow = await db.prepare('SELECT id FROM messages WHERE id = ? AND thread_id = ?').get(replyToId, threadId);
+        if (replyRow) validReplyToId = replyRow.id;
+      }
+
+      const info = await db.prepare(
+        'INSERT INTO messages (thread_id, user_id, content, reply_to_id, image_url) VALUES (?, ?, ?, ?, ?)'
+      ).run(threadId, userId, trimmed, validReplyToId, imageUrl || null);
+
+      const row = await loadMessageRow(info.lastInsertRowid);
+
+      io.to(`thread:${threadId}`).emit('message:new', { threadId: Number(threadId), message: row });
+      ack?.({ ok: true, message: row });
+    } catch (err) {
+      console.error('message:send error', err);
+      ack?.({ error: 'Server error' });
     }
-
-    const info = db.prepare(
-      'INSERT INTO messages (thread_id, user_id, content, reply_to_id, image_url) VALUES (?, ?, ?, ?, ?)'
-    ).run(threadId, userId, trimmed, validReplyToId, imageUrl || null);
-
-    const row = loadMessageRow(info.lastInsertRowid);
-
-    io.to(`thread:${threadId}`).emit('message:new', { threadId: Number(threadId), message: row });
-    ack?.({ ok: true, message: row });
   });
 
   socket.on('typing', ({ threadId, username, isTyping }) => {
@@ -132,10 +143,18 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => {
     markOffline(userId);
     setTimeout(() => {
-      broadcastPresence(userId, false);
+      broadcastPresence(userId, false).catch((err) => console.error('broadcastPresence error', err));
     }, 300);
   });
 });
 
 const PORT = process.env.PORT || 4000;
-server.listen(PORT, () => console.log(`Server listening on port ${PORT}`));
+
+initSchema()
+  .then(() => {
+    server.listen(PORT, () => console.log(`Server listening on port ${PORT}`));
+  })
+  .catch((err) => {
+    console.error('Failed to initialize database schema:', err);
+    process.exit(1);
+  });

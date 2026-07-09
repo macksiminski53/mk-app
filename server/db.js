@@ -1,42 +1,48 @@
-import { DatabaseSync } from 'node:sqlite';
+import { createClient } from '@libsql/client';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const dbPath = process.env.DB_PATH || path.join(__dirname, 'data.sqlite');
-const raw = new DatabaseSync(dbPath);
 
-raw.exec('PRAGMA foreign_keys = ON');
+// If TURSO_DATABASE_URL is set, connect to hosted Turso (persists across
+// deploys). Otherwise fall back to a local SQLite file for local dev.
+const url = process.env.TURSO_DATABASE_URL || `file:${path.join(__dirname, 'data.sqlite')}`;
+const authToken = process.env.TURSO_AUTH_TOKEN;
 
+const client = createClient(authToken ? { url, authToken } : { url });
+
+// Thin async wrapper matching the shape our route files already use
+// (db.prepare(sql).run/get/all(...params)), but every call now returns a
+// Promise since a networked database can't be queried synchronously.
 export const db = {
-  exec: (sql) => raw.exec(sql),
-  prepare: (sql) => {
-    const stmt = raw.prepare(sql);
-    return {
-      run: (...params) => {
-        const info = stmt.run(...params);
-        return { lastInsertRowid: info.lastInsertRowid, changes: info.changes };
-      },
-      get: (...params) => stmt.get(...params),
-      all: (...params) => stmt.all(...params),
-    };
+  exec: async (sql) => {
+    await client.execute(sql);
   },
+  prepare: (sql) => ({
+    run: async (...params) => {
+      const result = await client.execute({ sql, args: params });
+      return {
+        lastInsertRowid: result.lastInsertRowid !== undefined ? Number(result.lastInsertRowid) : undefined,
+        changes: result.rowsAffected,
+      };
+    },
+    get: async (...params) => {
+      const result = await client.execute({ sql, args: params });
+      return result.rows[0];
+    },
+    all: async (...params) => {
+      const result = await client.execute({ sql, args: params });
+      return result.rows;
+    },
+  }),
+  // Not currently used for a multi-statement atomic operation, kept simple.
   transaction: (fn) => {
-    return (...args) => {
-      raw.exec('BEGIN');
-      try {
-        const result = fn(...args);
-        raw.exec('COMMIT');
-        return result;
-      } catch (e) {
-        raw.exec('ROLLBACK');
-        throw e;
-      }
-    };
+    return async (...args) => fn(...args);
   },
 };
 
-db.exec(`
+export async function initSchema() {
+  await client.execute(`
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   username TEXT UNIQUE NOT NULL,
@@ -46,8 +52,9 @@ CREATE TABLE IF NOT EXISTS users (
   status_text TEXT,
   status_updated_at TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
+)`);
 
+  await client.execute(`
 CREATE TABLE IF NOT EXISTS friend_requests (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   from_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -55,16 +62,18 @@ CREATE TABLE IF NOT EXISTS friend_requests (
   status TEXT NOT NULL DEFAULT 'pending',
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   UNIQUE(from_id, to_id)
-);
+)`);
 
+  await client.execute(`
 CREATE TABLE IF NOT EXISTS dm_threads (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_a_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   user_b_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   UNIQUE(user_a_id, user_b_id)
-);
+)`);
 
+  await client.execute(`
 CREATE TABLE IF NOT EXISTS messages (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   thread_id INTEGER NOT NULL REFERENCES dm_threads(id) ON DELETE CASCADE,
@@ -73,10 +82,10 @@ CREATE TABLE IF NOT EXISTS messages (
   reply_to_id INTEGER REFERENCES messages(id) ON DELETE SET NULL,
   image_url TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
+)`);
 
-CREATE INDEX IF NOT EXISTS idx_messages_thread ON messages(thread_id);
-CREATE INDEX IF NOT EXISTS idx_friend_requests_to ON friend_requests(to_id);
-`);
+  await client.execute('CREATE INDEX IF NOT EXISTS idx_messages_thread ON messages(thread_id)');
+  await client.execute('CREATE INDEX IF NOT EXISTS idx_friend_requests_to ON friend_requests(to_id)');
+}
 
 export default db;

@@ -34,28 +34,32 @@ const upload = multer({
   },
 });
 
-router.post('/register', async (req, res) => {
+function asyncHandler(fn) {
+  return (req, res, next) => fn(req, res, next).catch(next);
+}
+
+router.post('/register', asyncHandler(async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password || username.length < 3 || password.length < 6) {
     return res.status(400).json({ error: 'Username min 3 chars, password min 6 chars' });
   }
-  const existing = db.prepare('SELECT id FROM users WHERE username = ?').get(username);
+  const existing = await db.prepare('SELECT id FROM users WHERE username = ?').get(username);
   if (existing) return res.status(409).json({ error: 'Username taken' });
 
   const hash = await bcrypt.hash(password, 10);
   const color = randomColor();
-  const info = db.prepare(
+  const info = await db.prepare(
     'INSERT INTO users (username, password_hash, avatar_color) VALUES (?, ?, ?)'
   ).run(username, hash, color);
 
   const user = { id: info.lastInsertRowid, username };
   const token = signToken(user);
   res.json({ token, user: { id: user.id, username, avatarColor: color, avatarUrl: null, statusText: null } });
-});
+}));
 
-router.post('/login', async (req, res) => {
+router.post('/login', asyncHandler(async (req, res) => {
   const { username, password } = req.body;
-  const row = db.prepare('SELECT * FROM users WHERE username = ?').get(username);
+  const row = await db.prepare('SELECT * FROM users WHERE username = ?').get(username);
   if (!row) return res.status(401).json({ error: 'Invalid credentials' });
   const ok = await bcrypt.compare(password, row.password_hash);
   if (!ok) return res.status(401).json({ error: 'Invalid credentials' });
@@ -70,10 +74,10 @@ router.post('/login', async (req, res) => {
       statusText: row.status_text,
     },
   });
-});
+}));
 
-router.get('/me', requireAuth, (req, res) => {
-  const row = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
+router.get('/me', requireAuth, asyncHandler(async (req, res) => {
+  const row = await db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
   if (!row) return res.status(404).json({ error: 'User not found' });
   res.json({
     id: row.id,
@@ -82,24 +86,24 @@ router.get('/me', requireAuth, (req, res) => {
     avatarUrl: row.avatar_url,
     statusText: row.status_text,
   });
-});
+}));
 
-router.post('/avatar', requireAuth, upload.single('avatar'), (req, res) => {
+router.post('/avatar', requireAuth, upload.single('avatar'), asyncHandler(async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
   const avatarUrl = `/uploads/${req.file.filename}`;
-  db.prepare('UPDATE users SET avatar_url = ? WHERE id = ?').run(avatarUrl, req.user.id);
+  await db.prepare('UPDATE users SET avatar_url = ? WHERE id = ?').run(avatarUrl, req.user.id);
   emitProfileChanged(req.user.id);
   res.json({ avatarUrl });
-});
+}));
 
-router.patch('/status', requireAuth, (req, res) => {
+router.patch('/status', requireAuth, asyncHandler(async (req, res) => {
   const { statusText } = req.body;
   const clean = typeof statusText === 'string' ? statusText.trim().slice(0, 120) : null;
   const value = clean ? clean : null;
-  db.prepare("UPDATE users SET status_text = ?, status_updated_at = datetime('now') WHERE id = ?")
+  await db.prepare("UPDATE users SET status_text = ?, status_updated_at = datetime('now') WHERE id = ?")
     .run(value, req.user.id);
   emitProfileChanged(req.user.id);
   res.json({ statusText: value });
-});
+}));
 
 export default router;
