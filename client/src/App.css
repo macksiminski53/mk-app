@@ -394,6 +394,58 @@ body {
   border-radius: 8px;
   margin-top: 6px;
   border: 1px solid #404249;
+  cursor: zoom-in;
+  transition: opacity 0.1s;
+}
+
+.message-image:hover { opacity: 0.9; }
+
+.message-audio {
+  display: block;
+  margin-top: 6px;
+  max-width: 320px;
+  height: 36px;
+}
+
+/* --- Fullscreen image lightbox (click a chat image to zoom) --- */
+.image-lightbox {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.85);
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: zoom-out;
+}
+
+.image-lightbox img {
+  max-width: 90vw;
+  max-height: 90vh;
+  border-radius: 8px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.6);
+}
+
+.image-lightbox-close {
+  position: fixed;
+  top: 20px;
+  right: 24px;
+  background: rgba(0,0,0,0.5);
+  border: none;
+  color: white;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.image-lightbox-close:hover { background: rgba(0,0,0,0.8); }
+
+.pending-audio-label {
+  font-size: 13px;
+  color: #f2f3f5;
+  padding: 4px 0;
 }
 
 .reply-reference {

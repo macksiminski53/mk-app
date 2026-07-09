@@ -29,11 +29,21 @@ const storage = multer.diskStorage({
   },
 });
 
+// Attachments can be an image (rendered inline) or an mp3 (rendered as an
+// audio player) -- same upload endpoint and same `image_url` DB column for
+// either; the client tells them apart by file extension when rendering.
+function isAllowedAttachment(file) {
+  if (file.mimetype.startsWith('image/')) return true;
+  if (file.mimetype === 'audio/mpeg' || file.mimetype === 'audio/mp3') return true;
+  if (/\.mp3$/i.test(file.originalname)) return true;
+  return false;
+}
+
 const upload = multer({
   storage,
-  limits: { fileSize: 8 * 1024 * 1024 },
+  limits: { fileSize: 15 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    if (!file.mimetype.startsWith('image/')) return cb(new Error('Only image files are allowed'));
+    if (!isAllowedAttachment(file)) return cb(new Error('Only image or mp3 files are allowed'));
     cb(null, true);
   },
 });
@@ -60,7 +70,7 @@ router.get('/:threadId/messages', asyncHandler(async (req, res) => {
   res.json(rows.reverse());
 }));
 
-// upload an image to attach to a message you're about to send
+// upload an image or mp3 to attach to a message you're about to send
 router.post('/:threadId/attachments', upload.single('image'), asyncHandler(async (req, res) => {
   const { threadId } = req.params;
   if (!(await userInThread(req.user.id, threadId))) {

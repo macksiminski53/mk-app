@@ -13,14 +13,19 @@ function truncate(text, max = 80) {
   return text.length > max ? text.slice(0, max) + '…' : text;
 }
 
+function isAudioUrl(url) {
+  return /\.(mp3|m4a|wav|ogg)$/i.test(url || '');
+}
+
 export default function ChatArea({ token, friend, currentUser, onRemoveFriend, onStartCall, callActive, chatLayout = 'bubble', t }) {
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState('');
   const [typing, setTyping] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [replyTo, setReplyTo] = useState(null); // { id, username, content }
-  const [pendingImage, setPendingImage] = useState(null); // { file, previewUrl }
+  const [pendingImage, setPendingImage] = useState(null); // { file, previewUrl, isAudio }
   const [uploading, setUploading] = useState(false);
+  const [zoomedImage, setZoomedImage] = useState(null); // url or null
   const bottomRef = useRef(null);
   const typingTimeout = useRef(null);
   const fileInputRef = useRef(null);
@@ -78,7 +83,8 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
   async function handleFileSelect(e) {
     const file = e.target.files?.[0];
     if (!file) return;
-    setPendingImage({ file, previewUrl: URL.createObjectURL(file) });
+    const isAudio = file.type.startsWith('audio/') || /\.mp3$/i.test(file.name);
+    setPendingImage({ file, previewUrl: isAudio ? null : URL.createObjectURL(file), isAudio });
     e.target.value = '';
   }
 
@@ -175,11 +181,16 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
 
                 {m.content && <div className="message-content">{m.content}</div>}
                 {m.imageUrl && (
-                  <img
-                    className="message-image"
-                    src={resolveAvatarUrl(m.imageUrl)}
-                    alt="attachment"
-                  />
+                  isAudioUrl(m.imageUrl) ? (
+                    <audio className="message-audio" controls src={resolveAvatarUrl(m.imageUrl)} />
+                  ) : (
+                    <img
+                      className="message-image"
+                      src={resolveAvatarUrl(m.imageUrl)}
+                      alt="attachment"
+                      onClick={() => setZoomedImage(resolveAvatarUrl(m.imageUrl))}
+                    />
+                  )
                 )}
 
                 {isBubble && isOwn && (
@@ -213,8 +224,19 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
 
       {pendingImage && (
         <div className="pending-image-banner">
-          <img src={pendingImage.previewUrl} alt="pending attachment" />
+          {pendingImage.isAudio ? (
+            <span className="pending-audio-label">🎵 {pendingImage.file.name}</span>
+          ) : (
+            <img src={pendingImage.previewUrl} alt="pending attachment" />
+          )}
           <span className="reply-cancel" onClick={() => setPendingImage(null)}>✕</span>
+        </div>
+      )}
+
+      {zoomedImage && (
+        <div className="image-lightbox" onClick={() => setZoomedImage(null)}>
+          <img src={zoomedImage} alt="full size" />
+          <button className="image-lightbox-close" onClick={() => setZoomedImage(null)}>✕</button>
         </div>
       )}
 
@@ -230,7 +252,7 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/*"
+          accept="image/*,audio/mpeg,audio/mp3,.mp3"
           style={{ display: 'none' }}
           onChange={handleFileSelect}
         />
