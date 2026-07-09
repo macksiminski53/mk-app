@@ -1,12 +1,18 @@
 import 'dotenv/config';
 console.log(`[boot] index.js starting, node ${process.version}`);
+// IMPORTANT: when stdout/stderr is piped (always true under Docker/Render),
+// console.error() writes asynchronously -- calling process.exit() right after
+// it can kill the process before that write ever flushes, which silently
+// swallows the exact error message we need to see. process.stderr.write's
+// callback only fires once the write has actually completed, so exiting from
+// there guarantees the message makes it out first.
 process.on('uncaughtException', (err) => {
-  console.error('[boot] uncaughtException:', err && err.stack ? err.stack : err);
-  process.exit(1);
+  const msg = `[boot] uncaughtException: ${err && err.stack ? err.stack : err}\n`;
+  process.stderr.write(msg, () => process.exit(1));
 });
 process.on('unhandledRejection', (err) => {
-  console.error('[boot] unhandledRejection:', err && err.stack ? err.stack : err);
-  process.exit(1);
+  const msg = `[boot] unhandledRejection: ${err && err.stack ? err.stack : err}\n`;
+  process.stderr.write(msg, () => process.exit(1));
 });
 import express from 'express';
 import cors from 'cors';
@@ -285,6 +291,6 @@ initSchema()
     sweepAutoResetThreads();
   })
   .catch((err) => {
-    console.error('Failed to initialize database schema:', err);
-    process.exit(1);
+    const msg = `[boot] Failed to initialize database schema: ${err && err.stack ? err.stack : err}\n`;
+    process.stderr.write(msg, () => process.exit(1));
   });
