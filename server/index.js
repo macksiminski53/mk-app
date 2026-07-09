@@ -8,11 +8,22 @@ console.log(`[boot] entrypoint starting, node ${process.version}, pid ${process.
 // our code at all -- it's this specific Render service/instance.
 if (process.env.MINIMAL_BOOT === '1') {
   console.log('[boot] MINIMAL_BOOT=1 -- starting bare Express server only.');
+  // Heartbeat proves whether the process is alive at all in the seconds
+  // before "Application exited early" shows up -- if even this never ticks,
+  // the process is being killed (not crashing on its own), which points at
+  // something external (OOM/resource limit) rather than our code.
+  let tick = 0;
+  setInterval(() => {
+    tick += 1;
+    console.log(`[boot] heartbeat #${tick} at ${new Date().toISOString()}, uptime ${process.uptime().toFixed(1)}s`);
+  }, 500);
   const { default: express } = await import('express');
   const app = express();
   app.get('/api/health', (req, res) => res.json({ ok: true, minimal: true }));
   const PORT = process.env.PORT || 4000;
-  app.listen(PORT, () => console.log(`[boot] MINIMAL_BOOT server listening on port ${PORT}`));
+  // Explicitly bind 0.0.0.0 -- Node defaults to this when no host is given,
+  // but making it explicit rules out any ambiguity about that default.
+  app.listen(PORT, '0.0.0.0', () => console.log(`[boot] MINIMAL_BOOT server listening on 0.0.0.0:${PORT}`));
 } else {
 
 // IMPORTANT: when stdout/stderr is piped (always true under Docker/Render),
