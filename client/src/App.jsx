@@ -361,6 +361,7 @@ export default function App() {
         onSendRequest={handleSendFriendRequest}
         settings={settings}
         onUpdateSettings={updateSettings}
+        onLogout={handleLogout}
         t={t}
       />
       {call && (

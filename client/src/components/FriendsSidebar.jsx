@@ -9,6 +9,16 @@ export default function FriendsSidebar({ friends, activeFriendId, onSelect, curr
   const [statusDraft, setStatusDraft] = useState(currentUser.statusText || '');
   const [showProfileCard, setShowProfileCard] = useState(false);
   const [viewingFriend, setViewingFriend] = useState(null);
+  const [showEditProfile, setShowEditProfile] = useState(false);
+  const [avatarSize, setAvatarSize] = useState(() => {
+    const saved = Number(localStorage.getItem('mk-avatar-size'));
+    return saved >= 40 && saved <= 120 ? saved : 44;
+  });
+
+  function handleAvatarSizeChange(size) {
+    setAvatarSize(size);
+    localStorage.setItem('mk-avatar-size', String(size));
+  }
 
   async function handleFileChange(e) {
     const file = e.target.files?.[0];
@@ -35,11 +45,11 @@ export default function FriendsSidebar({ friends, activeFriendId, onSelect, curr
         <div className="activity-panel-body">
           <div
             className="pfp-change-wrap"
-            onClick={() => fileInputRef.current?.click()}
-            title="Change profile picture"
+            onClick={() => setShowEditProfile(true)}
+            title="Edit profile"
           >
-            <Avatar username={currentUser.username} avatarColor={currentUser.avatarColor} avatarUrl={currentUser.avatarUrl} size={44} />
-            <div className="pfp-overlay">{uploading ? '…' : '✎'}</div>
+            <Avatar username={currentUser.username} avatarColor={currentUser.avatarColor} avatarUrl={currentUser.avatarUrl} size={avatarSize} />
+            <div className="pfp-overlay">✎</div>
           </div>
           <input
             ref={fileInputRef}
@@ -73,7 +83,6 @@ export default function FriendsSidebar({ friends, activeFriendId, onSelect, curr
               </div>
             )}
           </div>
-          <button className="logout-btn" onClick={onLogout} title="Log out">⏻</button>
         </div>
       </div>
 
@@ -112,7 +121,7 @@ export default function FriendsSidebar({ friends, activeFriendId, onSelect, curr
           onSetBio={onSetBio}
           onEditProfile={() => {
             setShowProfileCard(false);
-            setEditingStatus(true);
+            setShowEditProfile(true);
           }}
         />
       )}
@@ -123,6 +132,61 @@ export default function FriendsSidebar({ friends, activeFriendId, onSelect, curr
           isOwn={false}
           onClose={() => setViewingFriend(null)}
         />
+      )}
+
+      {showEditProfile && (
+        <div className="modal-overlay" onClick={() => setShowEditProfile(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h2>Edit Profile</h2>
+
+            <div className="settings-section">
+              <div className="settings-label">Profile Picture</div>
+              <div className="edit-avatar-row">
+                <div
+                  className="pfp-change-wrap"
+                  onClick={() => fileInputRef.current?.click()}
+                  title="Change profile picture"
+                >
+                  <Avatar
+                    username={currentUser.username}
+                    avatarColor={currentUser.avatarColor}
+                    avatarUrl={currentUser.avatarUrl}
+                    size={avatarSize}
+                  />
+                  <div className="pfp-overlay">{uploading ? '…' : '✎'}</div>
+                </div>
+              </div>
+              <div className="avatar-size-row">
+                <span className="avatar-size-label">Size</span>
+                <input
+                  type="range"
+                  min="40"
+                  max="120"
+                  value={avatarSize}
+                  onChange={(e) => handleAvatarSizeChange(Number(e.target.value))}
+                />
+                <span className="avatar-size-value">{avatarSize}px</span>
+              </div>
+            </div>
+
+            <div className="settings-section">
+              <div className="settings-label">Status</div>
+              <form onSubmit={handleStatusSubmit} className="status-edit-form">
+                <input
+                  value={statusDraft}
+                  onChange={(e) => setStatusDraft(e.target.value)}
+                  placeholder="Song - Artist, or any status"
+                  maxLength={120}
+                />
+              </form>
+            </div>
+
+            <div className="modal-actions">
+              <button className="secondary" onClick={() => setShowEditProfile(false)}>Close</button>
+              <button onClick={async () => { await onSetStatus(statusDraft); setShowEditProfile(false); }}>Save</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

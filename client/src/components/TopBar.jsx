@@ -9,7 +9,7 @@ const CHANGELOG = [
   { version: '0.1.0', notes: 'Initial release: register/login, real-time messaging.' },
 ];
 
-export default function TopBar({ requests, onRefreshRequests, onRespond, onSendRequest, settings, onUpdateSettings, t }) {
+export default function TopBar({ requests, onRefreshRequests, onRespond, onSendRequest, settings, onUpdateSettings, onLogout, t }) {
   const [showExtra, setShowExtra] = useState(false);
   const [showLog, setShowLog] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -104,6 +104,11 @@ export default function TopBar({ requests, onRefreshRequests, onRespond, onSendR
                   <div className="layout-option-desc">{t('layoutFlatDesc')}</div>
                 </div>
               </label>
+            </div>
+
+            <div className="settings-section">
+              <div className="settings-label">Account</div>
+              <button className="settings-logout-btn" onClick={onLogout}>⏻ {t('logout') || 'Log Out'}</button>
             </div>
 
             <div className="modal-actions">

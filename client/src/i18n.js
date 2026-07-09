@@ -46,6 +46,7 @@ const STRINGS = {
     sending: 'Sending…',
     isTyping: (name) => `${name} is typing…`,
     attachImage: 'Attach an image',
+    logout: 'Log Out',
   },
   es: {
     updateLog: 'Registro de cambios',
@@ -83,6 +84,7 @@ const STRINGS = {
     sending: 'Enviando…',
     isTyping: (name) => `${name} está escribiendo…`,
     attachImage: 'Adjuntar una imagen',
+    logout: 'Cerrar sesión',
   },
   fr: {
     updateLog: 'Journal des mises à jour',
@@ -120,6 +122,7 @@ const STRINGS = {
     sending: 'Envoi…',
     isTyping: (name) => `${name} est en train d'écrire…`,
     attachImage: 'Joindre une image',
+    logout: 'Se déconnecter',
   },
   de: {
     updateLog: 'Änderungsprotokoll',
@@ -157,6 +160,7 @@ const STRINGS = {
     sending: 'Wird gesendet…',
     isTyping: (name) => `${name} schreibt gerade…`,
     attachImage: 'Bild anhängen',
+    logout: 'Abmelden',
   },
   pt: {
     updateLog: 'Registro de atualizações',
@@ -194,6 +198,7 @@ const STRINGS = {
     sending: 'Enviando…',
     isTyping: (name) => `${name} está digitando…`,
     attachImage: 'Anexar uma imagem',
+    logout: 'Sair',
   },
   ja: {
     updateLog: '更新履歴',
@@ -231,6 +236,7 @@ const STRINGS = {
     sending: '送信中…',
     isTyping: (name) => `${name} が入力中…`,
     attachImage: '画像を添付',
+    logout: 'ログアウト',
   },
 };
 
