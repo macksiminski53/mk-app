@@ -343,6 +343,20 @@ export default function App() {
     });
   }
 
+  // Account token is intentionally never stored in state/localStorage --
+  // it's only ever held in TopBar's own local state for as long as it's
+  // shown on screen, so it doesn't sit around in the page after Settings
+  // closes.
+  async function handleRevealToken(password) {
+    const res = await api.revealAccountToken(token, password);
+    return res.accountToken;
+  }
+
+  async function handleRegenerateToken(password) {
+    const res = await api.regenerateAccountToken(token, password);
+    return res.accountToken;
+  }
+
   function setupPeerConnection(toUserId) {
     const pc = createPeerConnection({
       onIceCandidate: (candidate) => {
@@ -442,6 +456,8 @@ export default function App() {
         onResetRingtone={handleResetRingtone}
         onBuyUltra={handleBuyUltra}
         onSetUltraColor={handleSetUltraColor}
+        onRevealToken={handleRevealToken}
+        onRegenerateToken={handleRegenerateToken}
         billingConfigured={billingConfigured}
         t={t}
       />

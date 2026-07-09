@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { LANGUAGES } from '../i18n.js';
 
 const CHANGELOG = [
+  { version: '0.10.0', notes: 'Added account tokens: a long random code in Settings you can use to log in on another device, instead of typing username/password again.' },
   { version: '0.9.0', notes: 'Added MK ULTRA: a one-time $1 upgrade for permanent chats, animated GIF profile pictures, a custom accent color, and a badge next to your name.' },
   { version: '0.8.0', notes: 'Merged friend profile and chat settings into one panel, added a 24-hour auto-reset option per chat, and switched the whole UI accent from blue to white.' },
   { version: '0.7.0', notes: 'Redesigned voice calls with a centered call screen, smoother call icons, and custom/looping ringtones you can set in Settings.' },
@@ -13,7 +14,7 @@ const CHANGELOG = [
   { version: '0.1.0', notes: 'Initial release: register/login, real-time messaging.' },
 ];
 
-export default function TopBar({ requests, onRefreshRequests, onRespond, onSendRequest, settings, onUpdateSettings, onLogout, currentUser, onUploadRingtone, onResetRingtone, onBuyUltra, onSetUltraColor, billingConfigured, t }) {
+export default function TopBar({ requests, onRefreshRequests, onRespond, onSendRequest, settings, onUpdateSettings, onLogout, currentUser, onUploadRingtone, onResetRingtone, onBuyUltra, onSetUltraColor, onRevealToken, onRegenerateToken, billingConfigured, t }) {
   const [showExtra, setShowExtra] = useState(false);
   const [showLog, setShowLog] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -26,6 +27,19 @@ export default function TopBar({ requests, onRefreshRequests, onRespond, onSendR
   const [ultraError, setUltraError] = useState('');
   const outgoingFileRef = useRef(null);
   const incomingFileRef = useRef(null);
+
+  // ---- Account token (Settings > Account Token) ----
+  const [revealedToken, setRevealedToken] = useState(null);
+  const [showRevealForm, setShowRevealForm] = useState(false);
+  const [revealPassword, setRevealPassword] = useState('');
+  const [revealBusy, setRevealBusy] = useState(false);
+  const [revealError, setRevealError] = useState('');
+  const [copyLabel, setCopyLabel] = useState('Copy');
+
+  const [showRegenerateForm, setShowRegenerateForm] = useState(false);
+  const [regeneratePassword, setRegeneratePassword] = useState('');
+  const [regenerateBusy, setRegenerateBusy] = useState(false);
+  const [regenerateError, setRegenerateError] = useState('');
 
   async function handleBuyUltra() {
     setUltraBusy(true);
@@ -83,6 +97,54 @@ export default function TopBar({ requests, onRefreshRequests, onRespond, onSendR
       setAddUsername('');
     } catch (err) {
       setAddError(err.message);
+    }
+  }
+
+  async function handleRevealSubmit(e) {
+    e.preventDefault();
+    setRevealBusy(true);
+    setRevealError('');
+    try {
+      const tok = await onRevealToken(revealPassword);
+      setRevealedToken(tok);
+      setShowRevealForm(false);
+      setRevealPassword('');
+    } catch (err) {
+      setRevealError(err.message || 'Incorrect password');
+    } finally {
+      setRevealBusy(false);
+    }
+  }
+
+  function handleHideToken() {
+    setRevealedToken(null);
+    setCopyLabel('Copy');
+  }
+
+  async function handleCopyToken() {
+    if (!revealedToken) return;
+    try {
+      await navigator.clipboard.writeText(revealedToken);
+      setCopyLabel('Copied!');
+      setTimeout(() => setCopyLabel('Copy'), 1500);
+    } catch (err) {
+      console.error('Copy failed:', err.message);
+    }
+  }
+
+  async function handleRegenerateSubmit(e) {
+    e.preventDefault();
+    setRegenerateBusy(true);
+    setRegenerateError('');
+    try {
+      const tok = await onRegenerateToken(regeneratePassword);
+      setRevealedToken(tok);
+      setShowRegenerateForm(false);
+      setRegeneratePassword('');
+    } catch (err) {
+      setRegenerateError(err.message || 'Incorrect password');
+    } finally {
+      setRegenerateBusy(false);
     }
   }
 
@@ -281,6 +343,91 @@ export default function TopBar({ requests, onRefreshRequests, onRespond, onSendR
                   )}
                 </div>
               )}
+            </div>
+
+            <div className="settings-section">
+              <div className="settings-label">Account Token</div>
+              <div className="ringtone-row-desc" style={{ marginBottom: 8 }}>
+                Use this to log in to your account on another device instead of your username and password.
+              </div>
+
+              {revealedToken ? (
+                <div className="ringtone-row">
+                  <div className="ringtone-row-info">
+                    <code style={{ userSelect: 'all', wordBreak: 'break-all' }}>{revealedToken}</code>
+                  </div>
+                  <div className="ringtone-row-actions">
+                    <button type="button" className="secondary" onClick={handleCopyToken}>{copyLabel}</button>
+                    <button type="button" className="secondary" onClick={handleHideToken}>Hide</button>
+                  </div>
+                </div>
+              ) : showRevealForm ? (
+                <form onSubmit={handleRevealSubmit} className="ringtone-row" style={{ flexWrap: 'wrap' }}>
+                  <input
+                    type="password"
+                    placeholder="Confirm your password"
+                    value={revealPassword}
+                    onChange={(e) => setRevealPassword(e.target.value)}
+                    autoFocus
+                    required
+                  />
+                  <div className="ringtone-row-actions">
+                    <button type="submit" disabled={revealBusy}>{revealBusy ? '…' : 'Confirm'}</button>
+                    <button
+                      type="button"
+                      className="secondary"
+                      onClick={() => { setShowRevealForm(false); setRevealPassword(''); setRevealError(''); }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                  {revealError && <div className="auth-error">{revealError}</div>}
+                </form>
+              ) : (
+                <div className="ringtone-row">
+                  <div className="ringtone-row-info">
+                    <code>••••••••••••••••••••</code>
+                  </div>
+                  <div className="ringtone-row-actions">
+                    <button type="button" className="secondary" onClick={() => setShowRevealForm(true)}>Reveal</button>
+                  </div>
+                </div>
+              )}
+
+              {showRegenerateForm ? (
+                <form onSubmit={handleRegenerateSubmit} className="ringtone-row" style={{ flexWrap: 'wrap', marginTop: 8 }}>
+                  <input
+                    type="password"
+                    placeholder="Confirm your password"
+                    value={regeneratePassword}
+                    onChange={(e) => setRegeneratePassword(e.target.value)}
+                    required
+                  />
+                  <div className="ringtone-row-actions">
+                    <button type="submit" disabled={regenerateBusy}>{regenerateBusy ? '…' : 'Confirm Regenerate'}</button>
+                    <button
+                      type="button"
+                      className="secondary"
+                      onClick={() => { setShowRegenerateForm(false); setRegeneratePassword(''); setRegenerateError(''); }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                  {regenerateError && <div className="auth-error">{regenerateError}</div>}
+                </form>
+              ) : (
+                <button
+                  type="button"
+                  className="secondary"
+                  style={{ marginTop: 8 }}
+                  onClick={() => setShowRegenerateForm(true)}
+                >
+                  Regenerate token
+                </button>
+              )}
+              <div className="ringtone-row-desc" style={{ marginTop: 6 }}>
+                Regenerating invalidates the old token — any other device using it will need the new one.
+              </div>
             </div>
 
             <div className="settings-section">

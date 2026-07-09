@@ -1,11 +1,39 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import multer from 'multer';
+import { customAlphabet } from 'nanoid';
 import { db } from '../db.js';
 import { signToken, requireAuth } from '../auth.js';
 import { emitProfileChanged } from '../events.js';
 
 const router = Router();
+
+// Account tokens: used to log in on a second device (phone <-> PC) without
+// typing username/password again. Mixed-case letters + digits, 22 chars from
+// a 62-char alphabet -- nowhere near guessable, unlike a short numeric PIN.
+const TOKEN_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+const generateAccountToken = customAlphabet(TOKEN_ALPHABET, 22);
+
+// Generates a token and retries on the astronomically unlikely chance of a
+// collision with the unique index in db.js.
+async function createUniqueAccountToken() {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const candidate = generateAccountToken();
+    const clash = await db.prepare('SELECT id FROM users WHERE account_token = ?').get(candidate);
+    if (!clash) return candidate;
+  }
+  throw new Error('Could not generate a unique account token');
+}
+
+// Older accounts (registered before this feature existed) won't have a
+// token yet -- generate and persist one lazily the first time it's needed,
+// instead of requiring a one-off migration script.
+async function ensureAccountToken(userId, existingToken) {
+  if (existingToken) return existingToken;
+  const token = await createUniqueAccountToken();
+  await db.prepare('UPDATE users SET account_token = ? WHERE id = ?').run(token, userId);
+  return token;
+}
 
 const COLORS = ['#8B0000', '#B22222', '#DC143C', '#A52A2A', '#FF6347', '#CD5C5C'];
 function randomColor() {
@@ -55,9 +83,10 @@ router.post('/register', asyncHandler(async (req, res) => {
 
   const hash = await bcrypt.hash(password, 10);
   const color = randomColor();
+  const accountToken = await createUniqueAccountToken();
   const info = await db.prepare(
-    'INSERT INTO users (username, password_hash, avatar_color) VALUES (?, ?, ?)'
-  ).run(username, hash, color);
+    'INSERT INTO users (username, password_hash, avatar_color, account_token) VALUES (?, ?, ?, ?)'
+  ).run(username, hash, color, accountToken);
 
   const user = { id: info.lastInsertRowid, username };
   const token = signToken(user);
@@ -102,6 +131,34 @@ router.post('/login', asyncHandler(async (req, res) => {
   });
 }));
 
+// Log in on a new device using the account token from Settings > Account
+// instead of username/password -- same response shape as /login so the
+// client can reuse the exact same onAuthed(token, user) handling.
+router.post('/login-token', asyncHandler(async (req, res) => {
+  const { accountToken } = req.body;
+  if (!accountToken || typeof accountToken !== 'string') {
+    return res.status(400).json({ error: 'Account token is required' });
+  }
+  const row = await db.prepare('SELECT * FROM users WHERE account_token = ?').get(accountToken.trim());
+  if (!row) return res.status(401).json({ error: 'Invalid account token' });
+  const token = signToken(row);
+  res.json({
+    token,
+    user: {
+      id: row.id,
+      username: row.username,
+      avatarColor: row.avatar_color,
+      avatarUrl: row.avatar_url,
+      statusText: row.status_text,
+      bio: row.bio,
+      ringtoneOutgoingUrl: row.ringtone_outgoing_url,
+      ringtoneIncomingUrl: row.ringtone_incoming_url,
+      isUltra: !!row.is_ultra,
+      ultraColor: row.ultra_color,
+    },
+  });
+}));
+
 router.get('/me', requireAuth, asyncHandler(async (req, res) => {
   const row = await db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
   if (!row) return res.status(404).json({ error: 'User not found' });
@@ -118,6 +175,33 @@ router.get('/me', requireAuth, asyncHandler(async (req, res) => {
     isUltra: !!row.is_ultra,
     ultraColor: row.ultra_color,
   });
+}));
+
+// The account token itself is never included in /register, /login, or /me
+// responses -- it stays hidden until the user confirms their password in
+// Settings > Account, matching "hidden until you type/confirm" from spec.
+router.post('/reveal-token', requireAuth, asyncHandler(async (req, res) => {
+  const { password } = req.body;
+  const row = await db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
+  if (!row) return res.status(404).json({ error: 'User not found' });
+  const ok = await bcrypt.compare(password || '', row.password_hash);
+  if (!ok) return res.status(401).json({ error: 'Incorrect password' });
+  const accountToken = await ensureAccountToken(row.id, row.account_token);
+  res.json({ accountToken });
+}));
+
+// Regenerating invalidates the old token (any other device using it to log
+// in stops working) -- requiring the password again here is deliberate,
+// since a leaked/expired session token alone shouldn't be enough to do this.
+router.post('/token/regenerate', requireAuth, asyncHandler(async (req, res) => {
+  const { password } = req.body;
+  const row = await db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
+  if (!row) return res.status(404).json({ error: 'User not found' });
+  const ok = await bcrypt.compare(password || '', row.password_hash);
+  if (!ok) return res.status(401).json({ error: 'Incorrect password' });
+  const accountToken = await createUniqueAccountToken();
+  await db.prepare('UPDATE users SET account_token = ? WHERE id = ?').run(accountToken, row.id);
+  res.json({ accountToken });
 }));
 
 router.post('/avatar', requireAuth, upload.single('avatar'), asyncHandler(async (req, res) => {

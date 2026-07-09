@@ -158,6 +158,20 @@ CREATE TABLE IF NOT EXISTS ultra_purchases (
   status TEXT NOT NULL DEFAULT 'pending',
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 )`);
+
+  // Account tokens let a user log in on a second device without typing their
+  // username/password again -- a long random string generated once at
+  // register time (older accounts get one lazily the first time it's
+  // needed). Plain ALTER TABLE ... UNIQUE isn't reliably enforced by SQLite,
+  // so uniqueness is a separate partial index instead.
+  try {
+    await client.execute('ALTER TABLE users ADD COLUMN account_token TEXT');
+  } catch (e) {
+    if (!/duplicate column/i.test(e.message || '')) throw e;
+  }
+  await client.execute(
+    'CREATE UNIQUE INDEX IF NOT EXISTS idx_users_account_token ON users(account_token) WHERE account_token IS NOT NULL'
+  );
 }
 
 export default db;

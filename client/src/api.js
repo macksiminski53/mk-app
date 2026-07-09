@@ -17,7 +17,10 @@ async function request(path, { method = 'GET', body, token, isForm } = {}) {
 export const api = {
   register: (username, password) => request('/auth/register', { method: 'POST', body: { username, password } }),
   login: (username, password) => request('/auth/login', { method: 'POST', body: { username, password } }),
+  loginWithToken: (accountToken) => request('/auth/login-token', { method: 'POST', body: { accountToken } }),
   getMe: (token) => request('/auth/me', { token }),
+  revealAccountToken: (token, password) => request('/auth/reveal-token', { method: 'POST', body: { password }, token }),
+  regenerateAccountToken: (token, password) => request('/auth/token/regenerate', { method: 'POST', body: { password }, token }),
   uploadAvatar: (token, file) => {
     const form = new FormData();
     form.append('avatar', file);
