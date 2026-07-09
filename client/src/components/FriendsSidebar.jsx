@@ -3,7 +3,7 @@ import Avatar from './Avatar.jsx';
 import ProfileCard from './ProfileCard.jsx';
 import AvatarCropper from './AvatarCropper.jsx';
 
-export default function FriendsSidebar({ friends, activeFriendId, onSelect, currentUser, onLogout, onChangeAvatar, onSetStatus, onSetBio, onOpenChatSettings }) {
+export default function FriendsSidebar({ friends, activeFriendId, onSelect, currentUser, token, onLogout, onChangeAvatar, onSetStatus, onSetBio, onOpenChatSettings, onRemoveFriend }) {
   const fileInputRef = useRef(null);
   const [uploading, setUploading] = useState(false);
   const [editingStatus, setEditingStatus] = useState(false);
@@ -13,11 +13,23 @@ export default function FriendsSidebar({ friends, activeFriendId, onSelect, curr
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [croppingFile, setCroppingFile] = useState(null);
 
-  function handleFileChange(e) {
+  async function handleFileChange(e) {
     const file = e.target.files?.[0];
-    if (!file) return;
-    setCroppingFile(file);
     e.target.value = '';
+    if (!file) return;
+    // MK ULTRA perk: skip the crop/rasterize step for GIFs so the animation
+    // survives -- the cropper's canvas draw would otherwise flatten it to a
+    // single static frame.
+    if (currentUser.isUltra && file.type === 'image/gif') {
+      setUploading(true);
+      try {
+        await onChangeAvatar(file);
+      } finally {
+        setUploading(false);
+      }
+      return;
+    }
+    setCroppingFile(file);
   }
 
   async function handleCropConfirm(blob) {
@@ -59,6 +71,7 @@ export default function FriendsSidebar({ friends, activeFriendId, onSelect, curr
           <div className="activity-info">
             <div className="activity-username" onClick={() => setShowProfileCard(true)} title="View profile">
               {currentUser.username}
+              {currentUser.isUltra && <span className="ultra-badge" title="MK ULTRA">⚡ ULTRA</span>}
             </div>
             {editingStatus ? (
               <form onSubmit={handleStatusSubmit} className="status-edit-form">
@@ -103,7 +116,10 @@ export default function FriendsSidebar({ friends, activeFriendId, onSelect, curr
               <span className="status-dot" style={{ background: f.online ? '#3ba55d' : '#747f8d' }} />
             </div>
             <div className="friend-info">
-              <span className="friend-name">{f.username}</span>
+              <span className="friend-name">
+                {f.username}
+                {f.isUltra && <span className="ultra-badge" title="MK ULTRA">⚡</span>}
+              </span>
               {f.statusText && <span className="friend-status">{f.statusText}</span>}
             </div>
           </div>
@@ -128,11 +144,11 @@ export default function FriendsSidebar({ friends, activeFriendId, onSelect, curr
         <ProfileCard
           user={viewingFriend}
           isOwn={false}
+          token={token}
           onClose={() => setViewingFriend(null)}
-          onOpenChatSettings={() => {
-            const friend = viewingFriend;
+          onRemoveFriend={(friendId) => {
             setViewingFriend(null);
-            onOpenChatSettings(friend);
+            onRemoveFriend(friendId);
           }}
         />
       )}

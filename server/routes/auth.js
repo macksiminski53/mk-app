@@ -21,9 +21,22 @@ function randomColor() {
 // uploading, so these stay small.
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 },
+  // 8MB accommodates MK ULTRA's uncropped GIF avatars; regular cropped PNG
+  // avatars are ~256x256 and land nowhere near this.
+  limits: { fileSize: 8 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     if (!file.mimetype.startsWith('image/')) return cb(new Error('Only image files are allowed'));
+    cb(null, true);
+  },
+});
+
+// Custom ringtones -- kept small (3MB cap) since they're stored as base64
+// in the database alongside avatars for the same Render-has-no-disk reason.
+const uploadRingtone = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 3 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (!file.mimetype.startsWith('audio/')) return cb(new Error('Only audio files are allowed'));
     cb(null, true);
   },
 });
@@ -48,7 +61,21 @@ router.post('/register', asyncHandler(async (req, res) => {
 
   const user = { id: info.lastInsertRowid, username };
   const token = signToken(user);
-  res.json({ token, user: { id: user.id, username, avatarColor: color, avatarUrl: null, statusText: null, bio: null } });
+  res.json({
+    token,
+    user: {
+      id: user.id,
+      username,
+      avatarColor: color,
+      avatarUrl: null,
+      statusText: null,
+      bio: null,
+      ringtoneOutgoingUrl: null,
+      ringtoneIncomingUrl: null,
+      isUltra: false,
+      ultraColor: null,
+    },
+  });
 }));
 
 router.post('/login', asyncHandler(async (req, res) => {
@@ -67,6 +94,10 @@ router.post('/login', asyncHandler(async (req, res) => {
       avatarUrl: row.avatar_url,
       statusText: row.status_text,
       bio: row.bio,
+      ringtoneOutgoingUrl: row.ringtone_outgoing_url,
+      ringtoneIncomingUrl: row.ringtone_incoming_url,
+      isUltra: !!row.is_ultra,
+      ultraColor: row.ultra_color,
     },
   });
 }));
@@ -82,6 +113,10 @@ router.get('/me', requireAuth, asyncHandler(async (req, res) => {
     statusText: row.status_text,
     bio: row.bio,
     createdAt: row.created_at,
+    ringtoneOutgoingUrl: row.ringtone_outgoing_url,
+    ringtoneIncomingUrl: row.ringtone_incoming_url,
+    isUltra: !!row.is_ultra,
+    ultraColor: row.ultra_color,
   });
 }));
 
@@ -110,6 +145,33 @@ router.patch('/bio', requireAuth, asyncHandler(async (req, res) => {
   await db.prepare('UPDATE users SET bio = ? WHERE id = ?').run(value, req.user.id);
   emitProfileChanged(req.user.id);
   res.json({ bio: value });
+}));
+
+const RINGTONE_COLUMNS = {
+  outgoing: 'ringtone_outgoing_url',
+  incoming: 'ringtone_incoming_url',
+};
+
+router.post('/ringtone', requireAuth, uploadRingtone.single('ringtone'), asyncHandler(async (req, res) => {
+  const { type } = req.body;
+  const column = RINGTONE_COLUMNS[type];
+  if (!column) return res.status(400).json({ error: "type must be 'outgoing' or 'incoming'" });
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+  const ringtoneUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+  await db.prepare(`UPDATE users SET ${column} = ? WHERE id = ?`).run(ringtoneUrl, req.user.id);
+  emitProfileChanged(req.user.id);
+  res.json({ type, ringtoneUrl });
+}));
+
+router.post('/ringtone/reset', requireAuth, asyncHandler(async (req, res) => {
+  const { type } = req.body;
+  const column = RINGTONE_COLUMNS[type];
+  if (!column) return res.status(400).json({ error: "type must be 'outgoing' or 'incoming'" });
+
+  await db.prepare(`UPDATE users SET ${column} = NULL WHERE id = ?`).run(req.user.id);
+  emitProfileChanged(req.user.id);
+  res.json({ type, ringtoneUrl: null });
 }));
 
 export default router;

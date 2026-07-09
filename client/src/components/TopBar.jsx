@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { LANGUAGES } from '../i18n.js';
 
 const CHANGELOG = [
@@ -9,7 +9,7 @@ const CHANGELOG = [
   { version: '0.1.0', notes: 'Initial release: register/login, real-time messaging.' },
 ];
 
-export default function TopBar({ requests, onRefreshRequests, onRespond, onSendRequest, settings, onUpdateSettings, onLogout, t }) {
+export default function TopBar({ requests, onRefreshRequests, onRespond, onSendRequest, settings, onUpdateSettings, onLogout, currentUser, onUploadRingtone, onResetRingtone, onBuyUltra, onSetUltraColor, t }) {
   const [showExtra, setShowExtra] = useState(false);
   const [showLog, setShowLog] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -17,6 +17,54 @@ export default function TopBar({ requests, onRefreshRequests, onRespond, onSendR
   const [addUsername, setAddUsername] = useState('');
   const [addError, setAddError] = useState('');
   const [addSuccess, setAddSuccess] = useState('');
+  const [ringtoneBusy, setRingtoneBusy] = useState(null); // 'outgoing' | 'incoming' | null
+  const [ultraBusy, setUltraBusy] = useState(false);
+  const outgoingFileRef = useRef(null);
+  const incomingFileRef = useRef(null);
+
+  async function handleBuyUltra() {
+    setUltraBusy(true);
+    try {
+      await onBuyUltra();
+    } catch (err) {
+      console.error('MK ULTRA checkout failed:', err.message);
+      setUltraBusy(false);
+    }
+    // On success this navigates away to Stripe, so no need to clear busy.
+  }
+
+  async function handleUltraColorChange(e) {
+    try {
+      await onSetUltraColor(e.target.value);
+    } catch (err) {
+      console.error('Failed to set MK ULTRA color:', err.message);
+    }
+  }
+
+  async function handleRingtoneFile(type, e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setRingtoneBusy(type);
+    try {
+      await onUploadRingtone(type, file);
+    } catch (err) {
+      console.error('Ringtone upload failed:', err.message);
+    } finally {
+      setRingtoneBusy(null);
+    }
+  }
+
+  async function handleRingtoneReset(type) {
+    setRingtoneBusy(type);
+    try {
+      await onResetRingtone(type);
+    } catch (err) {
+      console.error('Ringtone reset failed:', err.message);
+    } finally {
+      setRingtoneBusy(null);
+    }
+  }
 
   async function handleAddFriend(e) {
     e.preventDefault();
@@ -104,6 +152,119 @@ export default function TopBar({ requests, onRefreshRequests, onRespond, onSendR
                   <div className="layout-option-desc">{t('layoutFlatDesc')}</div>
                 </div>
               </label>
+            </div>
+
+            <div className="settings-section">
+              <div className="settings-label">Ringtones</div>
+
+              <div className="ringtone-row">
+                <div className="ringtone-row-info">
+                  <div className="ringtone-row-title">Outgoing call</div>
+                  <div className="ringtone-row-desc">
+                    {currentUser?.ringtoneOutgoingUrl ? 'Custom ringtone' : 'Default ringtone'}
+                  </div>
+                </div>
+                <div className="ringtone-row-actions">
+                  <button
+                    type="button"
+                    className="secondary"
+                    disabled={ringtoneBusy === 'outgoing'}
+                    onClick={() => outgoingFileRef.current?.click()}
+                  >
+                    {ringtoneBusy === 'outgoing' ? '…' : 'Upload'}
+                  </button>
+                  {currentUser?.ringtoneOutgoingUrl && (
+                    <button
+                      type="button"
+                      className="secondary"
+                      disabled={ringtoneBusy === 'outgoing'}
+                      onClick={() => handleRingtoneReset('outgoing')}
+                    >
+                      Reset
+                    </button>
+                  )}
+                </div>
+                <input
+                  ref={outgoingFileRef}
+                  type="file"
+                  accept="audio/*"
+                  style={{ display: 'none' }}
+                  onChange={(e) => handleRingtoneFile('outgoing', e)}
+                />
+              </div>
+
+              <div className="ringtone-row">
+                <div className="ringtone-row-info">
+                  <div className="ringtone-row-title">Incoming call</div>
+                  <div className="ringtone-row-desc">
+                    {currentUser?.ringtoneIncomingUrl ? 'Custom ringtone' : 'Default ringtone'}
+                  </div>
+                </div>
+                <div className="ringtone-row-actions">
+                  <button
+                    type="button"
+                    className="secondary"
+                    disabled={ringtoneBusy === 'incoming'}
+                    onClick={() => incomingFileRef.current?.click()}
+                  >
+                    {ringtoneBusy === 'incoming' ? '…' : 'Upload'}
+                  </button>
+                  {currentUser?.ringtoneIncomingUrl && (
+                    <button
+                      type="button"
+                      className="secondary"
+                      disabled={ringtoneBusy === 'incoming'}
+                      onClick={() => handleRingtoneReset('incoming')}
+                    >
+                      Reset
+                    </button>
+                  )}
+                </div>
+                <input
+                  ref={incomingFileRef}
+                  type="file"
+                  accept="audio/*"
+                  style={{ display: 'none' }}
+                  onChange={(e) => handleRingtoneFile('incoming', e)}
+                />
+              </div>
+            </div>
+
+            <div className="settings-section">
+              <div className="settings-label">MK ULTRA</div>
+              {currentUser?.isUltra ? (
+                <div className="ultra-panel">
+                  <div className="ultra-panel-title">
+                    <span className="ultra-badge" title="MK ULTRA">⚡ ULTRA</span> You're an MK ULTRA member
+                  </div>
+                  <div className="ultra-panel-desc">
+                    Permanent chats, GIF avatars, and a custom accent color are unlocked.
+                  </div>
+                  <div className="ultra-color-row">
+                    <span className="ringtone-row-title">Accent color</span>
+                    <input
+                      type="color"
+                      value={currentUser.ultraColor || '#ffffff'}
+                      onChange={handleUltraColorChange}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="ultra-panel">
+                  <div className="ultra-panel-desc">
+                    One-time $1 purchase: permanent chats (never auto-delete), animated GIF profile pictures,
+                    a custom UI accent color, and a badge next to your name.
+                  </div>
+                  <button
+                    type="button"
+                    className="ultra-buy-btn"
+                    disabled={ultraBusy}
+                    onClick={handleBuyUltra}
+                  >
+                    {ultraBusy ? '…' : 'Get MK ULTRA — $1'}
+                  </button>
+                </div>
+              )}
             </div>
 
             <div className="settings-section">

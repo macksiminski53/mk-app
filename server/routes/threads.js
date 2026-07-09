@@ -76,7 +76,26 @@ router.get('/:threadId/delete-votes', asyncHandler(async (req, res) => {
   res.json({
     myVote: !!(isA ? thread.delete_vote_a : thread.delete_vote_b),
     otherVote: !!(isA ? thread.delete_vote_b : thread.delete_vote_a),
+    autoReset: !!thread.auto_reset_24h,
   });
+}));
+
+// Toggle "auto-delete every 24h" for this thread. Either participant can
+// flip it; enabling it resets the 24h clock starting now.
+router.patch('/:threadId/auto-reset', asyncHandler(async (req, res) => {
+  const { threadId } = req.params;
+  const { enabled } = req.body;
+  const thread = await userInThread(req.user.id, threadId);
+  if (!thread) return res.status(403).json({ error: 'No access to this conversation' });
+
+  if (enabled) {
+    await db.prepare(
+      "UPDATE dm_threads SET auto_reset_24h = 1, last_reset_at = datetime('now') WHERE id = ?"
+    ).run(threadId);
+  } else {
+    await db.prepare('UPDATE dm_threads SET auto_reset_24h = 0 WHERE id = ?').run(threadId);
+  }
+  res.json({ autoReset: !!enabled });
 }));
 
 router.get('/:threadId/messages', asyncHandler(async (req, res) => {

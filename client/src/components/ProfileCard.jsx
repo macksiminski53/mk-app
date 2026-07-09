@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Avatar from './Avatar.jsx';
+import { api } from '../api.js';
+import { getSocket } from '../socket.js';
 
 // Splits a "Song - Artist" style status into parts for the Playing card.
 // Falls back to treating the whole thing as a single line if it doesn't
@@ -26,10 +28,16 @@ function formatMemberSince(createdAt) {
 
 // isOwn=true renders the editable version (bio + status are click-to-edit,
 // with Edit Profile / Log Out actions). isOwn=false renders a read-only
-// popout for viewing a friend's profile, closer to Discord's user popup.
-export default function ProfileCard({ user, isOwn, onClose, onEditProfile, onLogout, onSetBio, onOpenChatSettings }) {
+// popout for viewing a friend's profile -- with an inline, expandable
+// "Friend Settings" panel (Remove Friend + mutual-consent Delete Chat) so
+// the profile and the settings for that relationship live in the same
+// place instead of requiring a separate navigation step.
+export default function ProfileCard({ user, isOwn, token, onClose, onEditProfile, onLogout, onSetBio, onRemoveFriend }) {
   const [editingBio, setEditingBio] = useState(false);
   const [bioDraft, setBioDraft] = useState(user.bio || '');
+  const [showFriendSettings, setShowFriendSettings] = useState(false);
+  const [deleteVotes, setDeleteVotes] = useState({ myVote: false, otherVote: false, autoReset: false });
+  const [autoResetBusy, setAutoResetBusy] = useState(false);
 
   const playing = parsePlaying(user.statusText);
   const memberSince = formatMemberSince(user.createdAt);
@@ -38,6 +46,50 @@ export default function ProfileCard({ user, isOwn, onClose, onEditProfile, onLog
     e.preventDefault();
     await onSetBio(bioDraft);
     setEditingBio(false);
+  }
+
+  useEffect(() => {
+    if (isOwn || !showFriendSettings || !user.threadId || !token) return;
+    let cancelled = false;
+
+    api.getDeleteVotes(token, user.threadId).then((votes) => {
+      if (!cancelled) setDeleteVotes(votes);
+    }).catch(() => {});
+
+    const socket = getSocket();
+    function onVoteUpdate({ threadId, myVote, otherVote }) {
+      if (threadId === user.threadId) setDeleteVotes((prev) => ({ ...prev, myVote, otherVote }));
+    }
+    function onDeleted({ threadId }) {
+      if (threadId === user.threadId) setDeleteVotes((prev) => ({ ...prev, myVote: false, otherVote: false }));
+    }
+    socket.on('chat:delete-vote-update', onVoteUpdate);
+    socket.on('chat:deleted', onDeleted);
+
+    return () => {
+      cancelled = true;
+      socket.off('chat:delete-vote-update', onVoteUpdate);
+      socket.off('chat:deleted', onDeleted);
+    };
+  }, [showFriendSettings, user.threadId, isOwn, token]);
+
+  function castDeleteVote(vote) {
+    if (!user.threadId) return;
+    getSocket().emit('chat:delete-vote', { threadId: user.threadId, vote }, () => {});
+  }
+
+  async function toggleAutoReset() {
+    if (!user.threadId || !token) return;
+    const next = !deleteVotes.autoReset;
+    setAutoResetBusy(true);
+    try {
+      await api.setAutoReset(token, user.threadId, next);
+      setDeleteVotes((prev) => ({ ...prev, autoReset: next }));
+    } catch (err) {
+      console.error('Failed to update auto-reset:', err.message);
+    } finally {
+      setAutoResetBusy(false);
+    }
   }
 
   return (
@@ -53,7 +105,10 @@ export default function ProfileCard({ user, isOwn, onClose, onEditProfile, onLog
             <span className="profile-card-status-dot" style={{ background: isOwn || user.online ? '#3ba55d' : '#747f8d' }} />
           </div>
 
-          <div className="profile-card-name">{user.username}</div>
+          <div className="profile-card-name">
+            {user.username}
+            {user.isUltra && <span className="ultra-badge" title="MK ULTRA">⚡ ULTRA</span>}
+          </div>
           <div className="profile-card-sub">
             <span>{user.username.toLowerCase()}</span>
             <span className="profile-card-sub-dot">•</span>
@@ -145,10 +200,55 @@ export default function ProfileCard({ user, isOwn, onClose, onEditProfile, onLog
                   <span>{user.online ? 'Online' : 'Offline'}</span>
                 </span>
               </div>
-              {onOpenChatSettings && (
-                <div className="profile-card-row profile-card-row-clickable" onClick={onOpenChatSettings}>
-                  <span className="profile-card-row-left">⚙ Chat Settings</span>
-                  <span className="profile-card-row-chevron">›</span>
+              {user.threadId && (
+                <div className="profile-card-row profile-card-row-clickable" onClick={() => setShowFriendSettings((v) => !v)}>
+                  <span className="profile-card-row-left">⚙ Friend Settings</span>
+                  <span className="profile-card-row-chevron">{showFriendSettings ? '⌄' : '›'}</span>
+                </div>
+              )}
+              {showFriendSettings && (
+                <div className="profile-friend-settings">
+                  {onRemoveFriend && (
+                    <button
+                      type="button"
+                      className="profile-friend-settings-remove"
+                      onClick={() => onRemoveFriend(user.id)}
+                    >
+                      Remove Friend
+                    </button>
+                  )}
+
+                  <div className="profile-friend-settings-divider" />
+
+                  <div className="profile-friend-settings-label">Delete Chat</div>
+                  <div className="profile-friend-settings-text">
+                    Both people must agree to permanently delete every message in this chat.
+                  </div>
+                  <div className="profile-friend-settings-status">
+                    You: {deleteVotes.myVote ? '✅ Yes' : '⬜ No vote'}<br />
+                    {user.username}: {deleteVotes.otherVote ? '✅ Yes' : '⬜ No vote'}
+                  </div>
+                  {deleteVotes.myVote ? (
+                    <button type="button" className="secondary" onClick={() => castDeleteVote(false)}>Cancel my vote</button>
+                  ) : (
+                    <button type="button" className="danger-btn" onClick={() => castDeleteVote(true)}>Vote to delete</button>
+                  )}
+
+                  <div className="profile-friend-settings-divider" />
+
+                  <div className="dropdown-toggle-row">
+                    <span className="dropdown-item-icon">⏱</span>
+                    <span className="dropdown-toggle-label">Auto-delete every 24h</span>
+                    <label className="mini-switch">
+                      <input
+                        type="checkbox"
+                        checked={deleteVotes.autoReset}
+                        disabled={autoResetBusy}
+                        onChange={toggleAutoReset}
+                      />
+                      <span className="mini-switch-track" />
+                    </label>
+                  </div>
                 </div>
               )}
             </>

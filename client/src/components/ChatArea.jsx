@@ -24,7 +24,8 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
   const [typing, setTyping] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showDeletePanel, setShowDeletePanel] = useState(false);
-  const [deleteVotes, setDeleteVotes] = useState({ myVote: false, otherVote: false });
+  const [deleteVotes, setDeleteVotes] = useState({ myVote: false, otherVote: false, autoReset: false });
+  const [autoResetBusy, setAutoResetBusy] = useState(false);
   const [replyTo, setReplyTo] = useState(null); // { id, username, content }
   const [pendingImage, setPendingImage] = useState(null); // { file, previewUrl, isAudio }
   const [uploading, setUploading] = useState(false);
@@ -55,7 +56,7 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
     setReplyTo(null);
     setPendingImage(null);
     setShowDeletePanel(false);
-    setDeleteVotes({ myVote: false, otherVote: false });
+    setDeleteVotes({ myVote: false, otherVote: false, autoReset: false });
     api.listMessages(token, threadId).then((msgs) => {
       if (!cancelled) setMessages(msgs);
     });
@@ -74,12 +75,12 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
       setTyping(isTyping);
     }
     function onDeleteVoteUpdate({ threadId: tid, myVote, otherVote }) {
-      if (tid === threadId) setDeleteVotes({ myVote, otherVote });
+      if (tid === threadId) setDeleteVotes((prev) => ({ ...prev, myVote, otherVote }));
     }
     function onChatDeleted({ threadId: tid }) {
       if (tid !== threadId) return;
       setMessages([]);
-      setDeleteVotes({ myVote: false, otherVote: false });
+      setDeleteVotes((prev) => ({ ...prev, myVote: false, otherVote: false }));
       setShowDeletePanel(false);
     }
 
@@ -102,6 +103,19 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
     getSocket().emit('chat:delete-vote', { threadId, vote }, (res) => {
       if (res?.error) console.error(res.error);
     });
+  }
+
+  async function toggleAutoReset() {
+    const next = !deleteVotes.autoReset;
+    setAutoResetBusy(true);
+    try {
+      await api.setAutoReset(token, threadId, next);
+      setDeleteVotes((prev) => ({ ...prev, autoReset: next }));
+    } catch (err) {
+      console.error('Failed to update auto-reset:', err.message);
+    } finally {
+      setAutoResetBusy(false);
+    }
   }
 
   useEffect(() => {
@@ -165,18 +179,10 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
   return (
     <div className={`chat-area layout-${isBubble ? 'bubble' : 'flat'}`}>
       <div className="chat-header">
-        <span className="chat-header-name">{friend.username}</span>
-        <span className={`chat-header-status ${friend.online ? 'online' : ''}`}>
-          {friend.online ? t('online') : t('offline')}
+        <span className="chat-header-name">
+          {friend.username}
+          {friend.isUltra && <span className="ultra-badge" title="MK ULTRA">⚡ ULTRA</span>}
         </span>
-        <button
-          className="call-header-btn"
-          onClick={() => onStartCall(friend)}
-          disabled={callActive}
-          title={callActive ? 'Already on a call' : `Call ${friend.username}`}
-        >
-          <PhoneIcon size={16} />
-        </button>
         <div className="dropdown-wrap chat-settings-wrap">
           <span
             className="gear-icon"
@@ -184,7 +190,7 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
             title={t('chatSettings')}
           >⚙</span>
           {showSettings && (
-            <div className="dropdown-menu right" onMouseLeave={() => { setShowSettings(false); setShowDeletePanel(false); }}>
+            <div className="dropdown-menu dropdown-menu-quality" onMouseLeave={() => { setShowSettings(false); setShowDeletePanel(false); }}>
               {!showDeletePanel ? (
                 <>
                   <div
@@ -194,10 +200,23 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
                       onRemoveFriend(friend.id);
                     }}
                   >
-                    {t('removeFriend')}
+                    <span className="dropdown-item-icon">👤</span>{t('removeFriend')}
                   </div>
                   <div className="dropdown-item danger" onClick={() => setShowDeletePanel(true)}>
-                    Delete Chat
+                    <span className="dropdown-item-icon">🗑</span>Delete Chat
+                  </div>
+                  <div className="dropdown-toggle-row">
+                    <span className="dropdown-item-icon">⏱</span>
+                    <span className="dropdown-toggle-label">Auto-delete every 24h</span>
+                    <label className="mini-switch">
+                      <input
+                        type="checkbox"
+                        checked={deleteVotes.autoReset}
+                        disabled={autoResetBusy}
+                        onChange={toggleAutoReset}
+                      />
+                      <span className="mini-switch-track" />
+                    </label>
                   </div>
                 </>
               ) : (
@@ -220,6 +239,17 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
             </div>
           )}
         </div>
+        <span className={`chat-header-status ${friend.online ? 'online' : ''}`}>
+          {friend.online ? t('online') : t('offline')}
+        </span>
+        <button
+          className="call-header-btn call-header-btn-right"
+          onClick={() => onStartCall(friend)}
+          disabled={callActive}
+          title={callActive ? 'Already on a call' : `Call ${friend.username}`}
+        >
+          <PhoneIcon size={16} />
+        </button>
       </div>
 
       <div className="message-list">

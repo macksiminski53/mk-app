@@ -14,7 +14,7 @@ function formatDuration(seconds) {
 // closer to a phone call screen than Discord's compact bar. Renders
 // nothing if call.status is null -- App.jsx only mounts this when there's
 // a call.
-export default function CallBar({ call, onAccept, onDecline, onCancel, onHangUp, onToggleMute, muted }) {
+export default function CallBar({ call, onAccept, onDecline, onCancel, onHangUp, onToggleMute, muted, ringtoneOutgoingUrl, ringtoneIncomingUrl }) {
   const [elapsed, setElapsed] = useState(0);
   const outgoingAudioRef = useRef(null);
   const incomingAudioRef = useRef(null);
@@ -60,8 +60,8 @@ export default function CallBar({ call, onAccept, onDecline, onCancel, onHangUp,
 
   const ringtones = (
     <>
-      <audio ref={outgoingAudioRef} src="/sounds/calling.mp3" loop preload="auto" />
-      <audio ref={incomingAudioRef} src="/sounds/incoming.mp3" loop preload="auto" />
+      <audio ref={outgoingAudioRef} src={ringtoneOutgoingUrl || '/sounds/calling.mp3'} loop preload="auto" />
+      <audio ref={incomingAudioRef} src={ringtoneIncomingUrl || '/sounds/incoming.mp3'} loop preload="auto" />
     </>
   );
 

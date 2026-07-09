@@ -108,6 +108,56 @@ CREATE TABLE IF NOT EXISTS messages (
   } catch (e) {
     if (!/duplicate column/i.test(e.message || '')) throw e;
   }
+
+  // Custom per-user ringtones (base64 data URIs, same persistence trick as
+  // avatars). NULL means "use the bundled default sound".
+  try {
+    await client.execute('ALTER TABLE users ADD COLUMN ringtone_outgoing_url TEXT');
+  } catch (e) {
+    if (!/duplicate column/i.test(e.message || '')) throw e;
+  }
+  try {
+    await client.execute('ALTER TABLE users ADD COLUMN ringtone_incoming_url TEXT');
+  } catch (e) {
+    if (!/duplicate column/i.test(e.message || '')) throw e;
+  }
+
+  // Per-chat "auto-reset every 24h" setting -- when enabled, a periodic
+  // sweep (see index.js) wipes the thread's messages once last_reset_at
+  // is more than 24h old, then bumps last_reset_at so the cycle repeats.
+  try {
+    await client.execute('ALTER TABLE dm_threads ADD COLUMN auto_reset_24h INTEGER NOT NULL DEFAULT 0');
+  } catch (e) {
+    if (!/duplicate column/i.test(e.message || '')) throw e;
+  }
+  try {
+    await client.execute('ALTER TABLE dm_threads ADD COLUMN last_reset_at TEXT');
+  } catch (e) {
+    if (!/duplicate column/i.test(e.message || '')) throw e;
+  }
+
+  // MK ULTRA -- a one-time $1 purchase (Stripe) that permanently unlocks:
+  // chats exempt from the 24h auto-reset sweep, GIF avatars, a custom UI
+  // accent color, and a badge next to the username.
+  try {
+    await client.execute('ALTER TABLE users ADD COLUMN is_ultra INTEGER NOT NULL DEFAULT 0');
+  } catch (e) {
+    if (!/duplicate column/i.test(e.message || '')) throw e;
+  }
+  try {
+    await client.execute('ALTER TABLE users ADD COLUMN ultra_color TEXT');
+  } catch (e) {
+    if (!/duplicate column/i.test(e.message || '')) throw e;
+  }
+
+  await client.execute(`
+CREATE TABLE IF NOT EXISTS ultra_purchases (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  stripe_session_id TEXT UNIQUE NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending',
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+)`);
 }
 
 export default db;

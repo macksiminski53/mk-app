@@ -96,6 +96,31 @@ export default function App() {
     }).catch(() => {});
   }, [token]);
 
+  // MK ULTRA's custom accent color is a personal preference (only visible
+  // in your own client), applied as a CSS variable rather than touching
+  // every element's color individually.
+  useEffect(() => {
+    if (user?.isUltra && user?.ultraColor) {
+      document.documentElement.style.setProperty('--mk-accent', user.ultraColor);
+    } else {
+      document.documentElement.style.removeProperty('--mk-accent');
+    }
+  }, [user?.isUltra, user?.ultraColor]);
+
+  // After returning from Stripe Checkout (?ultra=success in the URL),
+  // refresh the user so the newly-granted isUltra flag shows up, then
+  // clean the query param out of the address bar.
+  useEffect(() => {
+    if (!token) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('ultra')) {
+      if (params.get('ultra') === 'success') refreshSelf();
+      params.delete('ultra');
+      const next = params.toString();
+      window.history.replaceState({}, '', window.location.pathname + (next ? `?${next}` : ''));
+    }
+  }, [token, refreshSelf]);
+
   useEffect(() => {
     if (!token) return;
     connectSocket(token);
@@ -274,6 +299,40 @@ export default function App() {
     });
   }
 
+  async function handleUploadRingtone(type, file) {
+    const res = await api.uploadRingtone(token, type, file);
+    const field = type === 'outgoing' ? 'ringtoneOutgoingUrl' : 'ringtoneIncomingUrl';
+    setUser((prev) => {
+      const updated = { ...prev, [field]: res.ringtoneUrl };
+      localStorage.setItem('user', JSON.stringify(updated));
+      return updated;
+    });
+  }
+
+  async function handleResetRingtone(type) {
+    const res = await api.resetRingtone(token, type);
+    const field = type === 'outgoing' ? 'ringtoneOutgoingUrl' : 'ringtoneIncomingUrl';
+    setUser((prev) => {
+      const updated = { ...prev, [field]: res.ringtoneUrl };
+      localStorage.setItem('user', JSON.stringify(updated));
+      return updated;
+    });
+  }
+
+  async function handleBuyUltra() {
+    const res = await api.createUltraCheckout(token);
+    if (res.url) window.location.href = res.url;
+  }
+
+  async function handleSetUltraColor(color) {
+    const res = await api.setUltraColor(token, color);
+    setUser((prev) => {
+      const updated = { ...prev, ultraColor: res.ultraColor };
+      localStorage.setItem('user', JSON.stringify(updated));
+      return updated;
+    });
+  }
+
   function setupPeerConnection(toUserId) {
     const pc = createPeerConnection({
       onIceCandidate: (candidate) => {
@@ -368,6 +427,11 @@ export default function App() {
         settings={settings}
         onUpdateSettings={updateSettings}
         onLogout={handleLogout}
+        currentUser={user}
+        onUploadRingtone={handleUploadRingtone}
+        onResetRingtone={handleResetRingtone}
+        onBuyUltra={handleBuyUltra}
+        onSetUltraColor={handleSetUltraColor}
         t={t}
       />
       {call && (
@@ -379,6 +443,8 @@ export default function App() {
           onCancel={handleEndOrCancelCall}
           onHangUp={handleEndOrCancelCall}
           onToggleMute={handleToggleMute}
+          ringtoneOutgoingUrl={user.ringtoneOutgoingUrl}
+          ringtoneIncomingUrl={user.ringtoneIncomingUrl}
         />
       )}
       <audio ref={remoteAudioRef} autoPlay />
@@ -388,11 +454,13 @@ export default function App() {
           activeFriendId={activeFriendId}
           onSelect={(f) => setActiveFriendId(f.id)}
           currentUser={user}
+          token={token}
           onLogout={handleLogout}
           onChangeAvatar={handleChangeAvatar}
           onSetStatus={handleSetStatus}
           onSetBio={handleSetBio}
           onOpenChatSettings={handleOpenChatSettings}
+          onRemoveFriend={handleRemoveFriend}
         />
         <ChatArea
           token={token}

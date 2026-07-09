@@ -13,6 +13,7 @@ import { events } from './events.js';
 import authRoutes from './routes/auth.js';
 import friendRoutes from './routes/friends.js';
 import threadRoutes from './routes/threads.js';
+import billingRoutes, { handleStripeWebhook } from './routes/billing.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const uploadsDir = path.join(__dirname, 'uploads');
@@ -25,6 +26,17 @@ const io = new Server(server, {
 });
 
 app.use(cors({ origin: process.env.CLIENT_ORIGIN || '*' }));
+
+// Stripe webhook needs the raw request body (for signature verification),
+// so it's registered before express.json() and only that one route is
+// exempt from JSON body-parsing.
+app.post('/api/billing/webhook', express.raw({ type: 'application/json' }), (req, res) => {
+  handleStripeWebhook(req, res).catch((err) => {
+    console.error('Stripe webhook handler error:', err);
+    res.status(500).end();
+  });
+});
+
 app.use(express.json());
 app.use('/uploads', express.static(uploadsDir));
 
@@ -32,6 +44,7 @@ app.get('/api/health', (req, res) => res.json({ ok: true }));
 app.use('/api/auth', authRoutes);
 app.use('/api/friends', friendRoutes);
 app.use('/api/threads', threadRoutes);
+app.use('/api/billing', billingRoutes);
 
 io.use((socket, next) => {
   const token = socket.handshake.auth?.token;
@@ -216,11 +229,48 @@ io.on('connection', (socket) => {
   });
 });
 
+// ---- Per-chat 24-hour auto-reset sweep ----
+// Threads with auto_reset_24h enabled get their messages wiped once
+// last_reset_at is more than 24h old, then last_reset_at is bumped so the
+// cycle repeats. Runs on an interval rather than per-message so it works
+// even for threads nobody is actively viewing.
+const AUTO_RESET_SWEEP_MS = 5 * 60 * 1000; // check every 5 minutes
+const AUTO_RESET_WINDOW = "24 hours";
+
+async function sweepAutoResetThreads() {
+  try {
+    // MK ULTRA perk: chats with an ULTRA participant never auto-delete,
+    // regardless of the auto_reset_24h toggle.
+    const due = await db.prepare(`
+      SELECT dm.id FROM dm_threads dm
+      JOIN users ua ON ua.id = dm.user_a_id
+      JOIN users ub ON ub.id = dm.user_b_id
+      WHERE dm.auto_reset_24h = 1
+        AND ua.is_ultra = 0
+        AND ub.is_ultra = 0
+        AND (
+          dm.last_reset_at IS NULL
+          OR datetime(dm.last_reset_at, '+${AUTO_RESET_WINDOW}') <= datetime('now')
+        )
+    `).all();
+    for (const { id: threadId } of due) {
+      await db.prepare('DELETE FROM messages WHERE thread_id = ?').run(threadId);
+      await db.prepare("UPDATE dm_threads SET last_reset_at = datetime('now') WHERE id = ?").run(threadId);
+      io.to(`thread:${threadId}`).emit('chat:deleted', { threadId: Number(threadId) });
+    }
+  } catch (err) {
+    console.error('sweepAutoResetThreads error', err);
+  }
+}
+
+setInterval(() => sweepAutoResetThreads(), AUTO_RESET_SWEEP_MS);
+
 const PORT = process.env.PORT || 4000;
 
 initSchema()
   .then(() => {
     server.listen(PORT, () => console.log(`Server listening on port ${PORT}`));
+    sweepAutoResetThreads();
   })
   .catch((err) => {
     console.error('Failed to initialize database schema:', err);

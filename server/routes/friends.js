@@ -34,8 +34,8 @@ async function friendshipStatus(meId, otherId) {
 router.get('/', asyncHandler(async (req, res) => {
   const meId = req.user.id;
   const rows = await db.prepare(`
-    SELECT fr.*, u1.username as fromUsername, u1.avatar_color as fromColor, u1.avatar_url as fromUrl, u1.status_text as fromStatus, u1.bio as fromBio, u1.created_at as fromCreatedAt,
-           u2.username as toUsername, u2.avatar_color as toColor, u2.avatar_url as toUrl, u2.status_text as toStatus, u2.bio as toBio, u2.created_at as toCreatedAt
+    SELECT fr.*, u1.username as fromUsername, u1.avatar_color as fromColor, u1.avatar_url as fromUrl, u1.status_text as fromStatus, u1.bio as fromBio, u1.created_at as fromCreatedAt, u1.is_ultra as fromUltra,
+           u2.username as toUsername, u2.avatar_color as toColor, u2.avatar_url as toUrl, u2.status_text as toStatus, u2.bio as toBio, u2.created_at as toCreatedAt, u2.is_ultra as toUltra
     FROM friend_requests fr
     JOIN users u1 ON u1.id = fr.from_id
     JOIN users u2 ON u2.id = fr.to_id
@@ -51,6 +51,7 @@ router.get('/', asyncHandler(async (req, res) => {
     const otherStatus = r.from_id === meId ? r.toStatus : r.fromStatus;
     const otherBio = r.from_id === meId ? r.toBio : r.fromBio;
     const otherCreatedAt = r.from_id === meId ? r.toCreatedAt : r.fromCreatedAt;
+    const otherUltra = r.from_id === meId ? r.toUltra : r.fromUltra;
     const thread = await getOrCreateThread(meId, otherId);
     friends.push({
       id: otherId,
@@ -60,6 +61,7 @@ router.get('/', asyncHandler(async (req, res) => {
       statusText: otherStatus,
       bio: otherBio,
       createdAt: otherCreatedAt,
+      isUltra: !!otherUltra,
       online: isOnline(otherId),
       threadId: thread.id,
     });

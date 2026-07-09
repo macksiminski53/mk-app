@@ -25,6 +25,17 @@ export const api = {
   },
   setStatus: (token, statusText) => request('/auth/status', { method: 'PATCH', body: { statusText }, token }),
   setBio: (token, bio) => request('/auth/bio', { method: 'PATCH', body: { bio }, token }),
+  uploadRingtone: (token, type, file) => {
+    const form = new FormData();
+    form.append('type', type);
+    form.append('ringtone', file);
+    return request('/auth/ringtone', { method: 'POST', body: form, token, isForm: true });
+  },
+  resetRingtone: (token, type) => request('/auth/ringtone/reset', { method: 'POST', body: { type }, token }),
+
+  getBillingStatus: (token) => request('/billing/status', { token }),
+  createUltraCheckout: (token) => request('/billing/checkout', { method: 'POST', token }),
+  setUltraColor: (token, color) => request('/billing/ultra-color', { method: 'PATCH', body: { color }, token }),
 
   listFriends: (token) => request('/friends', { token }),
   listRequests: (token) => request('/friends/requests', { token }),
@@ -34,6 +45,7 @@ export const api = {
 
   listMessages: (token, threadId) => request(`/threads/${threadId}/messages`, { token }),
   getDeleteVotes: (token, threadId) => request(`/threads/${threadId}/delete-votes`, { token }),
+  setAutoReset: (token, threadId, enabled) => request(`/threads/${threadId}/auto-reset`, { method: 'PATCH', body: { enabled }, token }),
   uploadAttachment: (token, threadId, file) => {
     const form = new FormData();
     form.append('image', file);
