@@ -1,4 +1,13 @@
 import 'dotenv/config';
+console.log(`[boot] index.js starting, node ${process.version}`);
+process.on('uncaughtException', (err) => {
+  console.error('[boot] uncaughtException:', err && err.stack ? err.stack : err);
+  process.exit(1);
+});
+process.on('unhandledRejection', (err) => {
+  console.error('[boot] unhandledRejection:', err && err.stack ? err.stack : err);
+  process.exit(1);
+});
 import express from 'express';
 import cors from 'cors';
 import http from 'http';
@@ -267,8 +276,11 @@ setInterval(() => sweepAutoResetThreads(), AUTO_RESET_SWEEP_MS);
 
 const PORT = process.env.PORT || 4000;
 
+console.log('[boot] all imports resolved, calling initSchema()...');
+
 initSchema()
   .then(() => {
+    console.log('[boot] initSchema() done, calling server.listen()...');
     server.listen(PORT, () => console.log(`Server listening on port ${PORT}`));
     sweepAutoResetThreads();
   })
