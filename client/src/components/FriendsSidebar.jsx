@@ -1,11 +1,13 @@
 import { useRef, useState } from 'react';
 import Avatar from './Avatar.jsx';
+import ProfileCard from './ProfileCard.jsx';
 
 export default function FriendsSidebar({ friends, activeFriendId, onSelect, currentUser, onLogout, onChangeAvatar, onSetStatus }) {
   const fileInputRef = useRef(null);
   const [uploading, setUploading] = useState(false);
   const [editingStatus, setEditingStatus] = useState(false);
   const [statusDraft, setStatusDraft] = useState(currentUser.statusText || '');
+  const [showProfileCard, setShowProfileCard] = useState(false);
 
   async function handleFileChange(e) {
     const file = e.target.files?.[0];
@@ -46,7 +48,9 @@ export default function FriendsSidebar({ friends, activeFriendId, onSelect, curr
             onChange={handleFileChange}
           />
           <div className="activity-info">
-            <div className="activity-username">{currentUser.username}</div>
+            <div className="activity-username" onClick={() => setShowProfileCard(true)} title="View profile">
+              {currentUser.username}
+            </div>
             {editingStatus ? (
               <form onSubmit={handleStatusSubmit} className="status-edit-form">
                 <input
@@ -59,8 +63,12 @@ export default function FriendsSidebar({ friends, activeFriendId, onSelect, curr
                 />
               </form>
             ) : (
-              <div className="activity-status" onClick={() => setEditingStatus(true)} title="Click to edit your status">
-                {currentUser.statusText || 'Set a status…'}
+              <div
+                className={`activity-status ${!currentUser.statusText ? 'activity-status-hint' : ''}`}
+                onClick={() => setEditingStatus(true)}
+                title="Click to edit your status"
+              >
+                {currentUser.statusText || 'Connect MusicToDiscord to show your song playing on Apple Music!'}
               </div>
             )}
           </div>
@@ -89,6 +97,18 @@ export default function FriendsSidebar({ friends, activeFriendId, onSelect, curr
           </div>
         ))}
       </div>
+
+      {showProfileCard && (
+        <ProfileCard
+          user={currentUser}
+          onClose={() => setShowProfileCard(false)}
+          onLogout={onLogout}
+          onEditProfile={() => {
+            setShowProfileCard(false);
+            setEditingStatus(true);
+          }}
+        />
+      )}
     </div>
   );
 }
