@@ -1,5 +1,20 @@
 console.log(`[boot] entrypoint starting, node ${process.version}, pid ${process.pid}`);
 
+// Diagnostic-only escape hatch: set MINIMAL_BOOT=1 in the Render dashboard
+// to skip Socket.io/Turso/Stripe entirely and boot a bare Express server
+// with just a health check. If THIS boots fine, the crash is caused by
+// memory/resource pressure from the full dependency set and we can add
+// pieces back one at a time. If even this dies silently, the problem isn't
+// our code at all -- it's this specific Render service/instance.
+if (process.env.MINIMAL_BOOT === '1') {
+  console.log('[boot] MINIMAL_BOOT=1 -- starting bare Express server only.');
+  const { default: express } = await import('express');
+  const app = express();
+  app.get('/api/health', (req, res) => res.json({ ok: true, minimal: true }));
+  const PORT = process.env.PORT || 4000;
+  app.listen(PORT, () => console.log(`[boot] MINIMAL_BOOT server listening on port ${PORT}`));
+} else {
+
 // IMPORTANT: when stdout/stderr is piped (always true under Docker/Render),
 // console.error() writes asynchronously -- calling process.exit() right after
 // it can kill the process before that write ever flushes, which silently
@@ -48,3 +63,5 @@ boot().catch((err) => {
   const msg = `[boot] boot() failed: ${err && err.stack ? err.stack : err}\n`;
   process.stderr.write(msg, () => process.exit(1));
 });
+
+} // end of normal (non-MINIMAL_BOOT) boot path
