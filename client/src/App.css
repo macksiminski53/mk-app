@@ -283,6 +283,69 @@ body {
 
 .chat-settings-wrap { margin-left: auto; }
 
+.call-header-btn {
+  background: #3f4147;
+  border: none;
+  color: #f2f3f5;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.call-header-btn:hover { background: #23a55a; }
+.call-header-btn:disabled { opacity: 0.5; cursor: default; background: #3f4147; }
+
+/* --- Voice call bar --- */
+.call-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  background: #1e1f22;
+  border-bottom: 1px solid #3f4147;
+  flex-shrink: 0;
+}
+
+.call-bar-info { flex: 1; min-width: 0; }
+
+.call-bar-name { font-size: 14px; font-weight: 700; color: white; }
+
+.call-bar-sub { font-size: 12px; color: #949ba4; }
+
+.call-bar-incoming .call-bar-sub { color: #23a55a; }
+
+.call-bar-actions { display: flex; align-items: center; gap: 8px; }
+
+.call-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+}
+
+.call-btn-accept { background: #23a55a; }
+.call-btn-accept:hover { background: #1e8e4d; }
+
+.call-btn-decline { background: #f23f43; }
+.call-btn-decline:hover { background: #d3373b; }
+
+.call-btn-muted-off { background: #3f4147; }
+.call-btn-muted-off:hover { background: #4e5058; }
+
+.call-btn-muted-on { background: #5865F2; }
+.call-btn-muted-on:hover { background: #4752c4; }
+
 .message-list {
   flex: 1;
   overflow-y: auto;

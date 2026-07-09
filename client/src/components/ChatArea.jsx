@@ -13,7 +13,7 @@ function truncate(text, max = 80) {
   return text.length > max ? text.slice(0, max) + '…' : text;
 }
 
-export default function ChatArea({ token, friend, currentUser, onRemoveFriend, chatLayout = 'bubble', t }) {
+export default function ChatArea({ token, friend, currentUser, onRemoveFriend, onStartCall, callActive, chatLayout = 'bubble', t }) {
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState('');
   const [typing, setTyping] = useState(false);
@@ -124,6 +124,14 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, c
         <span className={`chat-header-status ${friend.online ? 'online' : ''}`}>
           {friend.online ? t('online') : t('offline')}
         </span>
+        <button
+          className="call-header-btn"
+          onClick={() => onStartCall(friend)}
+          disabled={callActive}
+          title={callActive ? 'Already on a call' : `Call ${friend.username}`}
+        >
+          📞
+        </button>
         <div className="dropdown-wrap chat-settings-wrap">
           <span className="gear-icon" onClick={() => setShowSettings((v) => !v)} title={t('chatSettings')}>⚙</span>
           {showSettings && (

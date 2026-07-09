@@ -140,6 +140,33 @@ io.on('connection', (socket) => {
     io.to(`user:${toUserId}`).emit('friend:request-received');
   });
 
+  // ---- 1:1 voice call signaling ----
+  // Pure relay -- the server never touches SDP/ICE payloads, it just routes
+  // them to the other user's room. WebRTC media flows directly between the
+  // two browsers once negotiation finishes; only signaling goes through us.
+  socket.on('call:invite', ({ toUserId }) => {
+    io.to(`user:${toUserId}`).emit('call:incoming', {
+      fromUserId: userId,
+      fromUsername: socket.user.username,
+    });
+  });
+
+  socket.on('call:accept', ({ toUserId }) => {
+    io.to(`user:${toUserId}`).emit('call:accepted', { fromUserId: userId });
+  });
+
+  socket.on('call:decline', ({ toUserId }) => {
+    io.to(`user:${toUserId}`).emit('call:declined', { fromUserId: userId });
+  });
+
+  socket.on('call:end', ({ toUserId }) => {
+    io.to(`user:${toUserId}`).emit('call:ended', { fromUserId: userId });
+  });
+
+  socket.on('call:signal', ({ toUserId, data }) => {
+    io.to(`user:${toUserId}`).emit('call:signal', { fromUserId: userId, data });
+  });
+
   socket.on('disconnect', () => {
     markOffline(userId);
     setTimeout(() => {
