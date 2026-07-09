@@ -1574,3 +1574,17 @@ body {
 .message-input-row button[type="submit"] { background: var(--mk-accent, #ffffff); }
 .layout-bubble .message-row.own .message-content { background: var(--mk-accent, #ffffff); }
 .profile-card-edit-btn { background: var(--mk-accent, #ffffff); }
+
+.ultra-panel-notice {
+  font-size: 12px;
+  color: #949ba4;
+  background: #2b0f0f;
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+
+.ultra-panel-error {
+  font-size: 12px;
+  color: #f23f43;
+  margin-top: 8px;
+}

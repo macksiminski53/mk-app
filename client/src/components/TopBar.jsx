@@ -9,7 +9,7 @@ const CHANGELOG = [
   { version: '0.1.0', notes: 'Initial release: register/login, real-time messaging.' },
 ];
 
-export default function TopBar({ requests, onRefreshRequests, onRespond, onSendRequest, settings, onUpdateSettings, onLogout, currentUser, onUploadRingtone, onResetRingtone, onBuyUltra, onSetUltraColor, t }) {
+export default function TopBar({ requests, onRefreshRequests, onRespond, onSendRequest, settings, onUpdateSettings, onLogout, currentUser, onUploadRingtone, onResetRingtone, onBuyUltra, onSetUltraColor, billingConfigured, t }) {
   const [showExtra, setShowExtra] = useState(false);
   const [showLog, setShowLog] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -19,15 +19,18 @@ export default function TopBar({ requests, onRefreshRequests, onRespond, onSendR
   const [addSuccess, setAddSuccess] = useState('');
   const [ringtoneBusy, setRingtoneBusy] = useState(null); // 'outgoing' | 'incoming' | null
   const [ultraBusy, setUltraBusy] = useState(false);
+  const [ultraError, setUltraError] = useState('');
   const outgoingFileRef = useRef(null);
   const incomingFileRef = useRef(null);
 
   async function handleBuyUltra() {
     setUltraBusy(true);
+    setUltraError('');
     try {
       await onBuyUltra();
     } catch (err) {
       console.error('MK ULTRA checkout failed:', err.message);
+      setUltraError(err.message || 'Something went wrong starting checkout.');
       setUltraBusy(false);
     }
     // On success this navigates away to Stripe, so no need to clear busy.
@@ -255,14 +258,23 @@ export default function TopBar({ requests, onRefreshRequests, onRespond, onSendR
                     One-time $1 purchase: permanent chats (never auto-delete), animated GIF profile pictures,
                     a custom UI accent color, and a badge next to your name.
                   </div>
-                  <button
-                    type="button"
-                    className="ultra-buy-btn"
-                    disabled={ultraBusy}
-                    onClick={handleBuyUltra}
-                  >
-                    {ultraBusy ? '…' : 'Get MK ULTRA — $1'}
-                  </button>
+                  {billingConfigured === false ? (
+                    <div className="ultra-panel-notice">
+                      Payments aren't set up yet — check back soon.
+                    </div>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        className="ultra-buy-btn"
+                        disabled={ultraBusy}
+                        onClick={handleBuyUltra}
+                      >
+                        {ultraBusy ? '…' : 'Get MK ULTRA — $1'}
+                      </button>
+                      {ultraError && <div className="ultra-panel-error">{ultraError}</div>}
+                    </>
+                  )}
                 </div>
               )}
             </div>

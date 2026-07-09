@@ -33,6 +33,7 @@ export default function App() {
   const [activeFriendId, setActiveFriendId] = useState(null);
   const [settings, setSettings] = useState(loadSettings);
   const [chatSettingsTrigger, setChatSettingsTrigger] = useState(0);
+  const [billingConfigured, setBillingConfigured] = useState(null); // null = unknown yet
 
   // --- Voice call state ---
   // call is one of: null | { status: 'incoming', fromUserId, fromUsername, fromAvatarColor, fromAvatarUrl }
@@ -94,6 +95,14 @@ export default function App() {
         return updated;
       });
     }).catch(() => {});
+  }, [token]);
+
+  // Lets Settings show "payments aren't set up yet" instead of a button
+  // that silently fails when STRIPE_PAYMENT_LINK / STRIPE_SECRET_KEY isn't
+  // configured on the server yet.
+  useEffect(() => {
+    if (!token) return;
+    api.getBillingStatus(token).then((s) => setBillingConfigured(s.configured)).catch(() => setBillingConfigured(false));
   }, [token]);
 
   // MK ULTRA's custom accent color is a personal preference (only visible
@@ -322,6 +331,7 @@ export default function App() {
   async function handleBuyUltra() {
     const res = await api.createUltraCheckout(token);
     if (res.url) window.location.href = res.url;
+    else throw new Error('No checkout URL returned');
   }
 
   async function handleSetUltraColor(color) {
@@ -432,6 +442,7 @@ export default function App() {
         onResetRingtone={handleResetRingtone}
         onBuyUltra={handleBuyUltra}
         onSetUltraColor={handleSetUltraColor}
+        billingConfigured={billingConfigured}
         t={t}
       />
       {call && (
