@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Avatar from './Avatar.jsx';
 import { PhoneIcon, PhoneHangupIcon, MicIcon, MicMutedIcon, CallCloseIcon } from './CallIcons.jsx';
 
@@ -16,6 +16,8 @@ function formatDuration(seconds) {
 // a call.
 export default function CallBar({ call, onAccept, onDecline, onCancel, onHangUp, onToggleMute, muted }) {
   const [elapsed, setElapsed] = useState(0);
+  const outgoingAudioRef = useRef(null);
+  const incomingAudioRef = useRef(null);
 
   useEffect(() => {
     if (call?.status !== 'active') return;
@@ -26,11 +28,47 @@ export default function CallBar({ call, onAccept, onDecline, onCancel, onHangUp,
     return () => clearInterval(iv);
   }, [call?.status, call?.startedAt]);
 
+  // Ringtones: "Calling…" loops for the caller until the other side joins
+  // (status leaves 'outgoing'); the incoming ringtone loops for the callee
+  // until they answer/decline (status leaves 'incoming'). Whichever one
+  // isn't relevant to the current status gets paused and rewound so it's
+  // ready to start clean next time.
+  useEffect(() => {
+    const outgoing = outgoingAudioRef.current;
+    const incoming = incomingAudioRef.current;
+    if (!outgoing || !incoming) return;
+
+    if (call?.status === 'outgoing') {
+      incoming.pause();
+      incoming.currentTime = 0;
+      outgoing.currentTime = 0;
+      outgoing.play().catch(() => {});
+    } else if (call?.status === 'incoming') {
+      outgoing.pause();
+      outgoing.currentTime = 0;
+      incoming.currentTime = 0;
+      incoming.play().catch(() => {});
+    } else {
+      outgoing.pause();
+      outgoing.currentTime = 0;
+      incoming.pause();
+      incoming.currentTime = 0;
+    }
+  }, [call?.status]);
+
   if (!call) return null;
+
+  const ringtones = (
+    <>
+      <audio ref={outgoingAudioRef} src="/sounds/calling.mp3" loop preload="auto" />
+      <audio ref={incomingAudioRef} src="/sounds/incoming.mp3" loop preload="auto" />
+    </>
+  );
 
   if (call.status === 'incoming') {
     return (
       <div className="call-overlay-backdrop">
+        {ringtones}
         <div className="call-overlay call-overlay-ringing">
           <div className="call-overlay-avatar-wrap call-overlay-pulse">
             <Avatar username={call.fromUsername} avatarColor={call.fromAvatarColor} avatarUrl={call.fromAvatarUrl} size={88} />
@@ -53,6 +91,7 @@ export default function CallBar({ call, onAccept, onDecline, onCancel, onHangUp,
   if (call.status === 'outgoing') {
     return (
       <div className="call-overlay-backdrop">
+        {ringtones}
         <div className="call-overlay call-overlay-ringing">
           <div className="call-overlay-avatar-wrap call-overlay-pulse">
             <Avatar username={call.friend.username} avatarColor={call.friend.avatarColor} avatarUrl={call.friend.avatarUrl} size={88} />
@@ -72,6 +111,7 @@ export default function CallBar({ call, onAccept, onDecline, onCancel, onHangUp,
   // active
   return (
     <div className="call-overlay-anchor">
+      {ringtones}
       <div className="call-overlay call-overlay-active">
         <div className="call-overlay-avatar-wrap">
           <Avatar username={call.friend.username} avatarColor={call.friend.avatarColor} avatarUrl={call.friend.avatarUrl} size={72} />
