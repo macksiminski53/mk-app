@@ -13,6 +13,7 @@ import authRoutes from './routes/auth.js';
 import friendRoutes from './routes/friends.js';
 import threadRoutes from './routes/threads.js';
 import billingRoutes, { handleStripeWebhook } from './routes/billing.js';
+import serverRoutes, { isMember } from './routes/servers.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const uploadsDir = path.join(__dirname, 'uploads');
@@ -44,6 +45,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/friends', friendRoutes);
 app.use('/api/threads', threadRoutes);
 app.use('/api/billing', billingRoutes);
+app.use('/api/servers', serverRoutes);
 
 io.use((socket, next) => {
   const token = socket.handshake.auth?.token;
@@ -86,6 +88,13 @@ events.on('user:profile-changed', async ({ userId }) => {
   }
 });
 
+// A Mega Chat's Stripe purchase completed (see billing.js webhook) -- push
+// the newly-created server straight to the buyer so it shows up without a
+// manual refresh.
+events.on('megachat:ready', ({ userId, server }) => {
+  io.to(`user:${userId}`).emit('megachat:ready', server);
+});
+
 async function loadMessageRow(id) {
   return db.prepare(`
     SELECT msg.id, msg.content, msg.image_url as imageUrl, msg.created_at as createdAt,
@@ -96,6 +105,17 @@ async function loadMessageRow(id) {
     JOIN users u ON u.id = msg.user_id
     LEFT JOIN messages rm ON rm.id = msg.reply_to_id
     LEFT JOIN users ru ON ru.id = rm.user_id
+    WHERE msg.id = ?
+  `).get(id);
+}
+
+async function loadServerMessageRow(id) {
+  return db.prepare(`
+    SELECT msg.id, msg.content, msg.image_url as imageUrl, msg.created_at as createdAt,
+           msg.channel_id as channelId,
+           u.id as userId, u.username, u.avatar_color as avatarColor, u.avatar_url as avatarUrl
+    FROM server_messages msg
+    JOIN users u ON u.id = msg.user_id
     WHERE msg.id = ?
   `).get(id);
 }
@@ -160,6 +180,49 @@ io.on('connection', (socket) => {
 
   socket.on('typing', ({ threadId, username, isTyping }) => {
     socket.to(`thread:${threadId}`).emit('typing', { threadId, username, isTyping });
+  });
+
+  // ---- Mega Chats: real-time channel chat ----
+  // Same join/leave-room + send/broadcast pattern as DM threads above, just
+  // scoped to a channel instead of a thread. Membership is checked on both
+  // join and send so someone removed mid-session can't keep reading/posting.
+  socket.on('channel:join', async (channelId) => {
+    try {
+      const channel = await db.prepare('SELECT server_id FROM server_channels WHERE id = ?').get(channelId);
+      if (channel && (await isMember(channel.server_id, userId))) {
+        socket.join(`channel:${channelId}`);
+      }
+    } catch (err) {
+      console.error('channel:join error', err);
+    }
+  });
+
+  socket.on('channel:leave', (channelId) => {
+    socket.leave(`channel:${channelId}`);
+  });
+
+  socket.on('channel-message:send', async ({ channelId, content, imageUrl }, ack) => {
+    try {
+      const trimmed = (content || '').trim();
+      if (!trimmed && !imageUrl) return ack?.({ error: 'Empty message' });
+
+      const channel = await db.prepare('SELECT server_id FROM server_channels WHERE id = ?').get(channelId);
+      if (!channel || !(await isMember(channel.server_id, userId))) {
+        return ack?.({ error: 'No access' });
+      }
+
+      const info = await db.prepare(
+        'INSERT INTO server_messages (channel_id, user_id, content, image_url) VALUES (?, ?, ?, ?)'
+      ).run(channelId, userId, trimmed, imageUrl || null);
+
+      const row = await loadServerMessageRow(info.lastInsertRowid);
+      io.to(`channel:${channelId}`).emit('channel-message:new', { channelId: Number(channelId), message: row });
+
+      ack?.({ ok: true, message: row });
+    } catch (err) {
+      console.error('channel-message:send error', err);
+      ack?.({ error: 'Server error' });
+    }
   });
 
   socket.on('friend:request-sent', (toUserId) => {
