@@ -172,6 +172,29 @@ CREATE TABLE IF NOT EXISTS ultra_purchases (
   await client.execute(
     'CREATE UNIQUE INDEX IF NOT EXISTS idx_users_account_token ON users(account_token) WHERE account_token IS NOT NULL'
   );
+
+  // The 24h auto-delete sweep (see app.js) now applies to every free-tier
+  // thread unconditionally, not just ones that had the old opt-in toggle
+  // enabled. For threads that never set last_reset_at (NULL reads as "due
+  // immediately" in the sweep query), start their 24h clock now instead of
+  // wiping their history on the very next sweep. Only touches threads where
+  // neither participant is ULTRA; safe to run on every boot since it's a
+  // no-op once last_reset_at is set.
+  try {
+    await client.execute(`
+      UPDATE dm_threads
+      SET last_reset_at = datetime('now')
+      WHERE last_reset_at IS NULL
+        AND id IN (
+          SELECT dm.id FROM dm_threads dm
+          JOIN users ua ON ua.id = dm.user_a_id
+          JOIN users ub ON ub.id = dm.user_b_id
+          WHERE ua.is_ultra = 0 AND ub.is_ultra = 0
+        )
+    `);
+  } catch (e) {
+    console.error('Failed to backfill last_reset_at for mandatory 24h auto-delete:', e.message);
+  }
 }
 
 export default db;

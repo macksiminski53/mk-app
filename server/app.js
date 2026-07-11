@@ -228,24 +228,25 @@ io.on('connection', (socket) => {
   });
 });
 
-// ---- Per-chat 24-hour auto-reset sweep ----
-// Threads with auto_reset_24h enabled get their messages wiped once
-// last_reset_at is more than 24h old, then last_reset_at is bumped so the
-// cycle repeats. Runs on an interval rather than per-message so it works
-// even for threads nobody is actively viewing.
+// ---- Mandatory 24-hour chat wipe for free (non-ULTRA) threads ----
+// Every thread where neither participant has MK ULTRA gets its messages
+// wiped once last_reset_at is more than 24h old, then last_reset_at is
+// bumped so the cycle repeats. This is not an opt-in toggle -- it applies
+// to every free-tier thread unconditionally (the old `auto_reset_24h`
+// per-thread flag is no longer consulted). Buying MK ULTRA on either side
+// of a conversation makes that chat permanent. Runs on an interval rather
+// than per-message so it works even for threads nobody is actively viewing.
 const AUTO_RESET_SWEEP_MS = 5 * 60 * 1000; // check every 5 minutes
 const AUTO_RESET_WINDOW = "24 hours";
 
 async function sweepAutoResetThreads() {
   try {
-    // MK ULTRA perk: chats with an ULTRA participant never auto-delete,
-    // regardless of the auto_reset_24h toggle.
+    // MK ULTRA perk: chats with an ULTRA participant never auto-delete.
     const due = await db.prepare(`
       SELECT dm.id FROM dm_threads dm
       JOIN users ua ON ua.id = dm.user_a_id
       JOIN users ub ON ub.id = dm.user_b_id
-      WHERE dm.auto_reset_24h = 1
-        AND ua.is_ultra = 0
+      WHERE ua.is_ultra = 0
         AND ub.is_ultra = 0
         AND (
           dm.last_reset_at IS NULL

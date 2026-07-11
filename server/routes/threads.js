@@ -30,14 +30,12 @@ const storage = multer.diskStorage({
   },
 });
 
-// Attachments can be an image (rendered inline) or an mp3 (rendered as an
-// audio player) -- same upload endpoint and same `image_url` DB column for
-// either; the client tells them apart by file extension when rendering.
-function isAllowedAttachment(file) {
-  if (file.mimetype.startsWith('image/')) return true;
-  if (file.mimetype === 'audio/mpeg' || file.mimetype === 'audio/mp3') return true;
-  if (/\.mp3$/i.test(file.originalname)) return true;
-  return false;
+// Any file type is allowed -- the client picks a renderer (image, audio,
+// video, or a generic download link) based on the file extension in the
+// stored URL. Same upload endpoint and same `image_url` DB column for all
+// attachment types regardless of kind.
+function isAllowedAttachment(_file) {
+  return true;
 }
 
 // Large attachments (>50MB) are allowed but get auto-deleted after an hour
@@ -60,7 +58,7 @@ const upload = multer({
   storage,
   limits: { fileSize: 200 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    if (!isAllowedAttachment(file)) return cb(new Error('Only image or mp3 files are allowed'));
+    if (!isAllowedAttachment(file)) return cb(new Error('File type not allowed'));
     cb(null, true);
   },
 });

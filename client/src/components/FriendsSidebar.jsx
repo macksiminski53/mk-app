@@ -145,6 +145,7 @@ export default function FriendsSidebar({ friends, activeFriendId, onSelect, curr
           user={viewingFriend}
           isOwn={false}
           token={token}
+          viewerIsUltra={currentUser.isUltra}
           onClose={() => setViewingFriend(null)}
           onRemoveFriend={(friendId) => {
             setViewingFriend(null);

@@ -15,7 +15,23 @@ function truncate(text, max = 80) {
 }
 
 function isAudioUrl(url) {
-  return /\.(mp3|m4a|wav|ogg)$/i.test(url || '');
+  return /\.(mp3|m4a|wav|ogg|flac|aac)$/i.test(url || '');
+}
+
+function isImageUrl(url) {
+  return /\.(png|jpe?g|gif|webp|svg|bmp|avif)$/i.test(url || '');
+}
+
+function isVideoUrl(url) {
+  return /\.(mp4|webm|mov|m4v|avi|mkv)$/i.test(url || '');
+}
+
+// Server renames uploads to `attachment-<userId>-<timestamp>.<ext>`, so the
+// only thing worth surfacing to the user from the URL is the extension --
+// used for the generic "download this file" fallback below.
+function fileExtLabel(url) {
+  const m = /\.([a-z0-9]+)$/i.exec(url || '');
+  return m ? m[1].toUpperCase() : 'FILE';
 }
 
 export default function ChatArea({ token, friend, currentUser, onRemoveFriend, onStartCall, callActive, chatLayout = 'bubble', openSettingsTrigger, t }) {
@@ -25,7 +41,6 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
   const [showSettings, setShowSettings] = useState(false);
   const [showDeletePanel, setShowDeletePanel] = useState(false);
   const [deleteVotes, setDeleteVotes] = useState({ myVote: false, otherVote: false, autoReset: false });
-  const [autoResetBusy, setAutoResetBusy] = useState(false);
   const [replyTo, setReplyTo] = useState(null); // { id, username, content }
   const [pendingImage, setPendingImage] = useState(null); // { file, previewUrl, isAudio }
   const [uploading, setUploading] = useState(false);
@@ -36,6 +51,10 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
 
   const threadId = friend?.threadId;
   const isBubble = chatLayout === 'bubble';
+  // Free-tier chats always auto-delete after 24h; having MK ULTRA on
+  // either side of the conversation makes it permanent (matches the
+  // server-side sweep, which skips a thread if either participant is ultra).
+  const isPermanentChat = !!(currentUser?.isUltra || friend?.isUltra);
 
   // Force-open the settings dropdown when requested from elsewhere (e.g. a
   // friend's profile card "Chat Settings" link). The trigger is a counter
@@ -105,19 +124,6 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
     });
   }
 
-  async function toggleAutoReset() {
-    const next = !deleteVotes.autoReset;
-    setAutoResetBusy(true);
-    try {
-      await api.setAutoReset(token, threadId, next);
-      setDeleteVotes((prev) => ({ ...prev, autoReset: next }));
-    } catch (err) {
-      console.error('Failed to update auto-reset:', err.message);
-    } finally {
-      setAutoResetBusy(false);
-    }
-  }
-
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
@@ -136,8 +142,12 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
   async function handleFileSelect(e) {
     const file = e.target.files?.[0];
     if (!file) return;
-    const isAudio = file.type.startsWith('audio/') || /\.mp3$/i.test(file.name);
-    setPendingImage({ file, previewUrl: isAudio ? null : URL.createObjectURL(file), isAudio });
+    const isImage = file.type.startsWith('image/');
+    setPendingImage({
+      file,
+      previewUrl: isImage ? URL.createObjectURL(file) : null,
+      isImage,
+    });
     e.target.value = '';
   }
 
@@ -205,18 +215,13 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
                   <div className="dropdown-item danger" onClick={() => setShowDeletePanel(true)}>
                     <span className="dropdown-item-icon">🗑</span>Delete Chat
                   </div>
-                  <div className="dropdown-toggle-row">
-                    <span className="dropdown-item-icon">⏱</span>
-                    <span className="dropdown-toggle-label">Auto-delete every 24h</span>
-                    <label className="mini-switch">
-                      <input
-                        type="checkbox"
-                        checked={deleteVotes.autoReset}
-                        disabled={autoResetBusy}
-                        onChange={toggleAutoReset}
-                      />
-                      <span className="mini-switch-track" />
-                    </label>
+                  <div className="dropdown-info-row">
+                    <span className="dropdown-item-icon">{isPermanentChat ? '🔒' : '⏱'}</span>
+                    <span className="dropdown-toggle-label">
+                      {isPermanentChat
+                        ? 'Permanent chat (MK ULTRA)'
+                        : 'Messages auto-delete after 24h — get MK ULTRA for permanent chats'}
+                    </span>
                   </div>
                 </>
               ) : (
@@ -279,13 +284,25 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
                 {m.imageUrl && (
                   isAudioUrl(m.imageUrl) ? (
                     <audio className="message-audio" controls src={resolveAvatarUrl(m.imageUrl)} />
-                  ) : (
+                  ) : isImageUrl(m.imageUrl) ? (
                     <img
                       className="message-image"
                       src={resolveAvatarUrl(m.imageUrl)}
                       alt="attachment"
                       onClick={() => setZoomedImage(resolveAvatarUrl(m.imageUrl))}
                     />
+                  ) : isVideoUrl(m.imageUrl) ? (
+                    <video className="message-video" controls src={resolveAvatarUrl(m.imageUrl)} />
+                  ) : (
+                    <a
+                      className="message-file"
+                      href={resolveAvatarUrl(m.imageUrl)}
+                      target="_blank"
+                      rel="noreferrer"
+                      download
+                    >
+                      📄 {fileExtLabel(m.imageUrl)} file — download
+                    </a>
                   )
                 )}
 
@@ -320,10 +337,10 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
 
       {pendingImage && (
         <div className="pending-image-banner">
-          {pendingImage.isAudio ? (
-            <span className="pending-audio-label">🎵 {pendingImage.file.name}</span>
-          ) : (
+          {pendingImage.isImage ? (
             <img src={pendingImage.previewUrl} alt="pending attachment" />
+          ) : (
+            <span className="pending-audio-label">📎 {pendingImage.file.name}</span>
           )}
           <span className="reply-cancel" onClick={() => setPendingImage(null)}>✕</span>
         </div>
@@ -348,7 +365,6 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/*,audio/mpeg,audio/mp3,.mp3"
           style={{ display: 'none' }}
           onChange={handleFileSelect}
         />

@@ -32,15 +32,18 @@ function formatMemberSince(createdAt) {
 // "Friend Settings" panel (Remove Friend + mutual-consent Delete Chat) so
 // the profile and the settings for that relationship live in the same
 // place instead of requiring a separate navigation step.
-export default function ProfileCard({ user, isOwn, token, onClose, onEditProfile, onLogout, onSetBio, onRemoveFriend }) {
+export default function ProfileCard({ user, isOwn, token, viewerIsUltra, onClose, onEditProfile, onLogout, onSetBio, onRemoveFriend }) {
   const [editingBio, setEditingBio] = useState(false);
   const [bioDraft, setBioDraft] = useState(user.bio || '');
   const [showFriendSettings, setShowFriendSettings] = useState(false);
   const [deleteVotes, setDeleteVotes] = useState({ myVote: false, otherVote: false, autoReset: false });
-  const [autoResetBusy, setAutoResetBusy] = useState(false);
 
   const playing = parsePlaying(user.statusText);
   const memberSince = formatMemberSince(user.createdAt);
+  // Free-tier chats always auto-delete after 24h; having MK ULTRA on either
+  // side makes it permanent (matches the server-side sweep, which skips a
+  // thread if either participant is ultra).
+  const isPermanentChat = !!(user.isUltra || viewerIsUltra);
 
   async function handleBioSubmit(e) {
     e.preventDefault();
@@ -76,20 +79,6 @@ export default function ProfileCard({ user, isOwn, token, onClose, onEditProfile
   function castDeleteVote(vote) {
     if (!user.threadId) return;
     getSocket().emit('chat:delete-vote', { threadId: user.threadId, vote }, () => {});
-  }
-
-  async function toggleAutoReset() {
-    if (!user.threadId || !token) return;
-    const next = !deleteVotes.autoReset;
-    setAutoResetBusy(true);
-    try {
-      await api.setAutoReset(token, user.threadId, next);
-      setDeleteVotes((prev) => ({ ...prev, autoReset: next }));
-    } catch (err) {
-      console.error('Failed to update auto-reset:', err.message);
-    } finally {
-      setAutoResetBusy(false);
-    }
   }
 
   return (
@@ -236,18 +225,13 @@ export default function ProfileCard({ user, isOwn, token, onClose, onEditProfile
 
                   <div className="profile-friend-settings-divider" />
 
-                  <div className="dropdown-toggle-row">
-                    <span className="dropdown-item-icon">⏱</span>
-                    <span className="dropdown-toggle-label">Auto-delete every 24h</span>
-                    <label className="mini-switch">
-                      <input
-                        type="checkbox"
-                        checked={deleteVotes.autoReset}
-                        disabled={autoResetBusy}
-                        onChange={toggleAutoReset}
-                      />
-                      <span className="mini-switch-track" />
-                    </label>
+                  <div className="dropdown-info-row">
+                    <span className="dropdown-item-icon">{isPermanentChat ? '🔒' : '⏱'}</span>
+                    <span className="dropdown-toggle-label">
+                      {isPermanentChat
+                        ? 'Permanent chat (MK ULTRA)'
+                        : 'Messages auto-delete after 24h — get MK ULTRA for permanent chats'}
+                    </span>
                   </div>
                 </div>
               )}

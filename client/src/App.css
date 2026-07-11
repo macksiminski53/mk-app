@@ -1505,7 +1505,8 @@ body {
 }
 
 /* --- Dropdown toggle row (e.g. "Auto-delete every 24h") --- */
-.dropdown-toggle-row {
+.dropdown-toggle-row,
+.dropdown-info-row {
   display: flex;
   align-items: center;
   padding: 10px 12px;
