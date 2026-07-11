@@ -17,3 +17,4 @@ EXPOSE 4000
 # with shell echoes to find exactly where Node itself stops producing
 # output -- this narrows it down to node --version vs. node -e vs. our file.
 CMD ["sh", "-c", "echo STEP_A_before_node_version; node --version; echo STEP_B_after_node_version; node -e 'console.log(\"STEP_C_node_e_console_log_works\")'; echo STEP_D_after_node_e; node -e 'require(\"fs\").writeSync(1,\"STEP_E_writeSync_works\\n\")'; echo STEP_F_after_writesync; sleep 60"]
+# diagnostic nudge Fri Jul 10 23:18:15 EDT 2026
