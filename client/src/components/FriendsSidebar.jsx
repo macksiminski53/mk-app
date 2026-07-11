@@ -31,10 +31,10 @@ export default function FriendsSidebar({
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
-    // MK ULTRA perk: skip the crop/rasterize step for GIFs so the animation
+    // MK PLUS perk: skip the crop/rasterize step for GIFs so the animation
     // survives -- the cropper's canvas draw would otherwise flatten it to a
     // single static frame.
-    if (currentUser.isUltra && file.type === 'image/gif') {
+    if (currentUser.isPlus && file.type === 'image/gif') {
       setUploading(true);
       try {
         await onChangeAvatar(file);
@@ -95,6 +95,7 @@ export default function FriendsSidebar({
             <div className="activity-username" onClick={() => setShowProfileCard(true)} title="View profile">
               {currentUser.username}
               {currentUser.isUltra && <span className="ultra-badge" title="MK ULTRA">ULTRA</span>}
+              {!currentUser.isUltra && currentUser.isPlus && <span className="plus-badge" title="MK PLUS">PLUS</span>}
             </div>
             <div
               className={`activity-status ${currentUser.statusSource !== 'music' ? 'activity-status-hint' : ''}`}
@@ -176,6 +177,7 @@ export default function FriendsSidebar({
               <span className="friend-name">
                 {f.username}
                 {f.isUltra && <span className="ultra-badge" title="MK ULTRA">ULTRA</span>}
+                {!f.isUltra && f.isPlus && <span className="plus-badge" title="MK PLUS">PLUS</span>}
               </span>
               {f.statusSource === 'music' && f.statusText && <span className="friend-status">{f.statusText}</span>}
             </div>
@@ -202,7 +204,7 @@ export default function FriendsSidebar({
           user={viewingFriend}
           isOwn={false}
           token={token}
-          viewerIsUltra={currentUser.isUltra}
+          viewerIsPlus={currentUser.isPlus}
           onClose={() => setViewingFriend(null)}
           onRemoveFriend={(friendId) => {
             setViewingFriend(null);

@@ -105,7 +105,7 @@ events.on('group:avatar-changed', ({ memberIds, groupId, avatarUrl }) => {
 });
 
 async function loadMessageRow(id) {
-  return db.prepare(`
+  const row = await db.prepare(`
     SELECT msg.id, msg.content, msg.image_url as imageUrl, msg.created_at as createdAt,
            u.id as userId, u.username, u.avatar_color as avatarColor, u.avatar_url as avatarUrl,
            msg.reply_to_id as replyToId,
@@ -116,10 +116,11 @@ async function loadMessageRow(id) {
     LEFT JOIN users ru ON ru.id = rm.user_id
     WHERE msg.id = ?
   `).get(id);
+  return row ? { ...row, likeCount: 0, likedByMe: false } : row;
 }
 
 async function loadServerMessageRow(id) {
-  return db.prepare(`
+  const row = await db.prepare(`
     SELECT msg.id, msg.content, msg.image_url as imageUrl, msg.created_at as createdAt,
            msg.channel_id as channelId,
            u.id as userId, u.username, u.avatar_color as avatarColor, u.avatar_url as avatarUrl
@@ -127,10 +128,11 @@ async function loadServerMessageRow(id) {
     JOIN users u ON u.id = msg.user_id
     WHERE msg.id = ?
   `).get(id);
+  return row ? { ...row, likeCount: 0, likedByMe: false } : row;
 }
 
 async function loadGroupMessageRow(id) {
-  return db.prepare(`
+  const row = await db.prepare(`
     SELECT msg.id, msg.content, msg.image_url as imageUrl, msg.created_at as createdAt,
            msg.group_chat_id as groupId,
            u.id as userId, u.username, u.avatar_color as avatarColor, u.avatar_url as avatarUrl
@@ -138,6 +140,25 @@ async function loadGroupMessageRow(id) {
     JOIN users u ON u.id = msg.user_id
     WHERE msg.id = ?
   `).get(id);
+  return row ? { ...row, likeCount: 0, likedByMe: false } : row;
+}
+
+// MK ULTRA perk: liking a message. `messageType` disambiguates ids across
+// the three separate message tables since they don't share an id space; the
+// client also sends whichever room it's already joined (threadId/channelId/
+// groupId) so we know which socket room to broadcast the new count to
+// without an extra lookup query per like.
+const LIKE_TABLES = {
+  dm: { table: 'messages', room: (id) => `thread:${id}` },
+  mega: { table: 'server_messages', room: (id) => `channel:${id}` },
+  mini: { table: 'group_messages', room: (id) => `group:${id}` },
+};
+
+async function getMessageLikeCount(messageType, messageId) {
+  const row = await db.prepare(
+    'SELECT COUNT(*) as c FROM message_likes WHERE message_type = ? AND message_id = ?'
+  ).get(messageType, messageId);
+  return Number(row?.c) || 0;
 }
 
 io.on('connection', (socket) => {
@@ -280,6 +301,51 @@ io.on('connection', (socket) => {
     }
   });
 
+  // MK ULTRA perk: liking a message. Toggles the current user's like on/off
+  // and broadcasts the new total count to everyone in the room; only the
+  // liker's own client needs to know whether *they* liked it (returned via
+  // the ack), so that part isn't broadcast.
+  socket.on('message:like', async ({ messageType, messageId, roomId }, ack) => {
+    try {
+      const cfg = LIKE_TABLES[messageType];
+      if (!cfg) return ack?.({ error: 'Invalid message type' });
+
+      const userRow = await db.prepare('SELECT is_ultra FROM users WHERE id = ?').get(userId);
+      if (!userRow?.is_ultra) return ack?.({ error: 'MK ULTRA required' });
+
+      const msgRow = await db.prepare(`SELECT id FROM ${cfg.table} WHERE id = ?`).get(messageId);
+      if (!msgRow) return ack?.({ error: 'Message not found' });
+
+      const existing = await db.prepare(
+        'SELECT id FROM message_likes WHERE message_type = ? AND message_id = ? AND user_id = ?'
+      ).get(messageType, messageId, userId);
+
+      let likedByMe;
+      if (existing) {
+        await db.prepare('DELETE FROM message_likes WHERE id = ?').run(existing.id);
+        likedByMe = false;
+      } else {
+        await db.prepare(
+          'INSERT INTO message_likes (message_type, message_id, user_id) VALUES (?, ?, ?)'
+        ).run(messageType, messageId, userId);
+        likedByMe = true;
+      }
+
+      const likeCount = await getMessageLikeCount(messageType, messageId);
+      if (roomId) {
+        io.to(cfg.room(roomId)).emit('message:like-update', {
+          messageType,
+          messageId: Number(messageId),
+          likeCount,
+        });
+      }
+      ack?.({ ok: true, likeCount, likedByMe });
+    } catch (err) {
+      console.error('message:like error', err);
+      ack?.({ error: 'Server error' });
+    }
+  });
+
   socket.on('friend:request-sent', (toUserId) => {
     io.to(`user:${toUserId}`).emit('friend:request-received');
   });
@@ -360,26 +426,28 @@ io.on('connection', (socket) => {
   });
 });
 
-// ---- Mandatory 24-hour chat wipe for free (non-ULTRA) threads ----
-// Every thread where neither participant has MK ULTRA gets its messages
-// wiped once last_reset_at is more than 24h old, then last_reset_at is
-// bumped so the cycle repeats. This is not an opt-in toggle -- it applies
-// to every free-tier thread unconditionally (the old `auto_reset_24h`
-// per-thread flag is no longer consulted). Buying MK ULTRA on either side
-// of a conversation makes that chat permanent. Runs on an interval rather
-// than per-message so it works even for threads nobody is actively viewing.
+// ---- Mandatory 24-hour chat wipe for free (non-PLUS/ULTRA) threads ----
+// Every thread where neither participant has MK PLUS or MK ULTRA gets its
+// messages wiped once last_reset_at is more than 24h old, then
+// last_reset_at is bumped so the cycle repeats. This is not an opt-in
+// toggle -- it applies to every free-tier thread unconditionally (the old
+// `auto_reset_24h` per-thread flag is no longer consulted). Having MK PLUS
+// or MK ULTRA on either side of a conversation makes that chat permanent
+// (ULTRA includes every PLUS perk on top of its own). Runs on an interval
+// rather than per-message so it works even for threads nobody is actively
+// viewing.
 const AUTO_RESET_SWEEP_MS = 5 * 60 * 1000; // check every 5 minutes
 const AUTO_RESET_WINDOW = "24 hours";
 
 async function sweepAutoResetThreads() {
   try {
-    // MK ULTRA perk: chats with an ULTRA participant never auto-delete.
+    // MK PLUS/ULTRA perk: chats with a PLUS or ULTRA participant never auto-delete.
     const due = await db.prepare(`
       SELECT dm.id FROM dm_threads dm
       JOIN users ua ON ua.id = dm.user_a_id
       JOIN users ub ON ub.id = dm.user_b_id
-      WHERE ua.is_ultra = 0
-        AND ub.is_ultra = 0
+      WHERE ua.is_plus = 0 AND ua.is_ultra = 0
+        AND ub.is_plus = 0 AND ub.is_ultra = 0
         AND (
           dm.last_reset_at IS NULL
           OR datetime(dm.last_reset_at, '+${AUTO_RESET_WINDOW}') <= datetime('now')
@@ -396,7 +464,10 @@ async function sweepAutoResetThreads() {
 }
 
 // Same mandatory 24h rule for free-tier Mini Chats -- permanent as soon as
-// any single member has MK ULTRA, otherwise wiped on the same cycle as DMs.
+// any single member has MK PLUS or MK ULTRA, otherwise wiped on the same
+// cycle as DMs. (MK ULTRA's own perk description calls this out
+// specifically for Mini Chats, but it's really just PLUS's permanent-chat
+// perk, which ULTRA also carries since ULTRA is a superset of PLUS.)
 async function sweepAutoResetGroups() {
   try {
     const due = await db.prepare(`
@@ -404,7 +475,7 @@ async function sweepAutoResetGroups() {
       WHERE NOT EXISTS (
         SELECT 1 FROM group_chat_members gm
         JOIN users u ON u.id = gm.user_id
-        WHERE gm.group_chat_id = g.id AND u.is_ultra = 1
+        WHERE gm.group_chat_id = g.id AND (u.is_plus = 1 OR u.is_ultra = 1)
       )
       AND (
         g.last_reset_at IS NULL

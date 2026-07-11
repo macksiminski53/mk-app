@@ -20,7 +20,8 @@ export default function ServerRail({ servers, activeServerId, onSelectHome, onSe
     }
   }, [createTrigger]);
 
-  const price = isUltra ? '50¢' : '$1';
+  const isFree = isUltra;
+  const price = isFree ? 'Free' : '$1';
 
   async function handleCreate(e) {
     e.preventDefault();
@@ -72,8 +73,10 @@ export default function ServerRail({ servers, activeServerId, onSelectHome, onSe
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <h2>Create a Mega Chat</h2>
             <p className="server-rail-create-hint">
-              A Mega Chat is a server with unlimited members and its own text channels. Costs {price}
-              {isUltra ? ' (MK ULTRA price)' : ''}, one time, via Stripe.
+              A Mega Chat is a server with unlimited members and its own text channels.
+              {isFree
+                ? ' Free for MK ULTRA members.'
+                : ' Costs $1, one time, via Stripe.'}
             </p>
             <form onSubmit={handleCreate}>
               <div className="settings-section">
@@ -89,7 +92,9 @@ export default function ServerRail({ servers, activeServerId, onSelectHome, onSe
               {error && <div className="form-error">{error}</div>}
               <div className="modal-actions">
                 <button type="button" className="secondary" onClick={() => setShowCreate(false)} disabled={creating}>Cancel</button>
-                <button type="submit" disabled={creating || !name.trim()}>{creating ? 'Starting checkout…' : `Create for ${price}`}</button>
+                <button type="submit" disabled={creating || !name.trim()}>
+                  {creating ? (isFree ? 'Creating…' : 'Starting checkout…') : (isFree ? 'Create for free' : `Create for ${price}`)}
+                </button>
               </div>
             </form>
           </div>

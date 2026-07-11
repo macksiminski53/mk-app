@@ -38,7 +38,8 @@ export const api = {
 
   getBillingStatus: (token) => request('/billing/status', { token }),
   getMyStats: (token) => request('/auth/stats', { token }),
-  createUltraCheckout: (token) => request('/billing/checkout', { method: 'POST', token }),
+  createPlusCheckout: (token) => request('/billing/checkout', { method: 'POST', token }),
+  createUltraCheckout: (token) => request('/billing/ultra-checkout', { method: 'POST', token }),
   setUltraColor: (token, color) => request('/billing/ultra-color', { method: 'PATCH', body: { color }, token }),
 
   listFriends: (token) => request('/friends', { token }),
@@ -78,6 +79,11 @@ export const api = {
     form.append('avatar', file);
     return request(`/groups/${groupId}/avatar`, { method: 'POST', body: form, token, isForm: true });
   },
+
+  // ---- MK ULTRA perks: emoji reactions / message likes ----
+  // Sent over the socket (see App.jsx), not REST -- likeMessage lives here
+  // purely as documentation of the payload shape used by socket.emit
+  // 'message:like' in the components; there's no HTTP call to make.
 };
 
 export function resolveAvatarUrl(url) {

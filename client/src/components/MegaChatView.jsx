@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import Avatar from './Avatar.jsx';
 import { api } from '../api.js';
 import { getSocket } from '../socket.js';
+import EmojiPicker from './EmojiPicker.jsx';
+import LikeButton from './LikeButton.jsx';
 
 function formatTime(createdAt) {
   if (!createdAt) return '';
@@ -57,14 +59,27 @@ export default function MegaChatView({ server, token, currentUser, onLeftOrDelet
         setMessages((prev) => [...prev, message]);
       }
     }
+    function onLikeUpdate({ messageType, messageId, likeCount }) {
+      if (messageType !== 'mega') return;
+      setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, likeCount } : m)));
+    }
     socket.on('channel-message:new', onNew);
+    socket.on('message:like-update', onLikeUpdate);
 
     return () => {
       cancelled = true;
       socket.emit('channel:leave', activeChannelId);
       socket.off('channel-message:new', onNew);
+      socket.off('message:like-update', onLikeUpdate);
     };
   }, [activeChannelId, server.id, token]);
+
+  function toggleLike(messageId) {
+    getSocket().emit('message:like', { messageType: 'mega', messageId, roomId: activeChannelId }, (res) => {
+      if (res?.error) return console.error(res.error);
+      setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, likeCount: res.likeCount, likedByMe: res.likedByMe } : m)));
+    });
+  }
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ block: 'end' });
@@ -214,6 +229,7 @@ export default function MegaChatView({ server, token, currentUser, onLeftOrDelet
                     {m.username}
                     {m.id === detail.ownerId && <span className="ultra-badge" title="Owner">OWNER</span>}
                     {m.isUltra && <span className="ultra-badge" title="MK ULTRA">ULTRA</span>}
+                    {!m.isUltra && m.isPlus && <span className="plus-badge" title="MK PLUS">PLUS</span>}
                   </span>
                   {isOwner && m.id !== detail.ownerId && (
                     <span className="megachat-member-kick" onClick={() => handleRemoveMember(m.id)}>Remove</span>
@@ -234,12 +250,21 @@ export default function MegaChatView({ server, token, currentUser, onLeftOrDelet
                       <span className="megachat-message-time">{formatTime(m.createdAt)}</span>
                     </div>
                     <div className="megachat-message-content">{m.content}</div>
+                    <LikeButton
+                      likeCount={m.likeCount}
+                      likedByMe={m.likedByMe}
+                      canLike={!!currentUser?.isUltra}
+                      onToggle={() => toggleLike(m.id)}
+                    />
                   </div>
                 </div>
               ))}
               <div ref={messagesEndRef} />
             </div>
             <form className="megachat-input-row" onSubmit={handleSend}>
+              {currentUser?.isUltra && (
+                <EmojiPicker onSelect={(emoji) => setInput((prev) => prev + emoji)} />
+              )}
               <input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}

@@ -160,19 +160,20 @@ export default function App() {
     api.getBillingStatus(token).then((s) => setBillingConfigured(s.configured)).catch(() => setBillingConfigured(false));
   }, [token]);
 
-  // Accent color: MK ULTRA's account-level color (synced across devices)
-  // takes priority when set; otherwise falls back to the free, local-only
-  // pick from Extra > Accent Color (just a client preference, not stored on
-  // the account -- available to everyone, not just ULTRA). Applied as a CSS
-  // variable rather than touching every element's color individually.
+  // Accent color: MK PLUS's account-level color (synced across devices,
+  // also available to MK ULTRA since ULTRA includes every PLUS perk) takes
+  // priority when set; otherwise falls back to the free, local-only pick
+  // from Extra > Accent Color (just a client preference, not stored on the
+  // account -- available to everyone, not just PLUS/ULTRA). Applied as a
+  // CSS variable rather than touching every element's color individually.
   useEffect(() => {
-    const color = (user?.isUltra && user?.ultraColor) ? user.ultraColor : settings.customAccent;
+    const color = (user?.isPlus && user?.ultraColor) ? user.ultraColor : settings.customAccent;
     if (color) {
       document.documentElement.style.setProperty('--mk-accent', color);
     } else {
       document.documentElement.style.removeProperty('--mk-accent');
     }
-  }, [user?.isUltra, user?.ultraColor, settings.customAccent]);
+  }, [user?.isPlus, user?.ultraColor, settings.customAccent]);
 
   // Voice Chat > output device: <audio> has no JSX attribute for this, it's
   // an imperative-only API (setSinkId), and only Chromium browsers support
@@ -501,6 +502,12 @@ export default function App() {
     });
   }
 
+  async function handleBuyPlus() {
+    const res = await api.createPlusCheckout(token);
+    if (res.url) window.location.href = res.url;
+    else throw new Error('No checkout URL returned');
+  }
+
   async function handleBuyUltra() {
     const res = await api.createUltraCheckout(token);
     if (res.url) window.location.href = res.url;
@@ -509,8 +516,17 @@ export default function App() {
 
   async function handleCreateMegaChat(name) {
     const res = await api.createMegaChatCheckout(token, name);
-    if (res.url) window.location.href = res.url;
-    else throw new Error('No checkout URL returned');
+    if (res.free && res.server) {
+      // MK ULTRA perk: free Mega Chat creation, no Stripe redirect -- the
+      // server already exists, so just add it locally the same way the
+      // megachat:ready socket event would for the paid flow.
+      setServers((prev) => (prev.find((s) => s.id === res.server.id) ? prev : [...prev, res.server]));
+      setActiveServerId(res.server.id);
+    } else if (res.url) {
+      window.location.href = res.url;
+    } else {
+      throw new Error('No checkout URL returned');
+    }
   }
 
   function handleServerLeftOrDeleted(serverId) {
@@ -732,6 +748,7 @@ export default function App() {
         currentUser={user}
         onUploadRingtone={handleUploadRingtone}
         onResetRingtone={handleResetRingtone}
+        onBuyPlus={handleBuyPlus}
         onBuyUltra={handleBuyUltra}
         onSetUltraColor={handleSetUltraColor}
         onRevealToken={handleRevealToken}
@@ -768,6 +785,7 @@ export default function App() {
           onSelectHome={() => setActiveServerId(null)}
           onSelectServer={(id) => setActiveServerId(id)}
           isUltra={!!user.isUltra}
+          isPlus={!!user.isPlus}
           onCreate={handleCreateMegaChat}
           createTrigger={megaChatCreateTrigger}
         />

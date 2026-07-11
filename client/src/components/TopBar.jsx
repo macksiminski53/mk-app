@@ -3,6 +3,7 @@ import { LANGUAGES } from '../i18n.js';
 import { listAudioDevices } from '../webrtc.js';
 
 const CHANGELOG = [
+  { version: '0.16.0', notes: 'MK ULTRA is now MK PLUS (same $1 price, same perks). A new MK ULTRA ($5) tier takes its place with free Mega Chat creation, permanent Mini Chats, an emoji picker, and the ability to like messages.' },
   { version: '0.15.0', notes: 'Added a PC desktop app (with a system tray icon) and real OS notifications with a sound chime for new messages and incoming calls, even when the window isn\'t focused.' },
   { version: '0.14.0', notes: 'Redesigned audio message attachments as a cassette-tape player, with spinning reels and a scrubbable tape strip.' },
   { version: '0.13.0', notes: 'Removed emoji icons app-wide in favor of plain text labels for a cleaner, more consistent look.' },
@@ -20,7 +21,7 @@ const CHANGELOG = [
   { version: '0.1.0', notes: 'Initial release: register/login, real-time messaging.' },
 ];
 
-export default function TopBar({ requests, onRefreshRequests, onRespond, onSendRequest, settings, onUpdateSettings, onLogout, currentUser, onUploadRingtone, onResetRingtone, onBuyUltra, onSetUltraColor, onRevealToken, onRegenerateToken, billingConfigured, onCreateMegaChat, onCreateMiniChat, onFetchStats, t }) {
+export default function TopBar({ requests, onRefreshRequests, onRespond, onSendRequest, settings, onUpdateSettings, onLogout, currentUser, onUploadRingtone, onResetRingtone, onBuyPlus, onBuyUltra, onSetUltraColor, onRevealToken, onRegenerateToken, billingConfigured, onCreateMegaChat, onCreateMiniChat, onFetchStats, t }) {
   const [showExtra, setShowExtra] = useState(false);
   const [showLog, setShowLog] = useState(false);
   const [showStats, setShowStats] = useState(false);
@@ -34,6 +35,8 @@ export default function TopBar({ requests, onRefreshRequests, onRespond, onSendR
   const [addError, setAddError] = useState('');
   const [addSuccess, setAddSuccess] = useState('');
   const [ringtoneBusy, setRingtoneBusy] = useState(null); // 'outgoing' | 'incoming' | null
+  const [plusBusy, setPlusBusy] = useState(false);
+  const [plusError, setPlusError] = useState('');
   const [ultraBusy, setUltraBusy] = useState(false);
   const [ultraError, setUltraError] = useState('');
   const outgoingFileRef = useRef(null);
@@ -62,6 +65,19 @@ export default function TopBar({ requests, onRefreshRequests, onRespond, onSendR
       .catch((err) => console.error('Failed to list audio devices:', err.message));
   }, [showSettings]);
 
+  async function handleBuyPlus() {
+    setPlusBusy(true);
+    setPlusError('');
+    try {
+      await onBuyPlus();
+    } catch (err) {
+      console.error('MK PLUS checkout failed:', err.message);
+      setPlusError(err.message || 'Something went wrong starting checkout.');
+      setPlusBusy(false);
+    }
+    // On success this navigates away to Stripe, so no need to clear busy.
+  }
+
   async function handleBuyUltra() {
     setUltraBusy(true);
     setUltraError('');
@@ -79,7 +95,7 @@ export default function TopBar({ requests, onRefreshRequests, onRespond, onSendR
     try {
       await onSetUltraColor(e.target.value);
     } catch (err) {
-      console.error('Failed to set MK ULTRA color:', err.message);
+      console.error('Failed to set accent color:', err.message);
     }
   }
 
@@ -332,11 +348,11 @@ export default function TopBar({ requests, onRefreshRequests, onRespond, onSendR
                 </div>
 
                 <div className="settings-section">
-                  <div className="settings-label">MK ULTRA</div>
-                  {currentUser?.isUltra ? (
+                  <div className="settings-label">MK PLUS</div>
+                  {currentUser?.isPlus ? (
                     <div className="ultra-panel">
                       <div className="ultra-panel-title">
-                        <span className="ultra-badge" title="MK ULTRA">ULTRA</span> You're an MK ULTRA member
+                        <span className="plus-badge" title="MK PLUS">PLUS</span> You're an MK PLUS member
                       </div>
                       <div className="ultra-panel-desc">
                         Permanent chats, GIF avatars, and a custom accent color are unlocked.
@@ -365,10 +381,49 @@ export default function TopBar({ requests, onRefreshRequests, onRespond, onSendR
                           <button
                             type="button"
                             className="ultra-buy-btn"
+                            disabled={plusBusy}
+                            onClick={handleBuyPlus}
+                          >
+                            {plusBusy ? '…' : 'Get MK PLUS — $1'}
+                          </button>
+                          {plusError && <div className="ultra-panel-error">{plusError}</div>}
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <div className="settings-section">
+                  <div className="settings-label">MK ULTRA</div>
+                  {currentUser?.isUltra ? (
+                    <div className="ultra-panel">
+                      <div className="ultra-panel-title">
+                        <span className="ultra-badge" title="MK ULTRA">ULTRA</span> You're an MK ULTRA member
+                      </div>
+                      <div className="ultra-panel-desc">
+                        Everything in MK PLUS, plus free Mega Chat creation, permanent Mini Chats whenever
+                        you're a member, an emoji picker, and the ability to like messages.
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="ultra-panel">
+                      <div className="ultra-panel-desc">
+                        One-time $5 purchase, on top of everything MK PLUS gives you: free Mega Chat creation,
+                        permanent Mini Chats, an emoji picker in the message box, and the ability to like messages.
+                      </div>
+                      {billingConfigured === false ? (
+                        <div className="ultra-panel-notice">
+                          Payments aren't set up yet — check back soon.
+                        </div>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            className="ultra-buy-btn"
                             disabled={ultraBusy}
                             onClick={handleBuyUltra}
                           >
-                            {ultraBusy ? '…' : 'Get MK ULTRA — $1'}
+                            {ultraBusy ? '…' : 'Get MK ULTRA — $5'}
                           </button>
                           {ultraError && <div className="ultra-panel-error">{ultraError}</div>}
                         </>

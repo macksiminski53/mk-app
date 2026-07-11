@@ -4,6 +4,8 @@ import { getSocket } from '../socket.js';
 import Avatar from './Avatar.jsx';
 import { PhoneIcon } from './CallIcons.jsx';
 import CassettePlayer from './CassettePlayer.jsx';
+import EmojiPicker from './EmojiPicker.jsx';
+import LikeButton from './LikeButton.jsx';
 
 function formatTime(iso) {
   const d = new Date(iso + 'Z');
@@ -52,10 +54,11 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
 
   const threadId = friend?.threadId;
   const isBubble = chatLayout === 'bubble';
-  // Free-tier chats always auto-delete after 24h; having MK ULTRA on
-  // either side of the conversation makes it permanent (matches the
-  // server-side sweep, which skips a thread if either participant is ultra).
-  const isPermanentChat = !!(currentUser?.isUltra || friend?.isUltra);
+  // Free-tier chats always auto-delete after 24h; having MK PLUS or MK
+  // ULTRA on either side of the conversation makes it permanent (matches
+  // the server-side sweep, which skips a thread if either participant has
+  // PLUS or ULTRA).
+  const isPermanentChat = !!(currentUser?.isPlus || friend?.isPlus);
 
   // Force-open the settings dropdown when requested from elsewhere (e.g. a
   // friend's profile card "Chat Settings" link). The trigger is a counter
@@ -104,10 +107,16 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
       setShowDeletePanel(false);
     }
 
+    function onLikeUpdate({ messageType, messageId, likeCount }) {
+      if (messageType !== 'dm') return;
+      setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, likeCount } : m)));
+    }
+
     socket.on('message:new', onNewMessage);
     socket.on('typing', onTyping);
     socket.on('chat:delete-vote-update', onDeleteVoteUpdate);
     socket.on('chat:deleted', onChatDeleted);
+    socket.on('message:like-update', onLikeUpdate);
 
     return () => {
       cancelled = true;
@@ -116,8 +125,16 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
       socket.off('typing', onTyping);
       socket.off('chat:delete-vote-update', onDeleteVoteUpdate);
       socket.off('chat:deleted', onChatDeleted);
+      socket.off('message:like-update', onLikeUpdate);
     };
   }, [threadId]);
+
+  function toggleLike(messageId) {
+    getSocket().emit('message:like', { messageType: 'dm', messageId, roomId: threadId }, (res) => {
+      if (res?.error) return console.error(res.error);
+      setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, likeCount: res.likeCount, likedByMe: res.likedByMe } : m)));
+    });
+  }
 
   function castDeleteVote(vote) {
     getSocket().emit('chat:delete-vote', { threadId, vote }, (res) => {
@@ -193,6 +210,7 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
         <span className="chat-header-name">
           {friend.username}
           {friend.isUltra && <span className="ultra-badge" title="MK ULTRA">ULTRA</span>}
+          {!friend.isUltra && friend.isPlus && <span className="plus-badge" title="MK PLUS">PLUS</span>}
         </span>
         <div className="dropdown-wrap chat-settings-wrap">
           <span
@@ -219,8 +237,8 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
                   <div className="dropdown-info-row">
                                         <span className="dropdown-toggle-label">
                       {isPermanentChat
-                        ? 'Permanent chat (MK ULTRA)'
-                        : 'Messages auto-delete after 24h — get MK ULTRA for permanent chats'}
+                        ? 'Permanent chat (MK PLUS)'
+                        : 'Messages auto-delete after 24h — get MK PLUS for permanent chats'}
                     </span>
                   </div>
                 </>
@@ -310,13 +328,21 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
                   <span className="message-time bubble-time">{formatTime(m.createdAt)}</span>
                 )}
 
-                <button
-                  className="reply-btn"
-                  onClick={() => setReplyTo({ id: m.id, username: m.username, content: m.content })}
-                  title={t('reply')}
-                >
-                  {t('reply')}
-                </button>
+                <div className="message-actions-row">
+                  <button
+                    className="reply-btn"
+                    onClick={() => setReplyTo({ id: m.id, username: m.username, content: m.content })}
+                    title={t('reply')}
+                  >
+                    {t('reply')}
+                  </button>
+                  <LikeButton
+                    likeCount={m.likeCount}
+                    likedByMe={m.likedByMe}
+                    canLike={!!currentUser?.isUltra}
+                    onToggle={() => toggleLike(m.id)}
+                  />
+                </div>
               </div>
             </div>
           );
@@ -368,6 +394,9 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
           style={{ display: 'none' }}
           onChange={handleFileSelect}
         />
+        {currentUser?.isUltra && (
+          <EmojiPicker onSelect={(emoji) => setDraft((prev) => prev + emoji)} />
+        )}
         <input
           value={draft}
           onChange={handleChange}

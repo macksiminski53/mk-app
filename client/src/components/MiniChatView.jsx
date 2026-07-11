@@ -3,6 +3,8 @@ import Avatar from './Avatar.jsx';
 import AvatarCropper from './AvatarCropper.jsx';
 import { api } from '../api.js';
 import { getSocket } from '../socket.js';
+import EmojiPicker from './EmojiPicker.jsx';
+import LikeButton from './LikeButton.jsx';
 
 function formatTime(createdAt) {
   if (!createdAt) return '';
@@ -53,16 +55,29 @@ export default function MiniChatView({ group, token, currentUser, onLeft }) {
     function onCleared({ groupId }) {
       if (groupId === group.id) setMessages([]);
     }
+    function onLikeUpdate({ messageType, messageId, likeCount }) {
+      if (messageType !== 'mini') return;
+      setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, likeCount } : m)));
+    }
     socket.on('group-message:new', onNew);
     socket.on('group-chat:cleared', onCleared);
+    socket.on('message:like-update', onLikeUpdate);
 
     return () => {
       cancelled = true;
       socket.emit('group:leave', group.id);
       socket.off('group-message:new', onNew);
       socket.off('group-chat:cleared', onCleared);
+      socket.off('message:like-update', onLikeUpdate);
     };
   }, [group.id, token]);
+
+  function toggleLike(messageId) {
+    getSocket().emit('message:like', { messageType: 'mini', messageId, roomId: group.id }, (res) => {
+      if (res?.error) return console.error(res.error);
+      setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, likeCount: res.likeCount, likedByMe: res.likedByMe } : m)));
+    });
+  }
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ block: 'end' });
@@ -173,6 +188,7 @@ export default function MiniChatView({ group, token, currentUser, onLeft }) {
                 <span className="megachat-member-name">
                   {m.username}
                   {m.isUltra && <span className="ultra-badge" title="MK ULTRA">ULTRA</span>}
+                  {!m.isUltra && m.isPlus && <span className="plus-badge" title="MK PLUS">PLUS</span>}
                 </span>
               </div>
             ))}
@@ -190,12 +206,21 @@ export default function MiniChatView({ group, token, currentUser, onLeft }) {
                     <span className="megachat-message-time">{formatTime(m.createdAt)}</span>
                   </div>
                   <div className="megachat-message-content">{m.content}</div>
+                  <LikeButton
+                    likeCount={m.likeCount}
+                    likedByMe={m.likedByMe}
+                    canLike={!!currentUser?.isUltra}
+                    onToggle={() => toggleLike(m.id)}
+                  />
                 </div>
               </div>
             ))}
             <div ref={messagesEndRef} />
           </div>
           <form className="megachat-input-row" onSubmit={handleSend}>
+            {currentUser?.isUltra && (
+              <EmojiPicker onSelect={(emoji) => setInput((prev) => prev + emoji)} />
+            )}
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}

@@ -106,7 +106,9 @@ router.get('/:threadId/messages', asyncHandler(async (req, res) => {
     SELECT msg.id, msg.content, msg.image_url as imageUrl, msg.created_at as createdAt,
            u.id as userId, u.username, u.avatar_color as avatarColor, u.avatar_url as avatarUrl,
            msg.reply_to_id as replyToId,
-           ru.username as replyToUsername, rm.content as replyToContent
+           ru.username as replyToUsername, rm.content as replyToContent,
+           (SELECT COUNT(*) FROM message_likes ml WHERE ml.message_type = 'dm' AND ml.message_id = msg.id) as likeCount,
+           EXISTS(SELECT 1 FROM message_likes ml WHERE ml.message_type = 'dm' AND ml.message_id = msg.id AND ml.user_id = ?) as likedByMe
     FROM messages msg
     JOIN users u ON u.id = msg.user_id
     LEFT JOIN messages rm ON rm.id = msg.reply_to_id
@@ -114,8 +116,8 @@ router.get('/:threadId/messages', asyncHandler(async (req, res) => {
     WHERE msg.thread_id = ?
     ORDER BY msg.id DESC
     LIMIT ?
-  `).all(threadId, limit);
-  res.json(rows.reverse());
+  `).all(req.user.id, threadId, limit);
+  res.json(rows.reverse().map((r) => ({ ...r, likedByMe: !!r.likedByMe })));
 }));
 
 // upload an image or mp3 to attach to a message you're about to send

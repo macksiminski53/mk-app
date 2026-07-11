@@ -49,6 +49,24 @@ async function sendEmail({ to, subject, text }) {
   }
 }
 
+export function sendPlusPurchaseEmail(to) {
+  return sendEmail({
+    to,
+    subject: 'You\'ve got MK PLUS!',
+    text: [
+      'Thanks for buying MK PLUS!',
+      '',
+      'Your account is now upgraded with:',
+      '- Permanent chats (no 24h auto-delete)',
+      '- GIF avatars',
+      '- A custom UI accent color',
+      '- A PLUS badge next to your name',
+      '',
+      'Open MK to see it in action.',
+    ].join('\n'),
+  });
+}
+
 export function sendUltraPurchaseEmail(to) {
   return sendEmail({
     to,
@@ -56,10 +74,11 @@ export function sendUltraPurchaseEmail(to) {
     text: [
       'Thanks for buying MK ULTRA!',
       '',
-      'Your account is now upgraded with:',
-      '- Permanent chats (no 24h auto-delete)',
-      '- GIF avatars',
-      '- A custom UI accent color',
+      'On top of everything MK PLUS includes, your account now also has:',
+      '- Free Mega Chat creation, no charge',
+      '- Permanent Mini Chats whenever you\'re a member',
+      '- An emoji picker in the message box',
+      '- The ability to like messages',
       '- An ULTRA badge next to your name',
       '',
       'Open MK to see it in action.',

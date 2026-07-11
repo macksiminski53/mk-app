@@ -150,6 +150,20 @@ CREATE TABLE IF NOT EXISTS messages (
     if (!/duplicate column/i.test(e.message || '')) throw e;
   }
 
+  // MK PLUS/MK ULTRA split: the original $1 MK ULTRA tier was renamed to
+  // MK PLUS (same perks, same price); MK ULTRA is now a separate, pricier
+  // ($5) tier with its own extra perks on top of everything PLUS gets. This
+  // migration only ever runs the moment is_plus is first added to the
+  // table -- existing is_ultra=1 accounts (the old $1 purchasers) become
+  // is_plus=1 and are reset to is_ultra=0, since they bought what is now
+  // called PLUS, not the new premium ULTRA tier.
+  try {
+    await client.execute('ALTER TABLE users ADD COLUMN is_plus INTEGER NOT NULL DEFAULT 0');
+    await client.execute("UPDATE users SET is_plus = 1, is_ultra = 0 WHERE is_ultra = 1");
+  } catch (e) {
+    if (!/duplicate column/i.test(e.message || '')) throw e;
+  }
+
   // Distinguishes a status set by the MusicToDiscord reporter script
   // ('music') from any other write to status_text ('manual'/NULL). The
   // "Playing" card UI only renders for source='music', so a hand-typed
@@ -168,6 +182,15 @@ CREATE TABLE IF NOT EXISTS ultra_purchases (
   status TEXT NOT NULL DEFAULT 'pending',
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 )`);
+  // 'plus' ($1) or 'ultra' ($5) -- which tier this purchase row grants.
+  // Older rows predate the PLUS/ULTRA split and have no tier value; the
+  // webhook treats a missing/unrecognized tier as 'plus' for backwards
+  // compatibility.
+  try {
+    await client.execute("ALTER TABLE ultra_purchases ADD COLUMN tier TEXT NOT NULL DEFAULT 'plus'");
+  } catch (e) {
+    if (!/duplicate column/i.test(e.message || '')) throw e;
+  }
 
   // Account tokens let a user log in on a second device without typing their
   // username/password again -- a long random string generated once at
@@ -199,7 +222,7 @@ CREATE TABLE IF NOT EXISTS ultra_purchases (
           SELECT dm.id FROM dm_threads dm
           JOIN users ua ON ua.id = dm.user_a_id
           JOIN users ub ON ub.id = dm.user_b_id
-          WHERE ua.is_ultra = 0 AND ub.is_ultra = 0
+          WHERE ua.is_plus = 0 AND ua.is_ultra = 0 AND ub.is_plus = 0 AND ub.is_ultra = 0
         )
     `);
   } catch (e) {
@@ -307,6 +330,21 @@ CREATE TABLE IF NOT EXISTS group_messages (
   } catch (e) {
     if (!/duplicate column/i.test(e.message || '')) throw e;
   }
+
+  // MK ULTRA perk: liking a message. One row per (message, liker); the
+  // message_type column disambiguates ids across the three separate message
+  // tables (DMs, Mega Chat channels, Mini Chats) since they don't share an
+  // id space.
+  await client.execute(`
+CREATE TABLE IF NOT EXISTS message_likes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  message_type TEXT NOT NULL,
+  message_id INTEGER NOT NULL,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(message_type, message_id, user_id)
+)`);
+  await client.execute('CREATE INDEX IF NOT EXISTS idx_message_likes_msg ON message_likes(message_type, message_id)');
 }
 
 export default db;

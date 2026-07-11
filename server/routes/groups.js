@@ -30,13 +30,13 @@ async function isMember(groupId, userId) {
 
 async function loadMembers(groupId) {
   const rows = await db.prepare(`
-    SELECT u.id, u.username, u.avatar_color as avatarColor, u.avatar_url as avatarUrl, u.is_ultra as isUltra
+    SELECT u.id, u.username, u.avatar_color as avatarColor, u.avatar_url as avatarUrl, u.is_plus as isPlus, u.is_ultra as isUltra
     FROM group_chat_members gm
     JOIN users u ON u.id = gm.user_id
     WHERE gm.group_chat_id = ?
     ORDER BY u.username COLLATE NOCASE ASC
   `).all(groupId);
-  return rows.map((r) => ({ ...r, isUltra: !!r.isUltra }));
+  return rows.map((r) => ({ ...r, isPlus: !!(r.isPlus || r.isUltra), isUltra: !!r.isUltra }));
 }
 
 // Every Mini Chat the current user is in, each with its full member list so
@@ -154,14 +154,16 @@ router.get('/:id/messages', asyncHandler(async (req, res) => {
   const limit = Math.min(parseInt(req.query.limit) || 50, 200);
   const rows = await db.prepare(`
     SELECT msg.id, msg.content, msg.image_url as imageUrl, msg.created_at as createdAt,
-           u.id as userId, u.username, u.avatar_color as avatarColor, u.avatar_url as avatarUrl
+           u.id as userId, u.username, u.avatar_color as avatarColor, u.avatar_url as avatarUrl,
+           (SELECT COUNT(*) FROM message_likes ml WHERE ml.message_type = 'mini' AND ml.message_id = msg.id) as likeCount,
+           EXISTS(SELECT 1 FROM message_likes ml WHERE ml.message_type = 'mini' AND ml.message_id = msg.id AND ml.user_id = ?) as likedByMe
     FROM group_messages msg
     JOIN users u ON u.id = msg.user_id
     WHERE msg.group_chat_id = ?
     ORDER BY msg.id DESC
     LIMIT ?
-  `).all(groupId, limit);
-  res.json(rows.reverse());
+  `).all(req.user.id, groupId, limit);
+  res.json(rows.reverse().map((r) => ({ ...r, likedByMe: !!r.likedByMe })));
 }));
 
 export default router;

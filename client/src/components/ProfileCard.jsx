@@ -32,7 +32,7 @@ function formatMemberSince(createdAt) {
 // "Friend Settings" panel (Remove Friend + mutual-consent Delete Chat) so
 // the profile and the settings for that relationship live in the same
 // place instead of requiring a separate navigation step.
-export default function ProfileCard({ user, isOwn, token, viewerIsUltra, onClose, onEditProfile, onLogout, onSetBio, onRemoveFriend }) {
+export default function ProfileCard({ user, isOwn, token, viewerIsPlus, onClose, onEditProfile, onLogout, onSetBio, onRemoveFriend }) {
   const [editingBio, setEditingBio] = useState(false);
   const [bioDraft, setBioDraft] = useState(user.bio || '');
   const [showFriendSettings, setShowFriendSettings] = useState(false);
@@ -40,10 +40,10 @@ export default function ProfileCard({ user, isOwn, token, viewerIsUltra, onClose
 
   const playing = user.statusSource === 'music' ? parsePlaying(user.statusText) : null;
   const memberSince = formatMemberSince(user.createdAt);
-  // Free-tier chats always auto-delete after 24h; having MK ULTRA on either
-  // side makes it permanent (matches the server-side sweep, which skips a
-  // thread if either participant is ultra).
-  const isPermanentChat = !!(user.isUltra || viewerIsUltra);
+  // Free-tier chats always auto-delete after 24h; having MK PLUS or MK
+  // ULTRA on either side makes it permanent (matches the server-side sweep,
+  // which skips a thread if either participant has PLUS or ULTRA).
+  const isPermanentChat = !!(user.isPlus || viewerIsPlus);
 
   async function handleBioSubmit(e) {
     e.preventDefault();
@@ -97,6 +97,7 @@ export default function ProfileCard({ user, isOwn, token, viewerIsUltra, onClose
           <div className="profile-card-name">
             {user.username}
             {user.isUltra && <span className="ultra-badge" title="MK ULTRA">ULTRA</span>}
+            {!user.isUltra && user.isPlus && <span className="plus-badge" title="MK PLUS">PLUS</span>}
           </div>
           <div className="profile-card-sub">
             <span>{user.username.toLowerCase()}</span>
@@ -226,8 +227,8 @@ export default function ProfileCard({ user, isOwn, token, viewerIsUltra, onClose
                   <div className="dropdown-info-row">
                     <span className="dropdown-toggle-label">
                       {isPermanentChat
-                        ? 'Permanent chat (MK ULTRA)'
-                        : 'Messages auto-delete after 24h — get MK ULTRA for permanent chats'}
+                        ? 'Permanent chat (MK PLUS)'
+                        : 'Messages auto-delete after 24h — get MK PLUS for permanent chats'}
                     </span>
                   </div>
                 </div>
