@@ -3,6 +3,10 @@ import { LANGUAGES } from '../i18n.js';
 import { listAudioDevices } from '../webrtc.js';
 
 const CHANGELOG = [
+  { version: '0.14.0', notes: 'Redesigned audio message attachments as a cassette-tape player, with spinning reels and a scrubbable tape strip.' },
+  { version: '0.13.0', notes: 'Removed emoji icons app-wide in favor of plain text labels for a cleaner, more consistent look.' },
+  { version: '0.12.0', notes: 'You can now attach any file type to a message, not just images and audio. Free chats now always auto-delete after 24 hours -- get MK ULTRA to make a chat permanent.' },
+  { version: '0.11.0', notes: 'Switched the app font to Arimo, and split Settings into Account, Voice Chat, and Data tabs -- including microphone and speaker device selection for calls.' },
   { version: '0.10.0', notes: 'Added account tokens: a long random code in Settings you can use to log in on another device, instead of typing username/password again.' },
   { version: '0.9.0', notes: 'Added MK ULTRA: a one-time $1 upgrade for permanent chats, animated GIF profile pictures, a custom accent color, and a badge next to your name.' },
   { version: '0.8.0', notes: 'Merged friend profile and chat settings into one panel, added a 24-hour auto-reset option per chat, and switched the whole UI accent from blue to white.' },
