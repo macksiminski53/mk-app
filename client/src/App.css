@@ -1212,6 +1212,7 @@ body {
 
 .settings-tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 4px;
   margin-bottom: 20px;
   border-bottom: 1px solid #3a1212;
@@ -1221,11 +1222,12 @@ body {
   background: transparent;
   border: none;
   color: #949ba4;
-  padding: 8px 14px;
+  padding: 8px 10px;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   border-bottom: 2px solid transparent;
+  white-space: nowrap;
 }
 
 .settings-tab-btn:hover { color: #f2f3f5; }
@@ -1859,6 +1861,20 @@ body {
 }
 .ultra-buy-btn:hover { filter: brightness(1.05); }
 .ultra-buy-btn:disabled { opacity: 0.6; cursor: default; }
+
+.plus-buy-btn {
+  width: 100%;
+  background: linear-gradient(135deg, #a970ff, #7b2ff7);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 10px;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+}
+.plus-buy-btn:hover { filter: brightness(1.1); }
+.plus-buy-btn:disabled { opacity: 0.6; cursor: default; }
 
 /* Personal accent color override for MK ULTRA members -- falls back to the
    app's default white accent when --mk-accent isn't set. */

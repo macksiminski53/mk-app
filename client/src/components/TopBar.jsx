@@ -288,6 +288,13 @@ export default function TopBar({ requests, onRefreshRequests, onRespond, onSendR
               </button>
               <button
                 type="button"
+                className={`settings-tab-btn ${settingsTab === 'membership' ? 'active' : ''}`}
+                onClick={() => setSettingsTab('membership')}
+              >
+                MK PLUS/ULTRA
+              </button>
+              <button
+                type="button"
                 className={`settings-tab-btn ${settingsTab === 'voice' ? 'active' : ''}`}
                 onClick={() => setSettingsTab('voice')}
               >
@@ -348,6 +355,15 @@ export default function TopBar({ requests, onRefreshRequests, onRespond, onSendR
                 </div>
 
                 <div className="settings-section">
+                  <div className="settings-label">Account</div>
+                  <button className="settings-logout-btn" onClick={onLogout}>{t('logout') || 'Log Out'}</button>
+                </div>
+              </>
+            )}
+
+            {settingsTab === 'membership' && (
+              <>
+                <div className="settings-section">
                   <div className="settings-label">MK PLUS</div>
                   {currentUser?.isPlus ? (
                     <div className="ultra-panel">
@@ -380,7 +396,7 @@ export default function TopBar({ requests, onRefreshRequests, onRespond, onSendR
                         <>
                           <button
                             type="button"
-                            className="ultra-buy-btn"
+                            className="plus-buy-btn"
                             disabled={plusBusy}
                             onClick={handleBuyPlus}
                           >
@@ -430,11 +446,6 @@ export default function TopBar({ requests, onRefreshRequests, onRespond, onSendR
                       )}
                     </div>
                   )}
-                </div>
-
-                <div className="settings-section">
-                  <div className="settings-label">Account</div>
-                  <button className="settings-logout-btn" onClick={onLogout}>{t('logout') || 'Log Out'}</button>
                 </div>
               </>
             )}
