@@ -175,7 +175,7 @@ export default function TopBar({ requests, onRefreshRequests, onRespond, onSendR
         </div>
       </div>
       <div className="top-bar-right">
-        <button className="top-bar-btn" onClick={() => setShowSettings(true)}>⚙ {t('settings')}</button>
+        <button className="top-bar-btn" onClick={() => setShowSettings(true)}>{t('settings')}</button>
         <button className="top-bar-btn" onClick={() => setShowLog(true)}>{t('updateLog')}</button>
         <button
           className="top-bar-btn"
@@ -267,7 +267,7 @@ export default function TopBar({ requests, onRefreshRequests, onRespond, onSendR
                   {currentUser?.isUltra ? (
                     <div className="ultra-panel">
                       <div className="ultra-panel-title">
-                        <span className="ultra-badge" title="MK ULTRA">⚡ ULTRA</span> You're an MK ULTRA member
+                        <span className="ultra-badge" title="MK ULTRA">ULTRA</span> You're an MK ULTRA member
                       </div>
                       <div className="ultra-panel-desc">
                         Permanent chats, GIF avatars, and a custom accent color are unlocked.
@@ -310,7 +310,7 @@ export default function TopBar({ requests, onRefreshRequests, onRespond, onSendR
 
                 <div className="settings-section">
                   <div className="settings-label">Account</div>
-                  <button className="settings-logout-btn" onClick={onLogout}>⏻ {t('logout') || 'Log Out'}</button>
+                  <button className="settings-logout-btn" onClick={onLogout}>{t('logout') || 'Log Out'}</button>
                 </div>
               </>
             )}

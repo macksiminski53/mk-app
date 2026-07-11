@@ -59,7 +59,7 @@ export default function FriendsSidebar({ friends, activeFriendId, onSelect, curr
             title="Edit profile"
           >
             <Avatar username={currentUser.username} avatarColor={currentUser.avatarColor} avatarUrl={currentUser.avatarUrl} size={44} />
-            <div className="pfp-overlay">✎</div>
+            <div className="pfp-overlay">Edit</div>
           </div>
           <input
             ref={fileInputRef}
@@ -71,7 +71,7 @@ export default function FriendsSidebar({ friends, activeFriendId, onSelect, curr
           <div className="activity-info">
             <div className="activity-username" onClick={() => setShowProfileCard(true)} title="View profile">
               {currentUser.username}
-              {currentUser.isUltra && <span className="ultra-badge" title="MK ULTRA">⚡ ULTRA</span>}
+              {currentUser.isUltra && <span className="ultra-badge" title="MK ULTRA">ULTRA</span>}
             </div>
             {editingStatus ? (
               <form onSubmit={handleStatusSubmit} className="status-edit-form">
@@ -118,7 +118,7 @@ export default function FriendsSidebar({ friends, activeFriendId, onSelect, curr
             <div className="friend-info">
               <span className="friend-name">
                 {f.username}
-                {f.isUltra && <span className="ultra-badge" title="MK ULTRA">⚡</span>}
+                {f.isUltra && <span className="ultra-badge" title="MK ULTRA">ULTRA</span>}
               </span>
               {f.statusText && <span className="friend-status">{f.statusText}</span>}
             </div>
@@ -173,7 +173,7 @@ export default function FriendsSidebar({ friends, activeFriendId, onSelect, curr
                     avatarUrl={currentUser.avatarUrl}
                     size={72}
                   />
-                  <div className="pfp-overlay">{uploading ? '…' : '✎'}</div>
+                  <div className="pfp-overlay">{uploading ? '…' : 'Edit'}</div>
                 </div>
               </div>
             </div>

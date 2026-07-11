@@ -191,14 +191,14 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
       <div className="chat-header">
         <span className="chat-header-name">
           {friend.username}
-          {friend.isUltra && <span className="ultra-badge" title="MK ULTRA">⚡ ULTRA</span>}
+          {friend.isUltra && <span className="ultra-badge" title="MK ULTRA">ULTRA</span>}
         </span>
         <div className="dropdown-wrap chat-settings-wrap">
           <span
             className="gear-icon"
             onClick={() => { setShowSettings((v) => !v); setShowDeletePanel(false); }}
             title={t('chatSettings')}
-          >⚙</span>
+          >Settings</span>
           {showSettings && (
             <div className="dropdown-menu dropdown-menu-quality" onMouseLeave={() => { setShowSettings(false); setShowDeletePanel(false); }}>
               {!showDeletePanel ? (
@@ -210,14 +210,13 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
                       onRemoveFriend(friend.id);
                     }}
                   >
-                    <span className="dropdown-item-icon">👤</span>{t('removeFriend')}
+                    {t('removeFriend')}
                   </div>
                   <div className="dropdown-item danger" onClick={() => setShowDeletePanel(true)}>
-                    <span className="dropdown-item-icon">🗑</span>Delete Chat
+                    Delete Chat
                   </div>
                   <div className="dropdown-info-row">
-                    <span className="dropdown-item-icon">{isPermanentChat ? '🔒' : '⏱'}</span>
-                    <span className="dropdown-toggle-label">
+                                        <span className="dropdown-toggle-label">
                       {isPermanentChat
                         ? 'Permanent chat (MK ULTRA)'
                         : 'Messages auto-delete after 24h — get MK ULTRA for permanent chats'}
@@ -230,8 +229,8 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
                     Both people must agree to permanently delete every message in this chat.
                   </div>
                   <div className="delete-chat-panel-status">
-                    You: {deleteVotes.myVote ? '✅ Yes' : '⬜ No vote'}<br />
-                    {friend.username}: {deleteVotes.otherVote ? '✅ Yes' : '⬜ No vote'}
+                    You: {deleteVotes.myVote ? 'Yes' : 'No vote'}<br />
+                    {friend.username}: {deleteVotes.otherVote ? 'Yes' : 'No vote'}
                   </div>
                   {deleteVotes.myVote ? (
                     <button className="secondary" onClick={() => castDeleteVote(false)}>Cancel my vote</button>
@@ -275,7 +274,7 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
 
                 {m.replyToId && (
                   <div className="reply-reference">
-                    ↩ <span className="reply-author">@{m.replyToUsername || 'unknown'}</span>{' '}
+                    Reply to <span className="reply-author">@{m.replyToUsername || 'unknown'}</span>{' '}
                     {truncate(m.replyToContent, 60)}
                   </div>
                 )}
@@ -301,7 +300,7 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
                       rel="noreferrer"
                       download
                     >
-                      📄 {fileExtLabel(m.imageUrl)} file — download
+                      {fileExtLabel(m.imageUrl)} file — download
                     </a>
                   )
                 )}
@@ -315,7 +314,7 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
                   onClick={() => setReplyTo({ id: m.id, username: m.username, content: m.content })}
                   title={t('reply')}
                 >
-                  ↩ {t('reply')}
+                  {t('reply')}
                 </button>
               </div>
             </div>
@@ -331,7 +330,7 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
       {replyTo && (
         <div className="reply-banner">
           {t('replyingTo')} <strong>@{replyTo.username}</strong>: {truncate(replyTo.content, 60)}
-          <span className="reply-cancel" onClick={() => setReplyTo(null)}>✕</span>
+          <span className="reply-cancel" onClick={() => setReplyTo(null)}>Cancel</span>
         </div>
       )}
 
@@ -340,16 +339,16 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
           {pendingImage.isImage ? (
             <img src={pendingImage.previewUrl} alt="pending attachment" />
           ) : (
-            <span className="pending-audio-label">📎 {pendingImage.file.name}</span>
+            <span className="pending-audio-label">{pendingImage.file.name}</span>
           )}
-          <span className="reply-cancel" onClick={() => setPendingImage(null)}>✕</span>
+          <span className="reply-cancel" onClick={() => setPendingImage(null)}>Remove</span>
         </div>
       )}
 
       {zoomedImage && (
         <div className="image-lightbox" onClick={() => setZoomedImage(null)}>
           <img src={zoomedImage} alt="full size" />
-          <button className="image-lightbox-close" onClick={() => setZoomedImage(null)}>✕</button>
+          <button className="image-lightbox-close" onClick={() => setZoomedImage(null)}>Close</button>
         </div>
       )}
 
@@ -360,7 +359,7 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
           onClick={() => fileInputRef.current?.click()}
           title={t('attachImage')}
         >
-          📎
+          Attach
         </button>
         <input
           ref={fileInputRef}

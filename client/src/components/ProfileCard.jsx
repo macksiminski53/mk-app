@@ -84,7 +84,7 @@ export default function ProfileCard({ user, isOwn, token, viewerIsUltra, onClose
   return (
     <div className="profile-card-backdrop" onClick={onClose}>
       <div className="profile-card" onClick={(e) => e.stopPropagation()}>
-        <button className="profile-card-close" onClick={onClose} title="Close">✕</button>
+        <button className="profile-card-close" onClick={onClose} title="Close">Close</button>
 
         <div className="profile-card-banner" />
 
@@ -96,12 +96,11 @@ export default function ProfileCard({ user, isOwn, token, viewerIsUltra, onClose
 
           <div className="profile-card-name">
             {user.username}
-            {user.isUltra && <span className="ultra-badge" title="MK ULTRA">⚡ ULTRA</span>}
+            {user.isUltra && <span className="ultra-badge" title="MK ULTRA">ULTRA</span>}
           </div>
           <div className="profile-card-sub">
             <span>{user.username.toLowerCase()}</span>
-            <span className="profile-card-sub-dot">•</span>
-            <span className="profile-card-sub-badge">MK</span>
+                        <span className="profile-card-sub-badge">MK</span>
           </div>
 
           <div className="profile-card-divider" />
@@ -143,7 +142,6 @@ export default function ProfileCard({ user, isOwn, token, viewerIsUltra, onClose
             {playing ? (
               <div className="profile-card-playing">
                 <div className="profile-card-playing-row">
-                  <div className="profile-card-playing-icon">♫</div>
                   <div className="profile-card-playing-info">
                     <div className="profile-card-playing-title">{playing.title}</div>
                     {playing.artist && <div className="profile-card-playing-artist">{playing.artist}</div>}
@@ -163,13 +161,13 @@ export default function ProfileCard({ user, isOwn, token, viewerIsUltra, onClose
           {memberSince && (
             <div className="profile-card-section">
               <div className="profile-card-section-label">Member Since</div>
-              <div className="profile-card-membersince">📅 {memberSince}</div>
+              <div className="profile-card-membersince">{memberSince}</div>
             </div>
           )}
 
           {isOwn ? (
             <>
-              <button className="profile-card-edit-btn" onClick={onEditProfile}>✎ Edit Status</button>
+              <button className="profile-card-edit-btn" onClick={onEditProfile}>Edit Status</button>
               <div className="profile-card-row">
                 <span className="profile-card-row-left">
                   <span className="profile-card-row-dot" />
@@ -177,7 +175,7 @@ export default function ProfileCard({ user, isOwn, token, viewerIsUltra, onClose
                 </span>
               </div>
               <div className="profile-card-row profile-card-row-clickable" onClick={onLogout}>
-                <span className="profile-card-row-left">⏻ Log Out</span>
+                <span className="profile-card-row-left">Log Out</span>
                 <span className="profile-card-row-chevron">›</span>
               </div>
             </>
@@ -191,7 +189,7 @@ export default function ProfileCard({ user, isOwn, token, viewerIsUltra, onClose
               </div>
               {user.threadId && (
                 <div className="profile-card-row profile-card-row-clickable" onClick={() => setShowFriendSettings((v) => !v)}>
-                  <span className="profile-card-row-left">⚙ Friend Settings</span>
+                  <span className="profile-card-row-left">Friend Settings</span>
                   <span className="profile-card-row-chevron">{showFriendSettings ? '⌄' : '›'}</span>
                 </div>
               )}
@@ -214,8 +212,8 @@ export default function ProfileCard({ user, isOwn, token, viewerIsUltra, onClose
                     Both people must agree to permanently delete every message in this chat.
                   </div>
                   <div className="profile-friend-settings-status">
-                    You: {deleteVotes.myVote ? '✅ Yes' : '⬜ No vote'}<br />
-                    {user.username}: {deleteVotes.otherVote ? '✅ Yes' : '⬜ No vote'}
+                    You: {deleteVotes.myVote ? 'Yes' : 'No vote'}<br />
+                    {user.username}: {deleteVotes.otherVote ? 'Yes' : 'No vote'}
                   </div>
                   {deleteVotes.myVote ? (
                     <button type="button" className="secondary" onClick={() => castDeleteVote(false)}>Cancel my vote</button>
@@ -226,7 +224,6 @@ export default function ProfileCard({ user, isOwn, token, viewerIsUltra, onClose
                   <div className="profile-friend-settings-divider" />
 
                   <div className="dropdown-info-row">
-                    <span className="dropdown-item-icon">{isPermanentChat ? '🔒' : '⏱'}</span>
                     <span className="dropdown-toggle-label">
                       {isPermanentChat
                         ? 'Permanent chat (MK ULTRA)'

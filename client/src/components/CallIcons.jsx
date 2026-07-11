@@ -1,7 +1,7 @@
 // Clean stroke-based SVG icons for calling UI, swapped in for the old
-// emoji glyphs (📞🎙🔇) which rendered inconsistently/cartoonish across
-// platforms. All icons inherit color via `currentColor` so they pick up
-// whatever color the parent button is styled with.
+// emoji glyphs which rendered inconsistently/cartoonish across platforms.
+// All icons inherit color via `currentColor` so they pick up whatever
+// color the parent button is styled with.
 
 export function PhoneIcon({ size = 18 }) {
   return (
