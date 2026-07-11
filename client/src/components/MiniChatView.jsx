@@ -5,6 +5,8 @@ import { api } from '../api.js';
 import { getSocket } from '../socket.js';
 import EmojiPicker from './EmojiPicker.jsx';
 import LikeButton from './LikeButton.jsx';
+import PinButton from './PinButton.jsx';
+import PinnedPanel from './PinnedPanel.jsx';
 
 function formatTime(createdAt) {
   if (!createdAt) return '';
@@ -36,6 +38,10 @@ export default function MiniChatView({ group, token, currentUser, onLeft }) {
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const messagesEndRef = useRef(null);
   const avatarInputRef = useRef(null);
+  const messagesRef = useRef([]);
+  useEffect(() => { messagesRef.current = messages; }, [messages]);
+  const [pinnedMessages, setPinnedMessages] = useState([]);
+  const [showPinnedPanel, setShowPinnedPanel] = useState(false);
 
   useEffect(() => {
     setMembers(group.members || []);
@@ -48,6 +54,10 @@ export default function MiniChatView({ group, token, currentUser, onLeft }) {
     api.listGroupMessages(token, group.id).then((rows) => {
       if (!cancelled) setMessages(rows);
     }).catch(() => {});
+    setPinnedMessages([]);
+    api.listPinnedGroup(token, group.id).then((rows) => {
+      if (!cancelled) setPinnedMessages(rows);
+    }).catch(() => {});
 
     function onNew({ groupId, message }) {
       if (groupId === group.id) setMessages((prev) => [...prev, message]);
@@ -59,9 +69,20 @@ export default function MiniChatView({ group, token, currentUser, onLeft }) {
       if (messageType !== 'mini') return;
       setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, likeCount } : m)));
     }
+    function onPinUpdate({ messageType, messageId, pinned, pinnedByUsername }) {
+      if (messageType !== 'mini') return;
+      setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, pinned, pinnedByUsername: pinned ? pinnedByUsername : null } : m)));
+      setPinnedMessages((prev) => {
+        if (!pinned) return prev.filter((m) => m.id !== messageId);
+        if (prev.some((m) => m.id === messageId)) return prev;
+        const source = messagesRef.current.find((m) => m.id === messageId);
+        return source ? [...prev, source] : prev;
+      });
+    }
     socket.on('group-message:new', onNew);
     socket.on('group-chat:cleared', onCleared);
     socket.on('message:like-update', onLikeUpdate);
+    socket.on('message:pin-update', onPinUpdate);
 
     return () => {
       cancelled = true;
@@ -69,6 +90,7 @@ export default function MiniChatView({ group, token, currentUser, onLeft }) {
       socket.off('group-message:new', onNew);
       socket.off('group-chat:cleared', onCleared);
       socket.off('message:like-update', onLikeUpdate);
+      socket.off('message:pin-update', onPinUpdate);
     };
   }, [group.id, token]);
 
@@ -76,6 +98,12 @@ export default function MiniChatView({ group, token, currentUser, onLeft }) {
     getSocket().emit('message:like', { messageType: 'mini', messageId, roomId: group.id }, (res) => {
       if (res?.error) return console.error(res.error);
       setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, likeCount: res.likeCount, likedByMe: res.likedByMe } : m)));
+    });
+  }
+
+  function togglePin(messageId) {
+    getSocket().emit('message:pin', { messageType: 'mini', messageId, roomId: group.id }, (res) => {
+      if (res?.error) return console.error(res.error);
     });
   }
 
@@ -162,6 +190,9 @@ export default function MiniChatView({ group, token, currentUser, onLeft }) {
         <span className="megachat-footer-btn" onClick={() => setShowMembers((v) => !v)}>
           {showMembers ? 'Hide Members' : `Members (${members.length}/${maxMembers})`}
         </span>
+        <span className="megachat-footer-btn" onClick={() => setShowPinnedPanel(true)}>
+          📌 Pinned ({pinnedMessages.length}/10)
+        </span>
         <span className="megachat-footer-btn megachat-danger" onClick={handleLeave}>Leave</span>
       </div>
 
@@ -210,14 +241,18 @@ export default function MiniChatView({ group, token, currentUser, onLeft }) {
                   <div className="megachat-message-meta">
                     <span className="megachat-message-username" style={m.nameColor ? { color: m.nameColor } : undefined}>{m.username}</span>
                     <span className="megachat-message-time">{formatTime(m.createdAt)}</span>
+                    {m.pinned && <span className="pinned-tag" title={m.pinnedByUsername ? `Pinned by ${m.pinnedByUsername}` : 'Pinned'}>📌 Pinned</span>}
                   </div>
                   <div className="megachat-message-content">{m.content}</div>
-                  <LikeButton
-                    likeCount={m.likeCount}
-                    likedByMe={m.likedByMe}
-                    canLike={!!currentUser?.isPremium}
-                    onToggle={() => toggleLike(m.id)}
-                  />
+                  <div className="message-actions-row">
+                    <LikeButton
+                      likeCount={m.likeCount}
+                      likedByMe={m.likedByMe}
+                      canLike={!!currentUser?.isPremium}
+                      onToggle={() => toggleLike(m.id)}
+                    />
+                    <PinButton pinned={!!m.pinned} onToggle={() => togglePin(m.id)} />
+                  </div>
                 </div>
               </div>
             ))}
@@ -235,6 +270,14 @@ export default function MiniChatView({ group, token, currentUser, onLeft }) {
             <button type="submit" disabled={!input.trim() || sending}>Send</button>
           </form>
         </>
+      )}
+
+      {showPinnedPanel && (
+        <PinnedPanel
+          pinned={pinnedMessages}
+          onUnpin={togglePin}
+          onClose={() => setShowPinnedPanel(false)}
+        />
       )}
     </div>
   );

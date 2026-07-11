@@ -109,16 +109,40 @@ router.get('/:threadId/messages', asyncHandler(async (req, res) => {
            msg.reply_to_id as replyToId,
            ru.username as replyToUsername, rm.content as replyToContent,
            (SELECT COUNT(*) FROM message_likes ml WHERE ml.message_type = 'dm' AND ml.message_id = msg.id) as likeCount,
-           EXISTS(SELECT 1 FROM message_likes ml WHERE ml.message_type = 'dm' AND ml.message_id = msg.id AND ml.user_id = ?) as likedByMe
+           EXISTS(SELECT 1 FROM message_likes ml WHERE ml.message_type = 'dm' AND ml.message_id = msg.id AND ml.user_id = ?) as likedByMe,
+           pm.pinned_by as pinnedBy, pu.username as pinnedByUsername
     FROM messages msg
     JOIN users u ON u.id = msg.user_id
     LEFT JOIN messages rm ON rm.id = msg.reply_to_id
     LEFT JOIN users ru ON ru.id = rm.user_id
+    LEFT JOIN pinned_messages pm ON pm.message_type = 'dm' AND pm.message_id = msg.id
+    LEFT JOIN users pu ON pu.id = pm.pinned_by
     WHERE msg.thread_id = ?
     ORDER BY msg.id DESC
     LIMIT ?
   `).all(req.user.id, threadId, limit);
-  res.json(rows.reverse().map((r) => ({ ...r, isUltra: !!r.isUltra, nameColor: r.isUltra ? r.nameColor : null, likedByMe: !!r.likedByMe })));
+  res.json(rows.reverse().map((r) => ({ ...r, isUltra: !!r.isUltra, nameColor: r.isUltra ? r.nameColor : null, likedByMe: !!r.likedByMe, pinned: !!r.pinnedBy })));
+}));
+
+// Free perk: up to 10 pinned messages per DM thread, listed separately so
+// the client can show a "Pinned" panel without re-fetching the whole
+// message history.
+router.get('/:threadId/pinned', asyncHandler(async (req, res) => {
+  const { threadId } = req.params;
+  if (!(await userInThread(req.user.id, threadId))) {
+    return res.status(403).json({ error: 'No access to this conversation' });
+  }
+  const rows = await db.prepare(`
+    SELECT msg.id, msg.content, msg.image_url as imageUrl, msg.created_at as createdAt,
+           u.username, pm.pinned_by as pinnedBy, pu.username as pinnedByUsername, pm.created_at as pinnedAt
+    FROM pinned_messages pm
+    JOIN messages msg ON msg.id = pm.message_id
+    JOIN users u ON u.id = msg.user_id
+    LEFT JOIN users pu ON pu.id = pm.pinned_by
+    WHERE pm.message_type = 'dm' AND msg.thread_id = ?
+    ORDER BY pm.created_at ASC
+  `).all(threadId);
+  res.json(rows);
 }));
 
 // upload an image or mp3 to attach to a message you're about to send

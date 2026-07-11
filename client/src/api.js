@@ -64,6 +64,7 @@ export const api = {
     form.append('image', file);
     return request(`/threads/${threadId}/attachments`, { method: 'POST', body: form, token, isForm: true });
   },
+  listPinnedDm: (token, threadId) => request(`/threads/${threadId}/pinned`, { token }),
 
   // ---- Mega Chats ----
   createMegaChatCheckout: (token, name) => request('/billing/mega-chat-checkout', { method: 'POST', body: { name }, token }),
@@ -75,6 +76,7 @@ export const api = {
   removeServerMember: (token, serverId, userId) => request(`/servers/${serverId}/members/${userId}`, { method: 'DELETE', token }),
   deleteServer: (token, serverId) => request(`/servers/${serverId}`, { method: 'DELETE', token }),
   listChannelMessages: (token, serverId, channelId) => request(`/servers/${serverId}/channels/${channelId}/messages`, { token }),
+  listPinnedChannel: (token, serverId, channelId) => request(`/servers/${serverId}/channels/${channelId}/pinned`, { token }),
 
   // ---- Mini Chats ----
   listGroups: (token) => request('/groups', { token }),
@@ -82,6 +84,7 @@ export const api = {
   addGroupMember: (token, groupId, username) => request(`/groups/${groupId}/members`, { method: 'POST', body: { username }, token }),
   leaveGroup: (token, groupId, userId) => request(`/groups/${groupId}/members/${userId}`, { method: 'DELETE', token }),
   listGroupMessages: (token, groupId) => request(`/groups/${groupId}/messages`, { token }),
+  listPinnedGroup: (token, groupId) => request(`/groups/${groupId}/pinned`, { token }),
   uploadGroupAvatar: (token, groupId, file) => {
     const form = new FormData();
     form.append('avatar', file);

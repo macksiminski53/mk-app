@@ -117,7 +117,7 @@ async function loadMessageRow(id) {
     LEFT JOIN users ru ON ru.id = rm.user_id
     WHERE msg.id = ?
   `).get(id);
-  return row ? { ...row, isUltra: !!row.isUltra, nameColor: row.isUltra ? row.nameColor : null, likeCount: 0, likedByMe: false } : row;
+  return row ? { ...row, isUltra: !!row.isUltra, nameColor: row.isUltra ? row.nameColor : null, likeCount: 0, likedByMe: false, pinned: false, pinnedBy: null, pinnedByUsername: null } : row;
 }
 
 async function loadServerMessageRow(id) {
@@ -130,7 +130,7 @@ async function loadServerMessageRow(id) {
     JOIN users u ON u.id = msg.user_id
     WHERE msg.id = ?
   `).get(id);
-  return row ? { ...row, isUltra: !!row.isUltra, nameColor: row.isUltra ? row.nameColor : null, likeCount: 0, likedByMe: false } : row;
+  return row ? { ...row, isUltra: !!row.isUltra, nameColor: row.isUltra ? row.nameColor : null, likeCount: 0, likedByMe: false, pinned: false, pinnedBy: null, pinnedByUsername: null } : row;
 }
 
 async function loadGroupMessageRow(id) {
@@ -143,7 +143,7 @@ async function loadGroupMessageRow(id) {
     JOIN users u ON u.id = msg.user_id
     WHERE msg.id = ?
   `).get(id);
-  return row ? { ...row, isUltra: !!row.isUltra, nameColor: row.isUltra ? row.nameColor : null, likeCount: 0, likedByMe: false } : row;
+  return row ? { ...row, isUltra: !!row.isUltra, nameColor: row.isUltra ? row.nameColor : null, likeCount: 0, likedByMe: false, pinned: false, pinnedBy: null, pinnedByUsername: null } : row;
 }
 
 // MK ULTRA perk: liking a message. `messageType` disambiguates ids across
@@ -161,6 +161,27 @@ async function getMessageLikeCount(messageType, messageId) {
   const row = await db.prepare(
     'SELECT COUNT(*) as c FROM message_likes WHERE message_type = ? AND message_id = ?'
   ).get(messageType, messageId);
+  return Number(row?.c) || 0;
+}
+
+// Pinning a message: a free perk (no PLUS/PREMIUM/ULTRA gate), capped at 10
+// pinned messages per chat so it can't be used as an unlimited workaround
+// for the free-tier 24h auto-delete sweep. Same message_type/message_id
+// disambiguation as LIKE_TABLES, plus a roomCol so the cap can be counted
+// per-thread/channel/group rather than globally.
+const PIN_TABLES = {
+  dm: { table: 'messages', roomCol: 'thread_id', room: (id) => `thread:${id}` },
+  mega: { table: 'server_messages', roomCol: 'channel_id', room: (id) => `channel:${id}` },
+  mini: { table: 'group_messages', roomCol: 'group_chat_id', room: (id) => `group:${id}` },
+};
+const PIN_CAP = 10;
+
+async function getPinCount(messageType, roomCol, table, roomId) {
+  const row = await db.prepare(`
+    SELECT COUNT(*) as c FROM pinned_messages pm
+    JOIN ${table} m ON m.id = pm.message_id
+    WHERE pm.message_type = ? AND m.${roomCol} = ?
+  `).get(messageType, roomId);
   return Number(row?.c) || 0;
 }
 
@@ -349,6 +370,55 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Pinning a message: free for everyone, capped at PIN_CAP (10) pinned
+  // messages per chat. Pinned messages are also exempt from the free-tier
+  // 24h auto-delete sweep below, so this doubles as "save this message
+  // permanently" even in a chat that otherwise wipes itself daily.
+  socket.on('message:pin', async ({ messageType, messageId, roomId }, ack) => {
+    try {
+      const cfg = PIN_TABLES[messageType];
+      if (!cfg) return ack?.({ error: 'Invalid message type' });
+
+      const msgRow = await db.prepare(`SELECT id FROM ${cfg.table} WHERE id = ?`).get(messageId);
+      if (!msgRow) return ack?.({ error: 'Message not found' });
+
+      const existing = await db.prepare(
+        'SELECT id FROM pinned_messages WHERE message_type = ? AND message_id = ?'
+      ).get(messageType, messageId);
+
+      let pinned, pinnedBy = null, pinnedByUsername = null;
+      if (existing) {
+        await db.prepare('DELETE FROM pinned_messages WHERE id = ?').run(existing.id);
+        pinned = false;
+      } else {
+        const count = await getPinCount(messageType, cfg.roomCol, cfg.table, roomId);
+        if (count >= PIN_CAP) {
+          return ack?.({ error: `This chat already has ${PIN_CAP} pinned messages (max). Unpin one first.` });
+        }
+        await db.prepare(
+          'INSERT INTO pinned_messages (message_type, message_id, pinned_by) VALUES (?, ?, ?)'
+        ).run(messageType, messageId, userId);
+        pinned = true;
+        pinnedBy = userId;
+        pinnedByUsername = socket.user.username;
+      }
+
+      if (roomId) {
+        io.to(cfg.room(roomId)).emit('message:pin-update', {
+          messageType,
+          messageId: Number(messageId),
+          pinned,
+          pinnedBy,
+          pinnedByUsername,
+        });
+      }
+      ack?.({ ok: true, pinned, pinnedBy, pinnedByUsername });
+    } catch (err) {
+      console.error('message:pin error', err);
+      ack?.({ error: 'Server error' });
+    }
+  });
+
   socket.on('friend:request-sent', (toUserId) => {
     io.to(`user:${toUserId}`).emit('friend:request-received');
   });
@@ -457,7 +527,7 @@ async function sweepAutoResetThreads() {
         )
     `).all();
     for (const { id: threadId } of due) {
-      await db.prepare('DELETE FROM messages WHERE thread_id = ?').run(threadId);
+      await db.prepare("DELETE FROM messages WHERE thread_id = ? AND id NOT IN (SELECT message_id FROM pinned_messages WHERE message_type = 'dm')").run(threadId);
       await db.prepare("UPDATE dm_threads SET last_reset_at = datetime('now') WHERE id = ?").run(threadId);
       io.to(`thread:${threadId}`).emit('chat:deleted', { threadId: Number(threadId) });
     }
@@ -487,7 +557,7 @@ async function sweepAutoResetGroups() {
       )
     `).all();
     for (const { id: groupId } of due) {
-      await db.prepare('DELETE FROM group_messages WHERE group_chat_id = ?').run(groupId);
+      await db.prepare("DELETE FROM group_messages WHERE group_chat_id = ? AND id NOT IN (SELECT message_id FROM pinned_messages WHERE message_type = 'mini')").run(groupId);
       await db.prepare("UPDATE group_chats SET last_reset_at = datetime('now') WHERE id = ?").run(groupId);
       io.to(`group:${groupId}`).emit('group-chat:cleared', { groupId: Number(groupId) });
     }

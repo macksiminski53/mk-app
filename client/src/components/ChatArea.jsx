@@ -6,6 +6,8 @@ import { PhoneIcon } from './CallIcons.jsx';
 import CassettePlayer from './CassettePlayer.jsx';
 import EmojiPicker from './EmojiPicker.jsx';
 import LikeButton from './LikeButton.jsx';
+import PinButton from './PinButton.jsx';
+import PinnedPanel from './PinnedPanel.jsx';
 
 function formatTime(iso) {
   const d = new Date(iso + 'Z');
@@ -48,9 +50,13 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
   const [pendingImage, setPendingImage] = useState(null); // { file, previewUrl, isAudio }
   const [uploading, setUploading] = useState(false);
   const [zoomedImage, setZoomedImage] = useState(null); // url or null
+  const [pinnedMessages, setPinnedMessages] = useState([]);
+  const [showPinnedPanel, setShowPinnedPanel] = useState(false);
   const bottomRef = useRef(null);
   const typingTimeout = useRef(null);
   const fileInputRef = useRef(null);
+  const messagesRef = useRef([]);
+  useEffect(() => { messagesRef.current = messages; }, [messages]);
 
   const threadId = friend?.threadId;
   const isBubble = chatLayout === 'bubble';
@@ -86,6 +92,10 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
     api.getDeleteVotes(token, threadId).then((votes) => {
       if (!cancelled) setDeleteVotes(votes);
     }).catch(() => {});
+    setPinnedMessages([]);
+    api.listPinnedDm(token, threadId).then((rows) => {
+      if (!cancelled) setPinnedMessages(rows);
+    }).catch(() => {});
 
     const socket = getSocket();
     socket.emit('thread:join', threadId);
@@ -112,11 +122,23 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
       setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, likeCount } : m)));
     }
 
+    function onPinUpdate({ messageType, messageId, pinned, pinnedByUsername }) {
+      if (messageType !== 'dm') return;
+      setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, pinned, pinnedByUsername: pinned ? pinnedByUsername : null } : m)));
+      setPinnedMessages((prev) => {
+        if (!pinned) return prev.filter((m) => m.id !== messageId);
+        if (prev.some((m) => m.id === messageId)) return prev;
+        const source = messagesRef.current.find((m) => m.id === messageId);
+        return source ? [...prev, source] : prev;
+      });
+    }
+
     socket.on('message:new', onNewMessage);
     socket.on('typing', onTyping);
     socket.on('chat:delete-vote-update', onDeleteVoteUpdate);
     socket.on('chat:deleted', onChatDeleted);
     socket.on('message:like-update', onLikeUpdate);
+    socket.on('message:pin-update', onPinUpdate);
 
     return () => {
       cancelled = true;
@@ -126,6 +148,7 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
       socket.off('chat:delete-vote-update', onDeleteVoteUpdate);
       socket.off('chat:deleted', onChatDeleted);
       socket.off('message:like-update', onLikeUpdate);
+      socket.off('message:pin-update', onPinUpdate);
     };
   }, [threadId]);
 
@@ -134,6 +157,16 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
       if (res?.error) return console.error(res.error);
       setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, likeCount: res.likeCount, likedByMe: res.likedByMe } : m)));
     });
+  }
+
+  function togglePin(messageId) {
+    getSocket().emit('message:pin', { messageType: 'dm', messageId, roomId: threadId }, (res) => {
+      if (res?.error) return console.error(res.error);
+    });
+  }
+
+  function unpinFromPanel(messageId) {
+    togglePin(messageId);
   }
 
   function castDeleteVote(vote) {
@@ -266,6 +299,9 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
         <span className={`chat-header-status ${friend.online ? 'online' : ''}`}>
           {friend.online ? t('online') : t('offline')}
         </span>
+        <span className="megachat-footer-btn pinned-header-btn" onClick={() => setShowPinnedPanel(true)}>
+          📌 Pinned ({pinnedMessages.length}/10)
+        </span>
         <button
           className="call-header-btn call-header-btn-right"
           onClick={() => onStartCall(friend)}
@@ -289,6 +325,7 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
                   <div className="message-header">
                     <span className="message-author" style={m.nameColor ? { color: m.nameColor } : undefined}>{m.username}</span>
                     <span className="message-time">{formatTime(m.createdAt)}</span>
+                    {m.pinned && <span className="pinned-tag" title={m.pinnedByUsername ? `Pinned by ${m.pinnedByUsername}` : 'Pinned'}>📌 Pinned</span>}
                   </div>
                 )}
 
@@ -343,6 +380,7 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
                     canLike={!!currentUser?.isPremium}
                     onToggle={() => toggleLike(m.id)}
                   />
+                  <PinButton pinned={!!m.pinned} onToggle={() => togglePin(m.id)} />
                 </div>
               </div>
             </div>
@@ -378,6 +416,14 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
           <img src={zoomedImage} alt="full size" />
           <button className="image-lightbox-close" onClick={() => setZoomedImage(null)}>Close</button>
         </div>
+      )}
+
+      {showPinnedPanel && (
+        <PinnedPanel
+          pinned={pinnedMessages}
+          onUnpin={unpinFromPanel}
+          onClose={() => setShowPinnedPanel(false)}
+        />
       )}
 
       <form className="message-input-row" onSubmit={handleSubmit}>

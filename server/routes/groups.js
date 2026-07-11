@@ -166,14 +166,36 @@ router.get('/:id/messages', asyncHandler(async (req, res) => {
            u.id as userId, u.username, u.avatar_color as avatarColor, u.avatar_url as avatarUrl,
            u.is_ultra as isUltra, u.name_color as nameColor,
            (SELECT COUNT(*) FROM message_likes ml WHERE ml.message_type = 'mini' AND ml.message_id = msg.id) as likeCount,
-           EXISTS(SELECT 1 FROM message_likes ml WHERE ml.message_type = 'mini' AND ml.message_id = msg.id AND ml.user_id = ?) as likedByMe
+           EXISTS(SELECT 1 FROM message_likes ml WHERE ml.message_type = 'mini' AND ml.message_id = msg.id AND ml.user_id = ?) as likedByMe,
+           pm.pinned_by as pinnedBy, pu.username as pinnedByUsername
     FROM group_messages msg
     JOIN users u ON u.id = msg.user_id
+    LEFT JOIN pinned_messages pm ON pm.message_type = 'mini' AND pm.message_id = msg.id
+    LEFT JOIN users pu ON pu.id = pm.pinned_by
     WHERE msg.group_chat_id = ?
     ORDER BY msg.id DESC
     LIMIT ?
   `).all(req.user.id, groupId, limit);
-  res.json(rows.reverse().map((r) => ({ ...r, isUltra: !!r.isUltra, nameColor: r.isUltra ? r.nameColor : null, likedByMe: !!r.likedByMe })));
+  res.json(rows.reverse().map((r) => ({ ...r, isUltra: !!r.isUltra, nameColor: r.isUltra ? r.nameColor : null, likedByMe: !!r.likedByMe, pinned: !!r.pinnedBy })));
+}));
+
+// Free perk: up to 10 pinned messages per Mini Chat.
+router.get('/:id/pinned', asyncHandler(async (req, res) => {
+  const groupId = req.params.id;
+  if (!(await isMember(groupId, req.user.id))) {
+    return res.status(403).json({ error: 'Not a member of this Mini Chat' });
+  }
+  const rows = await db.prepare(`
+    SELECT msg.id, msg.content, msg.image_url as imageUrl, msg.created_at as createdAt,
+           u.username, pm.pinned_by as pinnedBy, pu.username as pinnedByUsername, pm.created_at as pinnedAt
+    FROM pinned_messages pm
+    JOIN group_messages msg ON msg.id = pm.message_id
+    JOIN users u ON u.id = msg.user_id
+    LEFT JOIN users pu ON pu.id = pm.pinned_by
+    WHERE pm.message_type = 'mini' AND msg.group_chat_id = ?
+    ORDER BY pm.created_at ASC
+  `).all(groupId);
+  res.json(rows);
 }));
 
 export default router;
