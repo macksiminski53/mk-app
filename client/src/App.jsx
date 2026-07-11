@@ -10,7 +10,7 @@ import { getTranslator } from './i18n.js';
 import { createPeerConnection, getMicStream, stopStream } from './webrtc.js';
 import './App.css';
 
-const DEFAULT_SETTINGS = { language: 'en', chatLayout: 'bubble' };
+const DEFAULT_SETTINGS = { language: 'en', chatLayout: 'bubble', micDeviceId: '', speakerDeviceId: '' };
 
 function loadSettings() {
   try {
@@ -115,6 +115,19 @@ export default function App() {
       document.documentElement.style.removeProperty('--mk-accent');
     }
   }, [user?.isUltra, user?.ultraColor]);
+
+  // Voice Chat > output device: <audio> has no JSX attribute for this, it's
+  // an imperative-only API (setSinkId), and only Chromium browsers support
+  // it -- Firefox/Safari just silently keep using the system default, which
+  // is fine as a graceful fallback.
+  useEffect(() => {
+    const el = remoteAudioRef.current;
+    if (el && settings.speakerDeviceId && typeof el.setSinkId === 'function') {
+      el.setSinkId(settings.speakerDeviceId).catch((err) => {
+        console.error('Failed to set audio output device:', err.message);
+      });
+    }
+  }, [settings.speakerDeviceId, call?.status]);
 
   // After returning from Stripe Checkout (?ultra=success in the URL),
   // refresh the user so the newly-granted isUltra flag shows up, then
@@ -380,7 +393,7 @@ export default function App() {
   async function handleStartCall(friend) {
     if (call) return; // already on/making a call
     try {
-      localStreamRef.current = await getMicStream();
+      localStreamRef.current = await getMicStream(settings.micDeviceId);
     } catch (err) {
       console.error('Microphone access denied or unavailable:', err.message);
       return;
@@ -395,7 +408,7 @@ export default function App() {
     if (!call || call.status !== 'incoming') return;
     const { fromUserId, fromUsername, fromAvatarColor, fromAvatarUrl } = call;
     try {
-      localStreamRef.current = await getMicStream();
+      localStreamRef.current = await getMicStream(settings.micDeviceId);
     } catch (err) {
       console.error('Microphone access denied or unavailable:', err.message);
       getSocket().emit('call:decline', { toUserId: fromUserId });

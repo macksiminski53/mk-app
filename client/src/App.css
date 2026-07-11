@@ -971,6 +971,31 @@ body {
   margin-bottom: 20px;
 }
 
+.settings-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #3a1212;
+}
+
+.settings-tab-btn {
+  background: transparent;
+  border: none;
+  color: #949ba4;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+}
+
+.settings-tab-btn:hover { color: #f2f3f5; }
+
+.settings-tab-btn.active {
+  color: #ffffff;
+  border-bottom: 2px solid #f23f43;
+}
+
 .edit-avatar-row {
   display: flex;
   justify-content: center;

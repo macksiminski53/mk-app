@@ -29,8 +29,23 @@ export function createPeerConnection({ onIceCandidate, onTrack, onConnectionStat
   return pc;
 }
 
-export async function getMicStream() {
-  return navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+export async function getMicStream(deviceId) {
+  return navigator.mediaDevices.getUserMedia({
+    audio: deviceId ? { deviceId: { exact: deviceId } } : true,
+    video: false,
+  });
+}
+
+// Lists available audio input (mic) and output (speaker) devices for the
+// Voice Chat settings tab. Labels are only populated once the browser has
+// been granted mic permission at least once (otherwise they come back
+// blank) -- that's a browser privacy restriction, not a bug here.
+export async function listAudioDevices() {
+  const devices = await navigator.mediaDevices.enumerateDevices();
+  return {
+    inputs: devices.filter((d) => d.kind === 'audioinput'),
+    outputs: devices.filter((d) => d.kind === 'audiooutput'),
+  };
 }
 
 export function stopStream(stream) {
