@@ -14,6 +14,7 @@ import friendRoutes from './routes/friends.js';
 import threadRoutes from './routes/threads.js';
 import billingRoutes, { handleStripeWebhook } from './routes/billing.js';
 import serverRoutes, { isMember } from './routes/servers.js';
+import groupRoutes, { isMember as isGroupMember } from './routes/groups.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const uploadsDir = path.join(__dirname, 'uploads');
@@ -46,6 +47,7 @@ app.use('/api/friends', friendRoutes);
 app.use('/api/threads', threadRoutes);
 app.use('/api/billing', billingRoutes);
 app.use('/api/servers', serverRoutes);
+app.use('/api/groups', groupRoutes);
 
 io.use((socket, next) => {
   const token = socket.handshake.auth?.token;
@@ -115,6 +117,17 @@ async function loadServerMessageRow(id) {
            msg.channel_id as channelId,
            u.id as userId, u.username, u.avatar_color as avatarColor, u.avatar_url as avatarUrl
     FROM server_messages msg
+    JOIN users u ON u.id = msg.user_id
+    WHERE msg.id = ?
+  `).get(id);
+}
+
+async function loadGroupMessageRow(id) {
+  return db.prepare(`
+    SELECT msg.id, msg.content, msg.image_url as imageUrl, msg.created_at as createdAt,
+           msg.group_chat_id as groupId,
+           u.id as userId, u.username, u.avatar_color as avatarColor, u.avatar_url as avatarUrl
+    FROM group_messages msg
     JOIN users u ON u.id = msg.user_id
     WHERE msg.id = ?
   `).get(id);
@@ -221,6 +234,41 @@ io.on('connection', (socket) => {
       ack?.({ ok: true, message: row });
     } catch (err) {
       console.error('channel-message:send error', err);
+      ack?.({ error: 'Server error' });
+    }
+  });
+
+  // ---- Mini Chats: real-time group chat ----
+  // Same join/leave-room + send/broadcast pattern as Mega Chat channels
+  // above, just scoped to a group_chat_id instead of a channel_id.
+  socket.on('group:join', async (groupId) => {
+    try {
+      if (await isGroupMember(groupId, userId)) socket.join(`group:${groupId}`);
+    } catch (err) {
+      console.error('group:join error', err);
+    }
+  });
+
+  socket.on('group:leave', (groupId) => {
+    socket.leave(`group:${groupId}`);
+  });
+
+  socket.on('group-message:send', async ({ groupId, content, imageUrl }, ack) => {
+    try {
+      const trimmed = (content || '').trim();
+      if (!trimmed && !imageUrl) return ack?.({ error: 'Empty message' });
+      if (!(await isGroupMember(groupId, userId))) return ack?.({ error: 'No access' });
+
+      const info = await db.prepare(
+        'INSERT INTO group_messages (group_chat_id, user_id, content, image_url) VALUES (?, ?, ?, ?)'
+      ).run(groupId, userId, trimmed, imageUrl || null);
+
+      const row = await loadGroupMessageRow(info.lastInsertRowid);
+      io.to(`group:${groupId}`).emit('group-message:new', { groupId: Number(groupId), message: row });
+
+      ack?.({ ok: true, message: row });
+    } catch (err) {
+      console.error('group-message:send error', err);
       ack?.({ error: 'Server error' });
     }
   });
@@ -340,7 +388,34 @@ async function sweepAutoResetThreads() {
   }
 }
 
+// Same mandatory 24h rule for free-tier Mini Chats -- permanent as soon as
+// any single member has MK ULTRA, otherwise wiped on the same cycle as DMs.
+async function sweepAutoResetGroups() {
+  try {
+    const due = await db.prepare(`
+      SELECT g.id FROM group_chats g
+      WHERE NOT EXISTS (
+        SELECT 1 FROM group_chat_members gm
+        JOIN users u ON u.id = gm.user_id
+        WHERE gm.group_chat_id = g.id AND u.is_ultra = 1
+      )
+      AND (
+        g.last_reset_at IS NULL
+        OR datetime(g.last_reset_at, '+${AUTO_RESET_WINDOW}') <= datetime('now')
+      )
+    `).all();
+    for (const { id: groupId } of due) {
+      await db.prepare('DELETE FROM group_messages WHERE group_chat_id = ?').run(groupId);
+      await db.prepare("UPDATE group_chats SET last_reset_at = datetime('now') WHERE id = ?").run(groupId);
+      io.to(`group:${groupId}`).emit('group-chat:cleared', { groupId: Number(groupId) });
+    }
+  } catch (err) {
+    console.error('sweepAutoResetGroups error', err);
+  }
+}
+
 setInterval(() => sweepAutoResetThreads(), AUTO_RESET_SWEEP_MS);
+setInterval(() => sweepAutoResetGroups(), AUTO_RESET_SWEEP_MS);
 
 const PORT = process.env.PORT || 4000;
 
@@ -351,6 +426,7 @@ initSchema()
     console.log('[boot] app.js: initSchema() done, calling server.listen()...');
     server.listen(PORT, () => console.log(`Server listening on port ${PORT}`));
     sweepAutoResetThreads();
+    sweepAutoResetGroups();
   })
   .catch((err) => {
     const msg = `[boot] app.js: Failed to initialize database schema: ${err && err.stack ? err.stack : err}\n`;
