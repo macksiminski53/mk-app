@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { db } from '../db.js';
 import { requireAuth } from '../auth.js';
 import { emitProfileChanged, emitMegaChatReady } from '../events.js';
+import { sendUltraPurchaseEmail, sendMegaChatPurchaseEmail } from '../email.js';
 
 // Two ways to configure MK ULTRA checkout, in order of preference:
 //  1. STRIPE_PAYMENT_LINK -- a Stripe-hosted Payment Link (buy.stripe.com/...).
@@ -190,6 +191,11 @@ export async function handleStripeWebhook(req, res) {
     const session = event.data.object;
     const userId = Number(session.client_reference_id || session.metadata?.userId);
     const purchaseType = session.metadata?.type;
+    // Stripe Checkout always asks for an email on card payments, whether the
+    // session was created via a Payment Link or the API -- this is what the
+    // purchase-confirmation email goes to. If it's ever missing (e.g. an
+    // unusual payment method), the email helper just skips silently.
+    const buyerEmail = session.customer_details?.email || null;
 
     if (userId && purchaseType === 'megachat') {
       const purchase = await db.prepare(
@@ -219,11 +225,17 @@ export async function handleStripeWebhook(req, res) {
           channels: [{ id: Number(channelInfo.lastInsertRowid), name: 'general', position: 0 }],
         };
         emitMegaChatReady(userId, server);
+        sendMegaChatPurchaseEmail(buyerEmail, {
+          serverName: purchase.pending_name,
+          amountCents: session.amount_total ?? 100,
+          channelName: 'general',
+        }).catch((err) => console.error('sendMegaChatPurchaseEmail error:', err));
       }
     } else if (userId) {
       await db.prepare("UPDATE ultra_purchases SET status = 'completed' WHERE stripe_session_id = ?").run(session.id);
       await db.prepare('UPDATE users SET is_ultra = 1 WHERE id = ?').run(userId);
       emitProfileChanged(userId);
+      sendUltraPurchaseEmail(buyerEmail).catch((err) => console.error('sendUltraPurchaseEmail error:', err));
     }
   }
 
