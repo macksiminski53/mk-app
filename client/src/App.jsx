@@ -473,6 +473,15 @@ export default function App() {
     });
   }
 
+  async function handleUploadBanner(file) {
+    const res = await api.uploadBanner(token, file);
+    setUser((prev) => {
+      const updated = { ...prev, bannerUrl: res.bannerUrl };
+      localStorage.setItem('user', JSON.stringify(updated));
+      return updated;
+    });
+  }
+
   async function handleSetBio(bio) {
     const res = await api.setBio(token, bio);
     setUser((prev) => {
@@ -815,6 +824,7 @@ export default function App() {
               token={token}
               onLogout={handleLogout}
               onChangeAvatar={handleChangeAvatar}
+              onUploadBanner={handleUploadBanner}
               onSetBio={handleSetBio}
               onOpenChatSettings={handleOpenChatSettings}
               onRemoveFriend={handleRemoveFriend}

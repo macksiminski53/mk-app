@@ -6,7 +6,7 @@ import { groupDisplayName } from './MiniChatView.jsx';
 
 export default function FriendsSidebar({
   friends, activeFriendId, onSelect, currentUser, token, onLogout, onChangeAvatar, onSetBio,
-  onOpenChatSettings, onRemoveFriend, groups, activeGroupId, onSelectGroup, onCreateGroup, createGroupTrigger,
+  onOpenChatSettings, onRemoveFriend, groups, activeGroupId, onSelectGroup, onCreateGroup, createGroupTrigger, onUploadBanner,
 }) {
   const fileInputRef = useRef(null);
   const [uploading, setUploading] = useState(false);
@@ -194,6 +194,7 @@ export default function FriendsSidebar({
           onClose={() => setShowProfileCard(false)}
           onLogout={onLogout}
           onSetBio={onSetBio}
+          onUploadBanner={onUploadBanner}
           onEditProfile={() => {
             setShowProfileCard(false);
             setShowEditProfile(true);

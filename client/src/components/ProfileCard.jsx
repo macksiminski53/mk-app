@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { resolveAvatarUrl } from '../api.js';
 import Avatar from './Avatar.jsx';
 import { api } from '../api.js';
 import { getSocket } from '../socket.js';
@@ -32,11 +33,30 @@ function formatMemberSince(createdAt) {
 // "Friend Settings" panel (Remove Friend + mutual-consent Delete Chat) so
 // the profile and the settings for that relationship live in the same
 // place instead of requiring a separate navigation step.
-export default function ProfileCard({ user, isOwn, token, viewerIsPlus, onClose, onEditProfile, onLogout, onSetBio, onRemoveFriend }) {
+export default function ProfileCard({ user, isOwn, token, viewerIsPlus, onClose, onEditProfile, onLogout, onSetBio, onRemoveFriend, onUploadBanner }) {
   const [editingBio, setEditingBio] = useState(false);
   const [bioDraft, setBioDraft] = useState(user.bio || '');
   const [showFriendSettings, setShowFriendSettings] = useState(false);
   const [deleteVotes, setDeleteVotes] = useState({ myVote: false, otherVote: false, autoReset: false });
+  const [bannerBusy, setBannerBusy] = useState(false);
+  const bannerInputRef = useRef(null);
+
+  // MK ULTRA perk: a profile banner image, uploaded the same way avatars
+  // are -- only the profile's own owner can change it, and only if they
+  // have ULTRA.
+  const canEditBanner = isOwn && !!user.isUltra;
+
+  async function handleBannerFileChange(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file || !onUploadBanner) return;
+    setBannerBusy(true);
+    try {
+      await onUploadBanner(file);
+    } finally {
+      setBannerBusy(false);
+    }
+  }
 
   const playing = user.statusSource === 'music' ? parsePlaying(user.statusText) : null;
   const memberSince = formatMemberSince(user.createdAt);
@@ -86,7 +106,23 @@ export default function ProfileCard({ user, isOwn, token, viewerIsPlus, onClose,
       <div className="profile-card" onClick={(e) => e.stopPropagation()}>
         <button className="profile-card-close" onClick={onClose} title="Close">Close</button>
 
-        <div className="profile-card-banner" />
+        <div
+          className={`profile-card-banner ${canEditBanner ? 'profile-card-banner-editable' : ''}`}
+          style={user.bannerUrl ? { backgroundImage: `url(${resolveAvatarUrl(user.bannerUrl)})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
+          onClick={() => canEditBanner && bannerInputRef.current?.click()}
+          title={canEditBanner ? 'Change profile banner' : undefined}
+        >
+          {canEditBanner && <div className="pfp-overlay">{bannerBusy ? '…' : 'Edit'}</div>}
+        </div>
+        {canEditBanner && (
+          <input
+            ref={bannerInputRef}
+            type="file"
+            accept="image/*"
+            style={{ display: 'none' }}
+            onChange={handleBannerFileChange}
+          />
+        )}
 
         <div className="profile-card-body">
           <div className="profile-card-avatar-wrap">

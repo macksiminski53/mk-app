@@ -26,6 +26,12 @@ export const api = {
     form.append('avatar', file);
     return request('/auth/avatar', { method: 'POST', body: form, token, isForm: true });
   },
+  uploadBanner: (token, file) => {
+    const form = new FormData();
+    form.append('banner', file);
+    return request('/auth/banner', { method: 'POST', body: form, token, isForm: true });
+  },
+  removeBanner: (token) => request('/auth/banner', { method: 'DELETE', token }),
   setStatus: (token, statusText) => request('/auth/status', { method: 'PATCH', body: { statusText }, token }),
   setBio: (token, bio) => request('/auth/bio', { method: 'PATCH', body: { bio }, token }),
   uploadRingtone: (token, type, file) => {

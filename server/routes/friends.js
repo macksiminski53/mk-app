@@ -34,8 +34,8 @@ async function friendshipStatus(meId, otherId) {
 router.get('/', asyncHandler(async (req, res) => {
   const meId = req.user.id;
   const rows = await db.prepare(`
-    SELECT fr.*, u1.username as fromUsername, u1.avatar_color as fromColor, u1.avatar_url as fromUrl, u1.status_text as fromStatus, u1.status_source as fromStatusSource, u1.bio as fromBio, u1.created_at as fromCreatedAt, u1.is_plus as fromPlus, u1.is_premium as fromPremium, u1.is_ultra as fromUltra, u1.name_color as fromNameColor,
-           u2.username as toUsername, u2.avatar_color as toColor, u2.avatar_url as toUrl, u2.status_text as toStatus, u2.status_source as toStatusSource, u2.bio as toBio, u2.created_at as toCreatedAt, u2.is_plus as toPlus, u2.is_premium as toPremium, u2.is_ultra as toUltra, u2.name_color as toNameColor
+    SELECT fr.*, u1.username as fromUsername, u1.avatar_color as fromColor, u1.avatar_url as fromUrl, u1.status_text as fromStatus, u1.status_source as fromStatusSource, u1.bio as fromBio, u1.created_at as fromCreatedAt, u1.is_plus as fromPlus, u1.is_premium as fromPremium, u1.is_ultra as fromUltra, u1.name_color as fromNameColor, u1.banner_url as fromBannerUrl,
+           u2.username as toUsername, u2.avatar_color as toColor, u2.avatar_url as toUrl, u2.status_text as toStatus, u2.status_source as toStatusSource, u2.bio as toBio, u2.created_at as toCreatedAt, u2.is_plus as toPlus, u2.is_premium as toPremium, u2.is_ultra as toUltra, u2.name_color as toNameColor, u2.banner_url as toBannerUrl
     FROM friend_requests fr
     JOIN users u1 ON u1.id = fr.from_id
     JOIN users u2 ON u2.id = fr.to_id
@@ -56,6 +56,7 @@ router.get('/', asyncHandler(async (req, res) => {
     const otherPremium = r.from_id === meId ? r.toPremium : r.fromPremium;
     const otherPlus = r.from_id === meId ? r.toPlus : r.fromPlus;
     const otherNameColor = r.from_id === meId ? r.toNameColor : r.fromNameColor;
+    const otherBannerUrl = r.from_id === meId ? r.toBannerUrl : r.fromBannerUrl;
     const thread = await getOrCreateThread(meId, otherId);
     friends.push({
       id: otherId,
@@ -70,6 +71,7 @@ router.get('/', asyncHandler(async (req, res) => {
       isPremium: !!(otherPremium || otherUltra),
       isUltra: !!otherUltra,
       nameColor: otherUltra ? otherNameColor : null,
+      bannerUrl: otherUltra ? otherBannerUrl : null,
       online: isOnline(otherId),
       threadId: thread.id,
     });

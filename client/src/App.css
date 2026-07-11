@@ -1496,6 +1496,17 @@ body {
   background: linear-gradient(135deg, #ffffff, #0d0505 60%, #1a0d0d);
 }
 
+.profile-card-banner-editable {
+  cursor: pointer;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.profile-card-banner-editable .pfp-overlay { border-radius: 0; }
+.profile-card-banner-editable:hover .pfp-overlay { opacity: 1; }
+
 .profile-card-body {
   padding: 0 16px 16px;
   display: flex;
@@ -2219,7 +2230,8 @@ body {
    always visible when the device has no real hover capability. */
 @media (hover: none) {
   .pfp-change-wrap .pfp-overlay,
-  .minichat-header-avatar-editable .pfp-overlay {
+  .minichat-header-avatar-editable .pfp-overlay,
+  .profile-card-banner-editable .pfp-overlay {
     opacity: 1;
     background: rgba(0, 0, 0, 0.35);
   }

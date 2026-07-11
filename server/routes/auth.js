@@ -236,6 +236,24 @@ router.post('/avatar', requireAuth, upload.single('avatar'), asyncHandler(async 
   res.json({ avatarUrl });
 }));
 
+// MK ULTRA perk: a profile banner image, shown across the top of the
+// profile card above the avatar. Same base64-in-DB storage as avatars.
+router.post('/banner', requireAuth, upload.single('banner'), asyncHandler(async (req, res) => {
+  const row = await db.prepare('SELECT is_ultra FROM users WHERE id = ?').get(req.user.id);
+  if (!row?.is_ultra) return res.status(403).json({ error: 'MK ULTRA required' });
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+  const bannerUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+  await db.prepare('UPDATE users SET banner_url = ? WHERE id = ?').run(bannerUrl, req.user.id);
+  emitProfileChanged(req.user.id);
+  res.json({ bannerUrl });
+}));
+
+router.delete('/banner', requireAuth, asyncHandler(async (req, res) => {
+  await db.prepare('UPDATE users SET banner_url = NULL WHERE id = ?').run(req.user.id);
+  emitProfileChanged(req.user.id);
+  res.json({ ok: true });
+}));
+
 router.patch('/status', requireAuth, asyncHandler(async (req, res) => {
   const { statusText, source } = req.body;
   const clean = typeof statusText === 'string' ? statusText.trim().slice(0, 120) : null;
