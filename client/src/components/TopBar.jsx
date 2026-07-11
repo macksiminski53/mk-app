@@ -3,6 +3,7 @@ import { LANGUAGES } from '../i18n.js';
 import { listAudioDevices } from '../webrtc.js';
 
 const CHANGELOG = [
+  { version: '0.15.0', notes: 'Added a PC desktop app (with a system tray icon) and real OS notifications with a sound chime for new messages and incoming calls, even when the window isn\'t focused.' },
   { version: '0.14.0', notes: 'Redesigned audio message attachments as a cassette-tape player, with spinning reels and a scrubbable tape strip.' },
   { version: '0.13.0', notes: 'Removed emoji icons app-wide in favor of plain text labels for a cleaner, more consistent look.' },
   { version: '0.12.0', notes: 'You can now attach any file type to a message, not just images and audio. Free chats now always auto-delete after 24 hours -- get MK ULTRA to make a chat permanent.' },
