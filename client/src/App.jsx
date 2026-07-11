@@ -242,6 +242,13 @@ export default function App() {
   useEffect(() => {
     if (!token) return;
     connectSocket(token);
+    // Reconciles the locally-cached profile (from localStorage) with the
+    // server on every load -- without this, any account change made
+    // outside a live "profile:changed" push (e.g. MK ULTRA granted directly
+    // via an admin script rather than through the app) would only ever show
+    // up after a Stripe-redirect or a lucky live socket event, never on a
+    // normal reload.
+    refreshSelf();
     refreshFriends();
     refreshRequests();
     refreshServers();
