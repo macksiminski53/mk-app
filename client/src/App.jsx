@@ -65,6 +65,7 @@ export default function App() {
   const camStreamRef = useRef(null);
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
+  const remoteVideoStreamRef = useRef(null);
 
   const t = getTranslator(settings.language);
 
@@ -105,6 +106,7 @@ export default function App() {
     stopStream(camStreamRef.current);
     camStreamRef.current = null;
     camSenderRef.current = null;
+    remoteVideoStreamRef.current = null;
     remoteUserIdRef.current = null;
     iceQueueRef.current = [];
     setMuted(false);
@@ -179,6 +181,27 @@ export default function App() {
       });
     }
   }, [settings.speakerDeviceId, call?.status]);
+
+  // The <video> elements for local/remote camera feeds are only mounted in
+  // the DOM once cameraOn/remoteHasVideo flips true (see CallBar.jsx) -- but
+  // that state update and the code that wants to attach a MediaStream to
+  // the element both originate from the same onTrack/handleToggleCamera
+  // callback, which runs *before* React has actually mounted the element.
+  // Assigning `.srcObject` there was a no-op (the ref was still null) and
+  // the video just stayed black forever after. These effects re-run once
+  // the state change has actually been committed and the element exists,
+  // which is the reliable place to do this assignment.
+  useEffect(() => {
+    if (remoteHasVideo && remoteVideoRef.current && remoteVideoStreamRef.current) {
+      remoteVideoRef.current.srcObject = remoteVideoStreamRef.current;
+    }
+  }, [remoteHasVideo]);
+
+  useEffect(() => {
+    if (cameraOn && localVideoRef.current && camStreamRef.current) {
+      localVideoRef.current.srcObject = camStreamRef.current;
+    }
+  }, [cameraOn]);
 
   // After returning from Stripe Checkout (?ultra=success in the URL),
   // refresh the user so the newly-granted isUltra flag shows up, then
@@ -522,6 +545,11 @@ export default function App() {
         // see handleToggleCamera), so this fires once for audio and,
         // whenever the other side turns their camera on, again for video.
         if (stream.getVideoTracks().length > 0) {
+          remoteVideoStreamRef.current = stream;
+          // Covers the case where the <video> element is already mounted
+          // (e.g. this is the second time the remote camera turned on this
+          // call) -- the effect above covers the first time, when it isn't
+          // mounted yet.
           if (remoteVideoRef.current) remoteVideoRef.current.srcObject = stream;
           const vTrack = stream.getVideoTracks()[0];
           setRemoteHasVideo(!vTrack.muted);
