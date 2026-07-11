@@ -2136,3 +2136,15 @@ body {
 .minichat-header-avatar-editable { cursor: pointer; }
 .minichat-header-avatar-editable:hover .pfp-overlay { opacity: 1; }
 .minichat-header-avatar .pfp-overlay { font-size: 10px; }
+
+/* On touch devices there's no hover state, so the "Edit" overlay on a
+   clickable avatar (profile picture, Mega/Mini Chat pictures) never showed,
+   making it look like tapping the picture didn't do anything. Keep it
+   always visible when the device has no real hover capability. */
+@media (hover: none) {
+  .pfp-change-wrap .pfp-overlay,
+  .minichat-header-avatar-editable .pfp-overlay {
+    opacity: 1;
+    background: rgba(0, 0, 0, 0.35);
+  }
+}
