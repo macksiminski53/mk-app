@@ -30,7 +30,7 @@
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
-      "installerSidebar": "build/installerSidebar.bmp",
+      "installerSidebar": "build/installSidebar.bmp",
       "uninstallerSidebar": "build/installerSidebar.bmp"
     },
     "mac": {
