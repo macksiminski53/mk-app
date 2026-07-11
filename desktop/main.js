@@ -9,13 +9,10 @@ const APP_URL = 'https://mk-app-1.onrender.com';
 let mainWindow = null;
 let tray = null;
 let isQuitting = false;
-
-// A named, "persist:"-prefixed partition is stored on disk under this
-// app's userData folder and reused across launches by Electron -- unlike
-// the anonymous default session, this guarantees login (localStorage/
-// cookies) survives a full quit-and-reopen instead of only surviving a
-// hide-to-tray. This is what makes "stay logged in" actually work here.
-const persistentSession = session.fromPartition('persist:mkapp');
+// Assigned inside app.whenReady() below -- session.fromPartition() throws
+// if called before Electron's app module is ready, so it can't be a
+// top-level const like it originally was.
+let persistentSession = null;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -93,6 +90,13 @@ function createTray() {
 }
 
 app.whenReady().then(() => {
+  // A named, "persist:"-prefixed partition is stored on disk under this
+  // app's userData folder and reused across launches by Electron -- unlike
+  // the anonymous default session, this guarantees login (localStorage/
+  // cookies) survives a full quit-and-reopen instead of only surviving a
+  // hide-to-tray. This is what makes "stay logged in" actually work here.
+  persistentSession = session.fromPartition('persist:mkapp');
+
   // A frameless-ish desktop shell has no browser permission bar for the
   // page to fall back on, so without this the web app's Notification
   // (see client/src/App.jsx) and getUserMedia (voice calls) requests would
