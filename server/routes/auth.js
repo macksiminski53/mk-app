@@ -3,7 +3,12 @@ import bcrypt from 'bcryptjs';
 import multer from 'multer';
 import { customAlphabet } from 'nanoid';
 import { db } from '../db.js';
-import { signToken, requireAuth } from '../auth.js';
+import { signToken, requireAuth, rateLimit } from '../auth.js';
+
+// Auth endpoints are the classic brute-force target -- 8 attempts/minute per
+// IP+route is generous for a real user (a typo or two) but useless to a
+// credential-stuffing script.
+const authRateLimit = rateLimit({ windowMs: 60_000, max: 8 });
 import { emitProfileChanged } from '../events.js';
 
 const router = Router();
@@ -73,7 +78,7 @@ function asyncHandler(fn) {
   return (req, res, next) => fn(req, res, next).catch(next);
 }
 
-router.post('/register', asyncHandler(async (req, res) => {
+router.post('/register', authRateLimit, asyncHandler(async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password || username.length < 3 || password.length < 6) {
     return res.status(400).json({ error: 'Username min 3 chars, password min 6 chars' });
@@ -113,7 +118,7 @@ router.post('/register', asyncHandler(async (req, res) => {
   });
 }));
 
-router.post('/login', asyncHandler(async (req, res) => {
+router.post('/login', authRateLimit, asyncHandler(async (req, res) => {
   const { username, password } = req.body;
   const row = await db.prepare('SELECT * FROM users WHERE username = ?').get(username);
   if (!row) return res.status(401).json({ error: 'Invalid credentials' });
@@ -146,7 +151,7 @@ router.post('/login', asyncHandler(async (req, res) => {
 // Log in on a new device using the account token from Settings > Account
 // instead of username/password -- same response shape as /login so the
 // client can reuse the exact same onAuthed(token, user) handling.
-router.post('/login-token', asyncHandler(async (req, res) => {
+router.post('/login-token', authRateLimit, asyncHandler(async (req, res) => {
   const { accountToken } = req.body;
   if (!accountToken || typeof accountToken !== 'string') {
     return res.status(400).json({ error: 'Account token is required' });

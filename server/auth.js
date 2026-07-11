@@ -1,6 +1,25 @@
+import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
+// SECURITY: this used to fall back to a hardcoded string
+// ('dev-secret-change-me') when JWT_SECRET wasn't set in the environment.
+// That meant anyone who read this (public) source file could forge a valid
+// login token for any account on a deployment that forgot to configure
+// JWT_SECRET. Now, if it's missing, a fresh random secret is generated once
+// per process boot instead -- still secure, just means every login token
+// issued before that boot becomes invalid (everyone gets logged out) the
+// next time the server restarts without JWT_SECRET set. That's a strictly
+// safer failure mode than a guessable secret. Set JWT_SECRET as a real env
+// var on Render (Settings > Environment) to avoid the logout-on-restart
+// side effect -- a long random string, e.g. `openssl rand -hex 32`.
+const JWT_SECRET = process.env.JWT_SECRET || (() => {
+  console.warn(
+    '[auth] WARNING: JWT_SECRET is not set. Using a random secret generated ' +
+    'for this process only -- all logged-in users will be signed out the ' +
+    'next time the server restarts. Set JWT_SECRET in your environment to fix this.'
+  );
+  return crypto.randomBytes(32).toString('hex');
+})();
 
 export function signToken(user) {
   return jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: '30d' });
@@ -25,3 +44,40 @@ export function verifySocketToken(token) {
     return null;
   }
 }
+
+// ---- Lightweight in-memory rate limiting for login/register/token-login ----
+// Deliberately not a full library (no new dependency to install) -- a
+// sliding window per IP+route is more than enough to stop naive brute-force
+// scripts against a small app like this. Resets naturally as old entries
+// age out; nothing persists across a restart, which is fine for this use
+// case (a restart is a rare enough event that losing rate-limit history
+// isn't a real risk).
+const attempts = new Map(); // key -> array of timestamps (ms)
+
+export function rateLimit({ windowMs = 60_000, max = 8 } = {}) {
+  return (req, res, next) => {
+    const ip = req.headers['x-forwarded-for']?.split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
+    const key = `${req.baseUrl}${req.path}:${ip}`;
+    const now = Date.now();
+    const recent = (attempts.get(key) || []).filter((t) => now - t < windowMs);
+    if (recent.length >= max) {
+      const retryAfterSec = Math.ceil((windowMs - (now - recent[0])) / 1000);
+      res.set('Retry-After', String(retryAfterSec));
+      return res.status(429).json({ error: 'Too many attempts. Please wait and try again.' });
+    }
+    recent.push(now);
+    attempts.set(key, recent);
+    next();
+  };
+}
+
+// Sweep stale entries every 10 minutes so the Map doesn't grow forever on a
+// long-running server.
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, timestamps] of attempts) {
+    const recent = timestamps.filter((t) => now - t < 10 * 60_000);
+    if (recent.length === 0) attempts.delete(key);
+    else attempts.set(key, recent);
+  }
+}, 10 * 60_000).unref();
