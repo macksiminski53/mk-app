@@ -10,9 +10,9 @@ function formatTime(sec) {
 // A cassette-tape-styled player for voice/audio message attachments. Wraps
 // a hidden native <audio> element -- all the actual playback, seeking, and
 // buffering is delegated to it; this component only draws a tape deck skin
-// around it (spinning reels, a scrubbable "tape" strip, a tape-counter
-// style time readout) and drives its play state.
-export default function CassettePlayer({ src }) {
+// around it (a printed label, spinning reels, a scrubbable "tape" strip,
+// and a tape-counter style time readout) and drives its play state.
+export default function CassettePlayer({ src, label = 'VOICE MESSAGE' }) {
   const audioRef = useRef(null);
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -60,21 +60,35 @@ export default function CassettePlayer({ src }) {
   return (
     <div className="cassette-player">
       <audio ref={audioRef} src={src} preload="metadata" />
-      <div className="cassette-body">
+
+      <div className="cassette-shell">
+        <span className="cassette-screw cassette-screw-tl" />
+        <span className="cassette-screw cassette-screw-tr" />
+        <span className="cassette-screw cassette-screw-bl" />
+        <span className="cassette-screw cassette-screw-br" />
+
+        <div className="cassette-label">
+          <span className="cassette-label-side">A</span>
+          <span className="cassette-label-title">{label}</span>
+          <span className="cassette-label-pinstripe" />
+        </div>
+
         <div className="cassette-window">
           <div className={`cassette-reel ${playing ? 'spinning' : ''}`}>
             <div className="cassette-reel-hub" />
           </div>
-          <div className="cassette-tape-arc" />
+          <div className="cassette-window-slot" />
           <div className={`cassette-reel ${playing ? 'spinning' : ''}`}>
             <div className="cassette-reel-hub" />
           </div>
         </div>
-        <div className="cassette-label">
-          <div className="cassette-label-line cassette-label-line-title">SIDE A</div>
-          <div className="cassette-label-line cassette-label-line-sub">VOICE MEMO</div>
+
+        <div className="cassette-stripe">
+          <span className="cassette-brand">MK</span>
+          <span className="cassette-stripe-tag">90</span>
         </div>
       </div>
+
       <div className="cassette-controls">
         <button
           type="button"
