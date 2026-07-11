@@ -13,8 +13,6 @@ ENV DB_PATH=/app/data/data.sqlite
 RUN mkdir -p /app/data /app/uploads
 
 EXPOSE 4000
-# TEMP DIAGNOSTIC: shell works (proven). Now bracket each Node invocation
-# with shell echoes to find exactly where Node itself stops producing
-# output -- this narrows it down to node --version vs. node -e vs. our file.
-CMD ["sh", "-c", "echo STEP_A_before_node_version; node --version; echo STEP_B_after_node_version; node -e 'console.log(\"STEP_C_node_e_console_log_works\")'; echo STEP_D_after_node_e; node -e 'require(\"fs\").writeSync(1,\"STEP_E_writeSync_works\\n\")'; echo STEP_F_after_writesync; sleep 60"]
-# diagnostic nudge Fri Jul 10 23:18:15 EDT 2026
+# TEMP DIAGNOSTIC: run the real index.js, bracketed by shell echoes so we
+# see something no matter what -- including the exit code if it dies.
+CMD ["sh", "-c", "echo BEFORE_INDEX_JS; ls -la /app; cat /app/package.json; node index.js; echo AFTER_INDEX_JS_EXIT_CODE_$?; sleep 60"]
