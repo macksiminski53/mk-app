@@ -2148,3 +2148,48 @@ body {
     background: rgba(0, 0, 0, 0.35);
   }
 }
+
+/* --- Video calls --- */
+.call-overlay-video { min-width: 360px; padding: 14px 14px 14px; }
+
+.call-video-stage {
+  position: relative;
+  width: 360px;
+  max-width: 80vw;
+  height: 240px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #0a0404;
+  margin-bottom: 10px;
+}
+
+.call-video-remote {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: #0a0404;
+}
+
+.call-video-remote-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.call-video-local {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  width: 92px;
+  height: 68px;
+  border-radius: 8px;
+  object-fit: cover;
+  border: 2px solid #150808;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+  transform: scaleX(-1); /* mirror the self-view, matches every other camera app */
+}
+
+@media (max-width: 640px) {
+  .call-video-stage { width: 280px; height: 190px; }
+  .call-overlay-video { min-width: 0; }
+}

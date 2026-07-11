@@ -10,7 +10,7 @@ import MiniChatView from './components/MiniChatView.jsx';
 import { api } from './api.js';
 import { connectSocket, disconnectSocket, getSocket } from './socket.js';
 import { getTranslator } from './i18n.js';
-import { createPeerConnection, getMicStream, stopStream } from './webrtc.js';
+import { createPeerConnection, getMicStream, getCamStream, stopStream } from './webrtc.js';
 import { playMessageChime } from './notifySound.js';
 import './App.css';
 
@@ -49,11 +49,22 @@ export default function App() {
   //               | { status: 'active', friend, startedAt }
   const [call, setCall] = useState(null);
   const [muted, setMuted] = useState(false);
+  const [cameraOn, setCameraOn] = useState(false);
+  const [remoteHasVideo, setRemoteHasVideo] = useState(false);
   const pcRef = useRef(null);
   const localStreamRef = useRef(null);
   const remoteAudioRef = useRef(null);
   const remoteUserIdRef = useRef(null);
   const iceQueueRef = useRef([]);
+  // Video is added on demand mid-call (not upfront with the mic), so it
+  // gets its own refs: the RTCRtpSender from the first addTrack (reused via
+  // replaceTrack for every toggle after that -- see handleToggleCamera),
+  // the raw camera MediaStream (so its device can be released on toggle-off
+  // and re-acquired fresh next time), and the two <video> elements.
+  const camSenderRef = useRef(null);
+  const camStreamRef = useRef(null);
+  const localVideoRef = useRef(null);
+  const remoteVideoRef = useRef(null);
 
   const t = getTranslator(settings.language);
 
@@ -91,10 +102,17 @@ export default function App() {
     pcRef.current = null;
     stopStream(localStreamRef.current);
     localStreamRef.current = null;
+    stopStream(camStreamRef.current);
+    camStreamRef.current = null;
+    camSenderRef.current = null;
     remoteUserIdRef.current = null;
     iceQueueRef.current = [];
     setMuted(false);
+    setCameraOn(false);
+    setRemoteHasVideo(false);
     if (remoteAudioRef.current) remoteAudioRef.current.srcObject = null;
+    if (localVideoRef.current) localVideoRef.current.srcObject = null;
+    if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
   }, []);
   const cleanupCallRef = useRef(cleanupCall);
   useEffect(() => { cleanupCallRef.current = cleanupCall; }, [cleanupCall]);
@@ -290,8 +308,11 @@ export default function App() {
     async function onCallSignal({ fromUserId, data }) {
       let pc = pcRef.current;
       if (data.type === 'offer') {
-        // We're the callee and just accepted; pc should already exist
-        // (created in handleAcceptCall) with local tracks attached.
+        // Handles both the initial offer (we're the callee and just
+        // accepted, pc already exists from handleAcceptCall) AND a
+        // mid-call renegotiation offer (the other side just turned their
+        // camera on for the first time this call) -- setRemoteDescription
+        // + createAnswer works the same way either time.
         if (!pc) return;
         remoteUserIdRef.current = fromUserId;
         await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
@@ -496,7 +517,20 @@ export default function App() {
         getSocket().emit('call:signal', { toUserId, data: { type: 'candidate', candidate } });
       },
       onTrack: (stream) => {
-        if (remoteAudioRef.current) remoteAudioRef.current.srcObject = stream;
+        // The camera track arrives on a separate MediaStream from the mic
+        // (they're added via pc.addTrack with two different local streams --
+        // see handleToggleCamera), so this fires once for audio and,
+        // whenever the other side turns their camera on, again for video.
+        if (stream.getVideoTracks().length > 0) {
+          if (remoteVideoRef.current) remoteVideoRef.current.srcObject = stream;
+          const vTrack = stream.getVideoTracks()[0];
+          setRemoteHasVideo(!vTrack.muted);
+          vTrack.onmute = () => setRemoteHasVideo(false);
+          vTrack.onunmute = () => setRemoteHasVideo(true);
+          vTrack.onended = () => setRemoteHasVideo(false);
+        } else {
+          if (remoteAudioRef.current) remoteAudioRef.current.srcObject = stream;
+        }
       },
       onConnectionStateChange: (state) => {
         if (state === 'failed' || state === 'closed') {
@@ -568,6 +602,65 @@ export default function App() {
     setMuted(next);
   }
 
+  // Turning the camera on for the first time in a call adds a brand-new
+  // video track/m-line, which needs a fresh offer/answer round (WebRTC
+  // renegotiation) so the other side even knows it exists. Every toggle
+  // after that just swaps the sender's track via replaceTrack(), which
+  // doesn't touch the SDP at all -- no renegotiation, no risk of both sides
+  // renegotiating at once (a real risk if this ran on every single toggle).
+  async function handleToggleCamera() {
+    const pc = pcRef.current;
+    if (!pc || !call || call.status !== 'active') return;
+
+    if (cameraOn) {
+      stopStream(camStreamRef.current);
+      camStreamRef.current = null;
+      if (camSenderRef.current) {
+        try { await camSenderRef.current.replaceTrack(null); } catch (err) { console.error('replaceTrack(null) failed:', err.message); }
+      }
+      if (localVideoRef.current) localVideoRef.current.srcObject = null;
+      setCameraOn(false);
+      return;
+    }
+
+    let camStream;
+    try {
+      camStream = await getCamStream(settings.camDeviceId);
+    } catch (err) {
+      console.error('Camera access denied or unavailable:', err.message);
+      return;
+    }
+    camStreamRef.current = camStream;
+    const videoTrack = camStream.getVideoTracks()[0];
+
+    if (camSenderRef.current) {
+      // Camera was on earlier this call and got turned off -- the sender
+      // (and its m-line) already exists, so just swap the track back in.
+      try {
+        await camSenderRef.current.replaceTrack(videoTrack);
+      } catch (err) {
+        console.error('replaceTrack failed:', err.message);
+        stopStream(camStream);
+        camStreamRef.current = null;
+        return;
+      }
+    } else {
+      // First time this call -- adds a new m-line, so the other side needs
+      // a fresh offer describing it.
+      camSenderRef.current = pc.addTrack(videoTrack, camStream);
+      try {
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        getSocket().emit('call:signal', { toUserId: remoteUserIdRef.current, data: { type: 'offer', sdp: offer } });
+      } catch (err) {
+        console.error('Camera renegotiation failed:', err.message);
+      }
+    }
+
+    if (localVideoRef.current) localVideoRef.current.srcObject = camStream;
+    setCameraOn(true);
+  }
+
   if (!token || !user) {
     return <AuthScreen onAuthed={handleAuthed} />;
   }
@@ -598,11 +691,16 @@ export default function App() {
         <CallBar
           call={call}
           muted={muted}
+          cameraOn={cameraOn}
+          remoteHasVideo={remoteHasVideo}
+          localVideoRef={localVideoRef}
+          remoteVideoRef={remoteVideoRef}
           onAccept={handleAcceptCall}
           onDecline={handleDeclineCall}
           onCancel={handleEndOrCancelCall}
           onHangUp={handleEndOrCancelCall}
           onToggleMute={handleToggleMute}
+          onToggleCamera={handleToggleCamera}
           ringtoneOutgoingUrl={user.ringtoneOutgoingUrl}
           ringtoneIncomingUrl={user.ringtoneIncomingUrl}
         />

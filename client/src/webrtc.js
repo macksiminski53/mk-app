@@ -36,6 +36,16 @@ export async function getMicStream(deviceId) {
   });
 }
 
+// Camera-only stream for the "turn on camera" toggle mid-call -- kept
+// separate from getMicStream since video is added to an already-running
+// call on demand, not requested upfront with the mic.
+export async function getCamStream(deviceId) {
+  return navigator.mediaDevices.getUserMedia({
+    audio: false,
+    video: deviceId ? { deviceId: { exact: deviceId } } : true,
+  });
+}
+
 // Lists available audio input (mic) and output (speaker) devices for the
 // Voice Chat settings tab. Labels are only populated once the browser has
 // been granted mic permission at least once (otherwise they come back

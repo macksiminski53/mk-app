@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import Avatar from './Avatar.jsx';
-import { PhoneIcon, PhoneHangupIcon, MicIcon, MicMutedIcon, CallCloseIcon } from './CallIcons.jsx';
+import { PhoneIcon, PhoneHangupIcon, MicIcon, MicMutedIcon, CameraIcon, CameraOffIcon, CallCloseIcon } from './CallIcons.jsx';
 
 function formatDuration(seconds) {
   const m = Math.floor(seconds / 60);
@@ -14,7 +14,7 @@ function formatDuration(seconds) {
 // closer to a phone call screen than Discord's compact bar. Renders
 // nothing if call.status is null -- App.jsx only mounts this when there's
 // a call.
-export default function CallBar({ call, onAccept, onDecline, onCancel, onHangUp, onToggleMute, muted, ringtoneOutgoingUrl, ringtoneIncomingUrl }) {
+export default function CallBar({ call, onAccept, onDecline, onCancel, onHangUp, onToggleMute, muted, cameraOn, remoteHasVideo, localVideoRef, remoteVideoRef, onToggleCamera, ringtoneOutgoingUrl, ringtoneIncomingUrl }) {
   const [elapsed, setElapsed] = useState(0);
   const outgoingAudioRef = useRef(null);
   const incomingAudioRef = useRef(null);
@@ -109,14 +109,31 @@ export default function CallBar({ call, onAccept, onDecline, onCancel, onHangUp,
   }
 
   // active
+  const showVideo = cameraOn || remoteHasVideo;
   return (
     <div className="call-overlay-anchor">
       {ringtones}
-      <div className="call-overlay call-overlay-active">
-        <div className="call-overlay-avatar-wrap">
-          <Avatar username={call.friend.username} avatarColor={call.friend.avatarColor} avatarUrl={call.friend.avatarUrl} size={72} />
-          <span className="call-overlay-live-dot" />
-        </div>
+      <div className={`call-overlay call-overlay-active ${showVideo ? 'call-overlay-video' : ''}`}>
+        {showVideo && (
+          <div className="call-video-stage">
+            {remoteHasVideo ? (
+              <video ref={remoteVideoRef} autoPlay playsInline className="call-video-remote" />
+            ) : (
+              <div className="call-video-remote call-video-remote-placeholder">
+                <Avatar username={call.friend.username} avatarColor={call.friend.avatarColor} avatarUrl={call.friend.avatarUrl} size={72} />
+              </div>
+            )}
+            {cameraOn && (
+              <video ref={localVideoRef} autoPlay playsInline muted className="call-video-local" />
+            )}
+          </div>
+        )}
+        {!showVideo && (
+          <div className="call-overlay-avatar-wrap">
+            <Avatar username={call.friend.username} avatarColor={call.friend.avatarColor} avatarUrl={call.friend.avatarUrl} size={72} />
+            <span className="call-overlay-live-dot" />
+          </div>
+        )}
         <div className="call-overlay-name">{call.friend.username}</div>
         <div className="call-overlay-sub">{formatDuration(elapsed)}</div>
         <div className="call-overlay-actions">
@@ -126,6 +143,13 @@ export default function CallBar({ call, onAccept, onDecline, onCancel, onHangUp,
             title={muted ? 'Unmute' : 'Mute'}
           >
             {muted ? <MicMutedIcon size={20} /> : <MicIcon size={20} />}
+          </button>
+          <button
+            className={`call-overlay-btn ${cameraOn ? 'call-overlay-btn-muted-off' : 'call-overlay-btn-muted-on'}`}
+            onClick={onToggleCamera}
+            title={cameraOn ? 'Turn off camera' : 'Turn on camera'}
+          >
+            {cameraOn ? <CameraIcon size={20} /> : <CameraOffIcon size={20} />}
           </button>
           <button className="call-overlay-btn call-overlay-btn-decline" onClick={onHangUp} title="Hang up">
             <PhoneHangupIcon size={20} />

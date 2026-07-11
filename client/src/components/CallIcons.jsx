@@ -54,6 +54,25 @@ export function MicMutedIcon({ size = 18 }) {
   );
 }
 
+export function CameraIcon({ size = 18 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="2.5" y="6.5" width="13" height="11" rx="2.2" stroke="currentColor" strokeWidth="1.7" />
+      <path d="M15.5 10.2l5-2.8v9.2l-5-2.8" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function CameraOffIcon({ size = 18 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="2.5" y="6.5" width="13" height="11" rx="2.2" stroke="currentColor" strokeWidth="1.7" />
+      <path d="M15.5 10.2l5-2.8v9.2l-5-2.8" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+      <path d="M3.5 3.5l17 17" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export function CallCloseIcon({ size = 16 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
