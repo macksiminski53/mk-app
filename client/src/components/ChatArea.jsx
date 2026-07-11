@@ -3,6 +3,7 @@ import { api, resolveAvatarUrl } from '../api.js';
 import { getSocket } from '../socket.js';
 import Avatar from './Avatar.jsx';
 import { PhoneIcon } from './CallIcons.jsx';
+import CassettePlayer from './CassettePlayer.jsx';
 
 function formatTime(iso) {
   const d = new Date(iso + 'Z');
@@ -282,7 +283,7 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
                 {m.content && <div className="message-content">{m.content}</div>}
                 {m.imageUrl && (
                   isAudioUrl(m.imageUrl) ? (
-                    <audio className="message-audio" controls src={resolveAvatarUrl(m.imageUrl)} />
+                    <CassettePlayer src={resolveAvatarUrl(m.imageUrl)} />
                   ) : isImageUrl(m.imageUrl) ? (
                     <img
                       className="message-image"
