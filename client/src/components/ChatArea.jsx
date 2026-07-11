@@ -7,6 +7,7 @@ import CassettePlayer from './CassettePlayer.jsx';
 import EmojiPicker, { renderWithCustomEmoji } from './EmojiPicker.jsx';
 import LikeButton from './LikeButton.jsx';
 import PinButton from './PinButton.jsx';
+import { PinIcon } from './Icons.jsx';
 import PinnedPanel from './PinnedPanel.jsx';
 
 function formatTime(iso) {
@@ -325,7 +326,7 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
           {friend.online ? t('online') : t('offline')}
         </span>
         <span className="megachat-footer-btn pinned-header-btn" onClick={() => setShowPinnedPanel(true)}>
-          📌 Pinned ({pinnedMessages.length}/10)
+          <PinIcon size={12} /> Pinned ({pinnedMessages.length}/10)
         </span>
         <button
           className="call-header-btn call-header-btn-right"
@@ -353,7 +354,7 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
                   <div className="message-header">
                     <span className="message-author" style={m.nameColor ? { color: m.nameColor } : undefined}>{m.username}</span>
                     <span className="message-time">{formatTime(m.createdAt)}</span>
-                    {m.pinned && <span className="pinned-tag" title={m.pinnedByUsername ? `Pinned by ${m.pinnedByUsername}` : 'Pinned'}>📌 Pinned</span>}
+                    {m.pinned && <span className="pinned-tag" title={m.pinnedByUsername ? `Pinned by ${m.pinnedByUsername}` : 'Pinned'}><PinIcon size={10} /> Pinned</span>}
                   </div>
                 )}
 

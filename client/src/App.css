@@ -2132,7 +2132,7 @@ body {
   gap: 2px;
 }
 
-.megachat-footer-btn { padding: 8px; border-radius: 6px; cursor: pointer; font-size: 13px; color: #c4c9ce; }
+.megachat-footer-btn { padding: 8px; border-radius: 6px; cursor: pointer; font-size: 13px; color: #c4c9ce; display: inline-flex; align-items: center; gap: 4px; }
 .megachat-footer-btn:hover { background: #2b0f0f; }
 .megachat-danger { color: #ff6b6b; }
 
@@ -2365,12 +2365,15 @@ body {
 .pin-btn-active { opacity: 1; color: #e0a944; }
 
 .pinned-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
   font-size: 11px;
   color: #e0a944;
   margin-left: 6px;
 }
 
-.pinned-header-btn { margin-left: auto; margin-right: 8px; }
+.pinned-header-btn { margin-left: auto; margin-right: 8px; display: inline-flex; align-items: center; gap: 4px; }
 
 .pinned-panel-modal { max-width: 480px; width: 92vw; }
 
@@ -2435,11 +2438,14 @@ body {
 .emoji-picker-btn {
   background: none;
   border: none;
-  font-size: 18px;
+  color: #b5bac1;
   cursor: pointer;
   padding: 4px 6px;
   line-height: 1;
+  display: inline-flex;
+  align-items: center;
 }
+.emoji-picker-btn:hover { color: #ffffff; }
 
 .emoji-picker-popover {
   position: absolute;

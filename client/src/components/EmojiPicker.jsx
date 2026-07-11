@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { SmileIcon } from './Icons.jsx';
 
 // MK PREMIUM perk: a small emoji picker for the message box. Deliberately a
 // fixed, curated grid rather than a full Unicode emoji library -- keeps the
@@ -52,7 +53,7 @@ export default function EmojiPicker({ onSelect, customEmojiUrl }) {
         onClick={() => setOpen((v) => !v)}
         title="Emoji (MK PREMIUM)"
       >
-        😊
+        <SmileIcon size={17} />
       </button>
       {open && (
         <div className="emoji-picker-popover">

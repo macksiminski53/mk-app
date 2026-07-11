@@ -6,6 +6,7 @@ import { getSocket } from '../socket.js';
 import EmojiPicker, { renderWithCustomEmoji } from './EmojiPicker.jsx';
 import LikeButton from './LikeButton.jsx';
 import PinButton from './PinButton.jsx';
+import { PinIcon } from './Icons.jsx';
 import PinnedPanel from './PinnedPanel.jsx';
 
 function formatTime(createdAt) {
@@ -191,7 +192,7 @@ export default function MiniChatView({ group, token, currentUser, onLeft }) {
           {showMembers ? 'Hide Members' : `Members (${members.length}/${maxMembers})`}
         </span>
         <span className="megachat-footer-btn" onClick={() => setShowPinnedPanel(true)}>
-          📌 Pinned ({pinnedMessages.length}/10)
+          <PinIcon size={12} /> Pinned ({pinnedMessages.length}/10)
         </span>
         <span className="megachat-footer-btn megachat-danger" onClick={handleLeave}>Leave</span>
       </div>
@@ -241,7 +242,7 @@ export default function MiniChatView({ group, token, currentUser, onLeft }) {
                   <div className="megachat-message-meta">
                     <span className="megachat-message-username" style={m.nameColor ? { color: m.nameColor } : undefined}>{m.username}</span>
                     <span className="megachat-message-time">{formatTime(m.createdAt)}</span>
-                    {m.pinned && <span className="pinned-tag" title={m.pinnedByUsername ? `Pinned by ${m.pinnedByUsername}` : 'Pinned'}>📌 Pinned</span>}
+                    {m.pinned && <span className="pinned-tag" title={m.pinnedByUsername ? `Pinned by ${m.pinnedByUsername}` : 'Pinned'}><PinIcon size={10} /> Pinned</span>}
                   </div>
                   <div className="megachat-message-content">{renderWithCustomEmoji(m.content, m.customEmojiUrl)}</div>
                   <div className="message-actions-row">
