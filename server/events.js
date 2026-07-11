@@ -10,3 +10,10 @@ export const events = new EventEmitter();
 export function emitProfileChanged(userId) {
   events.emit('user:profile-changed', { userId });
 }
+
+// Fired once a Mega Chat's $1 (or 50c ULTRA) Stripe purchase actually
+// completes and the server row has been created -- lets the buyer's client
+// pick it up in real time instead of waiting for a manual refresh.
+export function emitMegaChatReady(userId, server) {
+  events.emit('megachat:ready', { userId, server });
+}
