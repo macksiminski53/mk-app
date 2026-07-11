@@ -169,6 +169,7 @@ export default function TopBar({ requests, onRefreshRequests, onRespond, onSendR
     <div className="top-bar">
       <div className="top-bar-left">
         <span className="app-brand">MK</span>
+        <span className="app-version" title={`MK v${CHANGELOG[0].version}`}>v{CHANGELOG[0].version}</span>
         <div className="dropdown-wrap">
           <button className="top-bar-btn" onClick={() => setShowExtra((v) => !v)}>{t('extra')} ▾</button>
           {showExtra && (

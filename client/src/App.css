@@ -42,6 +42,18 @@ body {
   margin-right: 8px;
 }
 
+.app-version {
+  font-size: 11px;
+  font-weight: 600;
+  color: #8a8f98;
+  background: #2b0f0f;
+  border: 1px solid #4e5058;
+  border-radius: 999px;
+  padding: 1px 7px;
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+
 .top-bar-btn {
   background: #2b0f0f;
   border: 1px solid #4e5058;
@@ -1753,4 +1765,74 @@ body {
   font-size: 12px;
   color: #f23f43;
   margin-top: 8px;
+}
+
+
+/* --- Mobile / narrow screens --- */
+@media (max-width: 640px) {
+  .top-bar {
+    padding: 0 8px;
+    height: 44px;
+  }
+
+  .top-bar-left, .top-bar-right {
+    gap: 4px;
+  }
+
+  .app-brand {
+    font-size: 15px;
+    margin-right: 4px;
+  }
+
+  .app-version {
+    font-size: 9px;
+    padding: 1px 5px;
+    margin-right: 4px;
+  }
+
+  .top-bar-btn {
+    padding: 5px 8px;
+    font-size: 11px;
+  }
+
+  .top-bar-right {
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .top-bar-right::-webkit-scrollbar { display: none; }
+
+  .badge {
+    font-size: 9px;
+    padding: 0 4px;
+    margin-left: 3px;
+  }
+
+  .friends-sidebar {
+    width: 210px;
+  }
+
+  .chat-header {
+    padding: 0 8px;
+    gap: 6px;
+  }
+
+  .message-input-row {
+    margin: 0 8px 8px;
+  }
+
+  .modal {
+    width: calc(100vw - 32px);
+    padding: 16px;
+  }
+}
+
+@media (max-width: 440px) {
+  .friends-sidebar {
+    width: 150px;
+  }
+
+  .top-bar-btn {
+    padding: 5px 6px;
+    font-size: 10px;
+  }
 }
