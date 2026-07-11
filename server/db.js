@@ -150,6 +150,16 @@ CREATE TABLE IF NOT EXISTS messages (
     if (!/duplicate column/i.test(e.message || '')) throw e;
   }
 
+  // Distinguishes a status set by the MusicToDiscord reporter script
+  // ('music') from any other write to status_text ('manual'/NULL). The
+  // "Playing" card UI only renders for source='music', so a hand-typed
+  // status never gets shown as a fake now-playing card.
+  try {
+    await client.execute('ALTER TABLE users ADD COLUMN status_source TEXT');
+  } catch (e) {
+    if (!/duplicate column/i.test(e.message || '')) throw e;
+  }
+
   await client.execute(`
 CREATE TABLE IF NOT EXISTS ultra_purchases (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

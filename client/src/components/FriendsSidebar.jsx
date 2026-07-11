@@ -3,11 +3,9 @@ import Avatar from './Avatar.jsx';
 import ProfileCard from './ProfileCard.jsx';
 import AvatarCropper from './AvatarCropper.jsx';
 
-export default function FriendsSidebar({ friends, activeFriendId, onSelect, currentUser, token, onLogout, onChangeAvatar, onSetStatus, onSetBio, onOpenChatSettings, onRemoveFriend }) {
+export default function FriendsSidebar({ friends, activeFriendId, onSelect, currentUser, token, onLogout, onChangeAvatar, onSetBio, onOpenChatSettings, onRemoveFriend }) {
   const fileInputRef = useRef(null);
   const [uploading, setUploading] = useState(false);
-  const [editingStatus, setEditingStatus] = useState(false);
-  const [statusDraft, setStatusDraft] = useState(currentUser.statusText || '');
   const [showProfileCard, setShowProfileCard] = useState(false);
   const [viewingFriend, setViewingFriend] = useState(null);
   const [showEditProfile, setShowEditProfile] = useState(false);
@@ -42,12 +40,6 @@ export default function FriendsSidebar({ friends, activeFriendId, onSelect, curr
     }
   }
 
-  async function handleStatusSubmit(e) {
-    e.preventDefault();
-    await onSetStatus(statusDraft);
-    setEditingStatus(false);
-  }
-
   return (
     <div className="friends-sidebar">
       <div className="activity-panel">
@@ -73,26 +65,13 @@ export default function FriendsSidebar({ friends, activeFriendId, onSelect, curr
               {currentUser.username}
               {currentUser.isUltra && <span className="ultra-badge" title="MK ULTRA">ULTRA</span>}
             </div>
-            {editingStatus ? (
-              <form onSubmit={handleStatusSubmit} className="status-edit-form">
-                <input
-                  autoFocus
-                  value={statusDraft}
-                  onChange={(e) => setStatusDraft(e.target.value)}
-                  onBlur={handleStatusSubmit}
-                  placeholder="Song - Artist, or any status"
-                  maxLength={120}
-                />
-              </form>
-            ) : (
-              <div
-                className={`activity-status ${!currentUser.statusText ? 'activity-status-hint' : ''}`}
-                onClick={() => setEditingStatus(true)}
-                title="Click to edit your status"
-              >
-                {currentUser.statusText || 'Connect MusicToDiscord to show your song playing on Apple Music!'}
-              </div>
-            )}
+            <div
+              className={`activity-status ${currentUser.statusSource !== 'music' ? 'activity-status-hint' : ''}`}
+            >
+              {currentUser.statusSource === 'music' && currentUser.statusText
+                ? currentUser.statusText
+                : 'Connect MusicToDiscord to show your song playing on Apple Music!'}
+            </div>
           </div>
         </div>
       </div>
@@ -119,7 +98,7 @@ export default function FriendsSidebar({ friends, activeFriendId, onSelect, curr
                 {f.username}
                 {f.isUltra && <span className="ultra-badge" title="MK ULTRA">ULTRA</span>}
               </span>
-              {f.statusText && <span className="friend-status">{f.statusText}</span>}
+              {f.statusSource === 'music' && f.statusText && <span className="friend-status">{f.statusText}</span>}
             </div>
           </div>
         ))}
@@ -177,21 +156,9 @@ export default function FriendsSidebar({ friends, activeFriendId, onSelect, curr
               </div>
             </div>
 
-            <div className="settings-section">
-              <div className="settings-label">Status</div>
-              <form onSubmit={handleStatusSubmit} className="status-edit-form">
-                <input
-                  value={statusDraft}
-                  onChange={(e) => setStatusDraft(e.target.value)}
-                  placeholder="Song - Artist, or any status"
-                  maxLength={120}
-                />
-              </form>
-            </div>
-
             <div className="modal-actions">
               <button className="secondary" onClick={() => setShowEditProfile(false)}>Close</button>
-              <button onClick={async () => { await onSetStatus(statusDraft); setShowEditProfile(false); }}>Save</button>
+              <button onClick={() => setShowEditProfile(false)}>Done</button>
             </div>
           </div>
         </div>

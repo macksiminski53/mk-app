@@ -117,7 +117,10 @@ async function reportStatus(config, statusText) {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${config.token}`,
     },
-    body: JSON.stringify({ statusText }),
+    // source: 'music' is what tells the client this is a real detected
+    // song (vs. a hand-typed status) -- only that source renders the
+    // "Playing" card in the UI.
+    body: JSON.stringify({ statusText, source: 'music' }),
   });
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));

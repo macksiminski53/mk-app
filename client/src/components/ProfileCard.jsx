@@ -38,7 +38,7 @@ export default function ProfileCard({ user, isOwn, token, viewerIsUltra, onClose
   const [showFriendSettings, setShowFriendSettings] = useState(false);
   const [deleteVotes, setDeleteVotes] = useState({ myVote: false, otherVote: false, autoReset: false });
 
-  const playing = parsePlaying(user.statusText);
+  const playing = user.statusSource === 'music' ? parsePlaying(user.statusText) : null;
   const memberSince = formatMemberSince(user.createdAt);
   // Free-tier chats always auto-delete after 24h; having MK ULTRA on either
   // side makes it permanent (matches the server-side sweep, which skips a

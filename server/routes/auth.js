@@ -98,6 +98,7 @@ router.post('/register', asyncHandler(async (req, res) => {
       avatarColor: color,
       avatarUrl: null,
       statusText: null,
+      statusSource: null,
       bio: null,
       ringtoneOutgoingUrl: null,
       ringtoneIncomingUrl: null,
@@ -122,6 +123,7 @@ router.post('/login', asyncHandler(async (req, res) => {
       avatarColor: row.avatar_color,
       avatarUrl: row.avatar_url,
       statusText: row.status_text,
+      statusSource: row.status_source,
       bio: row.bio,
       ringtoneOutgoingUrl: row.ringtone_outgoing_url,
       ringtoneIncomingUrl: row.ringtone_incoming_url,
@@ -150,6 +152,7 @@ router.post('/login-token', asyncHandler(async (req, res) => {
       avatarColor: row.avatar_color,
       avatarUrl: row.avatar_url,
       statusText: row.status_text,
+      statusSource: row.status_source,
       bio: row.bio,
       ringtoneOutgoingUrl: row.ringtone_outgoing_url,
       ringtoneIncomingUrl: row.ringtone_incoming_url,
@@ -168,6 +171,7 @@ router.get('/me', requireAuth, asyncHandler(async (req, res) => {
     avatarColor: row.avatar_color,
     avatarUrl: row.avatar_url,
     statusText: row.status_text,
+    statusSource: row.status_source,
     bio: row.bio,
     createdAt: row.created_at,
     ringtoneOutgoingUrl: row.ringtone_outgoing_url,
@@ -213,13 +217,17 @@ router.post('/avatar', requireAuth, upload.single('avatar'), asyncHandler(async 
 }));
 
 router.patch('/status', requireAuth, asyncHandler(async (req, res) => {
-  const { statusText } = req.body;
+  const { statusText, source } = req.body;
   const clean = typeof statusText === 'string' ? statusText.trim().slice(0, 120) : null;
   const value = clean ? clean : null;
-  await db.prepare("UPDATE users SET status_text = ?, status_updated_at = datetime('now') WHERE id = ?")
-    .run(value, req.user.id);
+  // Only the MusicToDiscord reporter script sends source: 'music'. Anything
+  // else (or no source at all) is tagged 'manual' so the client's "Playing"
+  // card only ever renders for a real detected song, never a typed status.
+  const statusSource = value ? (source === 'music' ? 'music' : 'manual') : null;
+  await db.prepare("UPDATE users SET status_text = ?, status_source = ?, status_updated_at = datetime('now') WHERE id = ?")
+    .run(value, statusSource, req.user.id);
   emitProfileChanged(req.user.id);
-  res.json({ statusText: value });
+  res.json({ statusText: value, statusSource });
 }));
 
 router.patch('/bio', requireAuth, asyncHandler(async (req, res) => {

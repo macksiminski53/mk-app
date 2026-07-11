@@ -356,15 +356,6 @@ export default function App() {
     });
   }
 
-  async function handleSetStatus(statusText) {
-    const res = await api.setStatus(token, statusText);
-    setUser((prev) => {
-      const updated = { ...prev, statusText: res.statusText };
-      localStorage.setItem('user', JSON.stringify(updated));
-      return updated;
-    });
-  }
-
   async function handleSetBio(bio) {
     const res = await api.setBio(token, bio);
     setUser((prev) => {
@@ -550,7 +541,6 @@ export default function App() {
           token={token}
           onLogout={handleLogout}
           onChangeAvatar={handleChangeAvatar}
-          onSetStatus={handleSetStatus}
           onSetBio={handleSetBio}
           onOpenChatSettings={handleOpenChatSettings}
           onRemoveFriend={handleRemoveFriend}
