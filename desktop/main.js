@@ -10,6 +10,13 @@ let mainWindow = null;
 let tray = null;
 let isQuitting = false;
 
+// A named, "persist:"-prefixed partition is stored on disk under this
+// app's userData folder and reused across launches by Electron -- unlike
+// the anonymous default session, this guarantees login (localStorage/
+// cookies) survives a full quit-and-reopen instead of only surviving a
+// hide-to-tray. This is what makes "stay logged in" actually work here.
+const persistentSession = session.fromPartition('persist:mkapp');
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1100,
@@ -24,6 +31,7 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      session: persistentSession,
     },
   });
 
@@ -90,7 +98,7 @@ app.whenReady().then(() => {
   // (see client/src/App.jsx) and getUserMedia (voice calls) requests would
   // just hang forever waiting on a prompt the user can never see. We only
   // ever point this window at our own APP_URL, so auto-granting is safe.
-  session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
+  persistentSession.setPermissionRequestHandler((webContents, permission, callback) => {
     callback(['notifications', 'media'].includes(permission));
   });
 
