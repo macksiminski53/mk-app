@@ -293,6 +293,20 @@ CREATE TABLE IF NOT EXISTS group_messages (
 
   await client.execute('CREATE INDEX IF NOT EXISTS idx_group_chat_members_user ON group_chat_members(user_id)');
   await client.execute('CREATE INDEX IF NOT EXISTS idx_group_messages_group ON group_messages(group_chat_id)');
+
+  // Lets the creator (and only the creator -- Mini Chats otherwise have no
+  // roles) set a group picture. Stored as a base64 data URI in the DB, same
+  // as user avatars, since Render's disk doesn't survive redeploys.
+  try {
+    await client.execute('ALTER TABLE group_chats ADD COLUMN created_by INTEGER REFERENCES users(id)');
+  } catch (e) {
+    if (!/duplicate column/i.test(e.message || '')) throw e;
+  }
+  try {
+    await client.execute('ALTER TABLE group_chats ADD COLUMN avatar_url TEXT');
+  } catch (e) {
+    if (!/duplicate column/i.test(e.message || '')) throw e;
+  }
 }
 
 export default db;

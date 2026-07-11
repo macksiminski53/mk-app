@@ -17,3 +17,9 @@ export function emitProfileChanged(userId) {
 export function emitMegaChatReady(userId, server) {
   events.emit('megachat:ready', { userId, server });
 }
+
+// Broadcasts a Mini Chat's new group picture to every current member so
+// their sidebar/chat header update live instead of needing a refresh.
+export function emitGroupAvatarChanged(memberIds, groupId, avatarUrl) {
+  events.emit('group:avatar-changed', { memberIds, groupId, avatarUrl });
+}

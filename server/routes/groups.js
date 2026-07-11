@@ -1,8 +1,21 @@
 import { Router } from 'express';
+import multer from 'multer';
 import { db } from '../db.js';
 import { requireAuth } from '../auth.js';
+import { emitGroupAvatarChanged } from '../events.js';
 
 const MAX_MEMBERS = 15;
+
+// Same in-memory + base64-in-DB pattern as user avatars in auth.js -- Render
+// has no persistent disk, so this is what survives a redeploy.
+const uploadAvatar = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 8 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (!file.mimetype.startsWith('image/')) return cb(new Error('Only image files are allowed'));
+    cb(null, true);
+  },
+});
 
 const router = Router();
 router.use(requireAuth);
@@ -30,7 +43,7 @@ async function loadMembers(groupId) {
 // the client can build a display name (no dedicated "name" is required).
 router.get('/', asyncHandler(async (req, res) => {
   const rows = await db.prepare(`
-    SELECT g.id, g.name, g.created_at as createdAt
+    SELECT g.id, g.name, g.created_at as createdAt, g.created_by as createdBy, g.avatar_url as avatarUrl
     FROM group_chats g
     JOIN group_chat_members gm ON gm.group_chat_id = g.id
     WHERE gm.user_id = ?
@@ -50,11 +63,18 @@ router.post('/', asyncHandler(async (req, res) => {
   const { name } = req.body;
   const clean = typeof name === 'string' ? name.trim().slice(0, 60) : '';
 
-  const info = await db.prepare('INSERT INTO group_chats (name) VALUES (?)').run(clean || null);
+  const info = await db.prepare('INSERT INTO group_chats (name, created_by) VALUES (?, ?)').run(clean || null, req.user.id);
   const groupId = info.lastInsertRowid;
   await db.prepare('INSERT INTO group_chat_members (group_chat_id, user_id) VALUES (?, ?)').run(groupId, req.user.id);
 
-  res.json({ id: Number(groupId), name: clean || null, createdAt: new Date().toISOString(), members: await loadMembers(groupId) });
+  res.json({
+    id: Number(groupId),
+    name: clean || null,
+    createdAt: new Date().toISOString(),
+    createdBy: req.user.id,
+    avatarUrl: null,
+    members: await loadMembers(groupId),
+  });
 }));
 
 // Add a member by username -- any current member can do this (no owner/role
@@ -82,6 +102,25 @@ router.post('/:id/members', asyncHandler(async (req, res) => {
 
   await db.prepare('INSERT INTO group_chat_members (group_chat_id, user_id) VALUES (?, ?)').run(groupId, target.id);
   res.json({ members: await loadMembers(groupId) });
+}));
+
+// Only the creator can set a group picture -- Mini Chats otherwise have no
+// roles, but this one action needs *someone* to own it, and "whoever made
+// it" is the least surprising choice.
+router.post('/:id/avatar', uploadAvatar.single('avatar'), asyncHandler(async (req, res) => {
+  const groupId = req.params.id;
+  const group = await db.prepare('SELECT created_by FROM group_chats WHERE id = ?').get(groupId);
+  if (!group) return res.status(404).json({ error: 'Mini Chat not found' });
+  if (group.created_by !== req.user.id) return res.status(403).json({ error: 'Only the creator can change the group picture' });
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+  const avatarUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+  await db.prepare('UPDATE group_chats SET avatar_url = ? WHERE id = ?').run(avatarUrl, groupId);
+
+  const memberIds = (await db.prepare('SELECT user_id FROM group_chat_members WHERE group_chat_id = ?').all(groupId)).map((r) => r.user_id);
+  emitGroupAvatarChanged(memberIds, Number(groupId), avatarUrl);
+
+  res.json({ avatarUrl });
 }));
 
 // Leave a Mini Chat. No roles/owner here, so this is self-only -- there's no

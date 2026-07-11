@@ -97,6 +97,13 @@ events.on('megachat:ready', ({ userId, server }) => {
   io.to(`user:${userId}`).emit('megachat:ready', server);
 });
 
+// A Mini Chat's group picture was changed -- push it to every member.
+events.on('group:avatar-changed', ({ memberIds, groupId, avatarUrl }) => {
+  for (const memberId of memberIds) {
+    io.to(`user:${memberId}`).emit('group:updated', { groupId, avatarUrl });
+  }
+});
+
 async function loadMessageRow(id) {
   return db.prepare(`
     SELECT msg.id, msg.content, msg.image_url as imageUrl, msg.created_at as createdAt,
