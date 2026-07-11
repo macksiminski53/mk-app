@@ -954,6 +954,10 @@ body {
 
 .avatar.small { width: 28px; height: 28px; font-size: 12px; }
 
+.avatar-online {
+  box-shadow: 0 0 0 2.5px #23a55a, 0 0 6px 1px rgba(35, 165, 90, 0.55);
+}
+
 .status-dot {
   width: 10px;
   height: 10px;

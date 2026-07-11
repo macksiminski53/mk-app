@@ -112,8 +112,7 @@ export default function FriendsSidebar({ friends, activeFriendId, onSelect, curr
               onClick={(e) => { e.stopPropagation(); setViewingFriend(f); }}
               title={`View ${f.username}'s profile`}
             >
-              <Avatar username={f.username} avatarColor={f.avatarColor} avatarUrl={f.avatarUrl} size={40} />
-              <span className="status-dot" style={{ background: f.online ? '#3ba55d' : '#747f8d' }} />
+              <Avatar username={f.username} avatarColor={f.avatarColor} avatarUrl={f.avatarUrl} size={40} online={f.online} />
             </div>
             <div className="friend-info">
               <span className="friend-name">

@@ -1,19 +1,22 @@
 import { resolveAvatarUrl } from '../api.js';
 
-export default function Avatar({ username, avatarColor, avatarUrl, size = 40, className = '' }) {
+// `online` draws a glowing green ring around the avatar (Xbox/Steam-style
+// presence indicator) instead of -- or in addition to -- a small corner dot.
+export default function Avatar({ username, avatarColor, avatarUrl, size = 40, className = '', online = false }) {
   const url = resolveAvatarUrl(avatarUrl);
   const style = { width: size, height: size, fontSize: size * 0.35 };
+  const cls = `avatar ${online ? 'avatar-online' : ''} ${className}`;
 
   if (url) {
     return (
-      <div className={`avatar ${className}`} style={style}>
+      <div className={cls} style={style}>
         <img src={url} alt={username} className="avatar-img" />
       </div>
     );
   }
 
   return (
-    <div className={`avatar ${className}`} style={{ ...style, background: avatarColor || '#8B0000' }}>
+    <div className={cls} style={{ ...style, background: avatarColor || '#8B0000' }}>
       {username?.slice(0, 2).toUpperCase()}
     </div>
   );
