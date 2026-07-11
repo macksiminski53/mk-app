@@ -108,7 +108,7 @@ async function loadMessageRow(id) {
   const row = await db.prepare(`
     SELECT msg.id, msg.content, msg.image_url as imageUrl, msg.created_at as createdAt,
            u.id as userId, u.username, u.avatar_color as avatarColor, u.avatar_url as avatarUrl,
-           u.is_ultra as isUltra, u.name_color as nameColor,
+           u.is_ultra as isUltra, u.name_color as nameColor, u.custom_emoji_url as customEmojiUrl,
            msg.reply_to_id as replyToId,
            ru.username as replyToUsername, rm.content as replyToContent
     FROM messages msg
@@ -117,7 +117,7 @@ async function loadMessageRow(id) {
     LEFT JOIN users ru ON ru.id = rm.user_id
     WHERE msg.id = ?
   `).get(id);
-  return row ? { ...row, isUltra: !!row.isUltra, nameColor: row.isUltra ? row.nameColor : null, likeCount: 0, likedByMe: false, pinned: false, pinnedBy: null, pinnedByUsername: null } : row;
+  return row ? { ...row, isUltra: !!row.isUltra, nameColor: row.isUltra ? row.nameColor : null, customEmojiUrl: row.isUltra ? row.customEmojiUrl : null, likeCount: 0, likedByMe: false, pinned: false, pinnedBy: null, pinnedByUsername: null } : row;
 }
 
 async function loadServerMessageRow(id) {
@@ -125,12 +125,12 @@ async function loadServerMessageRow(id) {
     SELECT msg.id, msg.content, msg.image_url as imageUrl, msg.created_at as createdAt,
            msg.channel_id as channelId,
            u.id as userId, u.username, u.avatar_color as avatarColor, u.avatar_url as avatarUrl,
-           u.is_ultra as isUltra, u.name_color as nameColor
+           u.is_ultra as isUltra, u.name_color as nameColor, u.custom_emoji_url as customEmojiUrl
     FROM server_messages msg
     JOIN users u ON u.id = msg.user_id
     WHERE msg.id = ?
   `).get(id);
-  return row ? { ...row, isUltra: !!row.isUltra, nameColor: row.isUltra ? row.nameColor : null, likeCount: 0, likedByMe: false, pinned: false, pinnedBy: null, pinnedByUsername: null } : row;
+  return row ? { ...row, isUltra: !!row.isUltra, nameColor: row.isUltra ? row.nameColor : null, customEmojiUrl: row.isUltra ? row.customEmojiUrl : null, likeCount: 0, likedByMe: false, pinned: false, pinnedBy: null, pinnedByUsername: null } : row;
 }
 
 async function loadGroupMessageRow(id) {
@@ -138,12 +138,12 @@ async function loadGroupMessageRow(id) {
     SELECT msg.id, msg.content, msg.image_url as imageUrl, msg.created_at as createdAt,
            msg.group_chat_id as groupId,
            u.id as userId, u.username, u.avatar_color as avatarColor, u.avatar_url as avatarUrl,
-           u.is_ultra as isUltra, u.name_color as nameColor
+           u.is_ultra as isUltra, u.name_color as nameColor, u.custom_emoji_url as customEmojiUrl
     FROM group_messages msg
     JOIN users u ON u.id = msg.user_id
     WHERE msg.id = ?
   `).get(id);
-  return row ? { ...row, isUltra: !!row.isUltra, nameColor: row.isUltra ? row.nameColor : null, likeCount: 0, likedByMe: false, pinned: false, pinnedBy: null, pinnedByUsername: null } : row;
+  return row ? { ...row, isUltra: !!row.isUltra, nameColor: row.isUltra ? row.nameColor : null, customEmojiUrl: row.isUltra ? row.customEmojiUrl : null, likeCount: 0, likedByMe: false, pinned: false, pinnedBy: null, pinnedByUsername: null } : row;
 }
 
 // MK ULTRA perk: liking a message. `messageType` disambiguates ids across
@@ -416,6 +416,32 @@ io.on('connection', (socket) => {
     } catch (err) {
       console.error('message:pin error', err);
       ack?.({ error: 'Server error' });
+    }
+  });
+
+  // MK ULTRA perk: read receipts for DMs. Tracking (writing dm_read_state)
+  // happens for every user regardless of tier, but the "Seen" indicator is
+  // only shown client-side when at least one participant has ULTRA -- see
+  // the dm_read_state table comment in db.js. last_read_message_id only
+  // ever moves forward (MAX(...)) so an out-of-order ack can't rewind it.
+  socket.on('thread:mark-read', async ({ threadId, lastMessageId }) => {
+    try {
+      const thread = await userInThread(userId, threadId);
+      if (!thread || !lastMessageId) return;
+      await db.prepare(`
+        INSERT INTO dm_read_state (thread_id, user_id, last_read_message_id, updated_at)
+        VALUES (?, ?, ?, datetime('now'))
+        ON CONFLICT(thread_id, user_id) DO UPDATE SET
+          last_read_message_id = MAX(last_read_message_id, excluded.last_read_message_id),
+          updated_at = excluded.updated_at
+      `).run(threadId, userId, lastMessageId);
+      socket.to(`thread:${threadId}`).emit('thread:read-update', {
+        threadId: Number(threadId),
+        userId,
+        lastReadMessageId: Number(lastMessageId),
+      });
+    } catch (err) {
+      console.error('thread:mark-read error', err);
     }
   });
 

@@ -4,7 +4,7 @@ import { getSocket } from '../socket.js';
 import Avatar from './Avatar.jsx';
 import { PhoneIcon } from './CallIcons.jsx';
 import CassettePlayer from './CassettePlayer.jsx';
-import EmojiPicker from './EmojiPicker.jsx';
+import EmojiPicker, { renderWithCustomEmoji } from './EmojiPicker.jsx';
 import LikeButton from './LikeButton.jsx';
 import PinButton from './PinButton.jsx';
 import PinnedPanel from './PinnedPanel.jsx';
@@ -52,6 +52,7 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
   const [zoomedImage, setZoomedImage] = useState(null); // url or null
   const [pinnedMessages, setPinnedMessages] = useState([]);
   const [showPinnedPanel, setShowPinnedPanel] = useState(false);
+  const [theirLastRead, setTheirLastRead] = useState(0);
   const bottomRef = useRef(null);
   const typingTimeout = useRef(null);
   const fileInputRef = useRef(null);
@@ -65,6 +66,9 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
   // the server-side sweep, which skips a thread if either participant has
   // PLUS or ULTRA).
   const isPermanentChat = !!(currentUser?.isPlus || friend?.isPlus);
+  // MK ULTRA perk: read receipts only show up if at least one side of the
+  // conversation has ULTRA -- tracking itself is free/always-on server-side.
+  const readReceiptsEnabled = !!(currentUser?.isUltra || friend?.isUltra);
 
   // Force-open the settings dropdown when requested from elsewhere (e.g. a
   // friend's profile card "Chat Settings" link). The trigger is a counter
@@ -95,6 +99,10 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
     setPinnedMessages([]);
     api.listPinnedDm(token, threadId).then((rows) => {
       if (!cancelled) setPinnedMessages(rows);
+    }).catch(() => {});
+    setTheirLastRead(0);
+    api.getReadState(token, threadId).then((res) => {
+      if (!cancelled) setTheirLastRead(res.theirLastRead || 0);
     }).catch(() => {});
 
     const socket = getSocket();
@@ -133,12 +141,18 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
       });
     }
 
+    function onReadUpdate({ threadId: tid, userId: fromUserId, lastReadMessageId }) {
+      if (tid !== threadId || fromUserId !== friend.id) return;
+      setTheirLastRead((prev) => Math.max(prev, lastReadMessageId));
+    }
+
     socket.on('message:new', onNewMessage);
     socket.on('typing', onTyping);
     socket.on('chat:delete-vote-update', onDeleteVoteUpdate);
     socket.on('chat:deleted', onChatDeleted);
     socket.on('message:like-update', onLikeUpdate);
     socket.on('message:pin-update', onPinUpdate);
+    socket.on('thread:read-update', onReadUpdate);
 
     return () => {
       cancelled = true;
@@ -149,6 +163,7 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
       socket.off('chat:deleted', onChatDeleted);
       socket.off('message:like-update', onLikeUpdate);
       socket.off('message:pin-update', onPinUpdate);
+      socket.off('thread:read-update', onReadUpdate);
     };
   }, [threadId]);
 
@@ -178,6 +193,16 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // MK ULTRA perk: mark the thread as read (up through the newest message)
+  // whenever it's open and messages change -- this is what lets the other
+  // side's client show a "Seen" indicator. Tracking is cheap enough to just
+  // always send; readReceiptsEnabled only controls whether *we* render one.
+  useEffect(() => {
+    if (!threadId || messages.length === 0) return;
+    const lastId = messages[messages.length - 1].id;
+    getSocket().emit('thread:mark-read', { threadId, lastMessageId: lastId });
+  }, [threadId, messages]);
 
   function sendTyping(isTyping) {
     getSocket().emit('typing', { threadId, username: currentUser.username, isTyping });
@@ -313,8 +338,11 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
       </div>
 
       <div className="message-list">
-        {messages.map((m) => {
+        {(() => {
+          const lastOwnMessageId = [...messages].reverse().find((m) => m.username === currentUser.username)?.id;
+          return messages.map((m) => {
           const isOwn = m.username === currentUser.username;
+          const showSeen = readReceiptsEnabled && isOwn && m.id === lastOwnMessageId && theirLastRead >= m.id;
           return (
             <div key={m.id} className={`message-row ${isOwn ? 'own' : 'friend'}`}>
               {(!isBubble || !isOwn) && (
@@ -336,7 +364,7 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
                   </div>
                 )}
 
-                {m.content && <div className="message-content">{m.content}</div>}
+                {m.content && <div className="message-content">{renderWithCustomEmoji(m.content, m.customEmojiUrl)}</div>}
                 {m.imageUrl && (
                   isAudioUrl(m.imageUrl) ? (
                     <CassettePlayer src={resolveAvatarUrl(m.imageUrl)} />
@@ -382,10 +410,12 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
                   />
                   <PinButton pinned={!!m.pinned} onToggle={() => togglePin(m.id)} />
                 </div>
+                {showSeen && <div className="seen-indicator">Seen</div>}
               </div>
             </div>
           );
-        })}
+          });
+        })()}
         <div ref={bottomRef} />
       </div>
 
@@ -442,7 +472,7 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
           onChange={handleFileSelect}
         />
         {currentUser?.isPremium && (
-          <EmojiPicker onSelect={(emoji) => setDraft((prev) => prev + emoji)} />
+          <EmojiPicker onSelect={(emoji) => setDraft((prev) => prev + emoji)} customEmojiUrl={currentUser?.customEmojiUrl} />
         )}
         <input
           value={draft}

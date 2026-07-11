@@ -3,7 +3,7 @@ import Avatar from './Avatar.jsx';
 import AvatarCropper from './AvatarCropper.jsx';
 import { api } from '../api.js';
 import { getSocket } from '../socket.js';
-import EmojiPicker from './EmojiPicker.jsx';
+import EmojiPicker, { renderWithCustomEmoji } from './EmojiPicker.jsx';
 import LikeButton from './LikeButton.jsx';
 import PinButton from './PinButton.jsx';
 import PinnedPanel from './PinnedPanel.jsx';
@@ -243,7 +243,7 @@ export default function MiniChatView({ group, token, currentUser, onLeft }) {
                     <span className="megachat-message-time">{formatTime(m.createdAt)}</span>
                     {m.pinned && <span className="pinned-tag" title={m.pinnedByUsername ? `Pinned by ${m.pinnedByUsername}` : 'Pinned'}>📌 Pinned</span>}
                   </div>
-                  <div className="megachat-message-content">{m.content}</div>
+                  <div className="megachat-message-content">{renderWithCustomEmoji(m.content, m.customEmojiUrl)}</div>
                   <div className="message-actions-row">
                     <LikeButton
                       likeCount={m.likeCount}
@@ -260,7 +260,7 @@ export default function MiniChatView({ group, token, currentUser, onLeft }) {
           </div>
           <form className="megachat-input-row" onSubmit={handleSend}>
             {currentUser?.isPremium && (
-              <EmojiPicker onSelect={(emoji) => setInput((prev) => prev + emoji)} />
+              <EmojiPicker onSelect={(emoji) => setInput((prev) => prev + emoji)} customEmojiUrl={currentUser?.customEmojiUrl} />
             )}
             <input
               value={input}

@@ -97,7 +97,6 @@ export function sendUltraPurchaseEmail(to) {
       '- A custom name color in chat',
       '- An avatar border',
       '- A profile banner image',
-      '- Message pinning',
       '- Read receipts',
       '- A raised Mini Chat member cap',
       '- A personal custom emoji',

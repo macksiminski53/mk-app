@@ -584,6 +584,24 @@ export default function App() {
     });
   }
 
+  async function handleUploadCustomEmoji(file) {
+    const res = await api.uploadCustomEmoji(token, file);
+    setUser((prev) => {
+      const updated = { ...prev, customEmojiUrl: res.customEmojiUrl };
+      localStorage.setItem('user', JSON.stringify(updated));
+      return updated;
+    });
+  }
+
+  async function handleRemoveCustomEmoji() {
+    await api.removeCustomEmoji(token);
+    setUser((prev) => {
+      const updated = { ...prev, customEmojiUrl: null };
+      localStorage.setItem('user', JSON.stringify(updated));
+      return updated;
+    });
+  }
+
   // Account token is intentionally never stored in state/localStorage --
   // it's only ever held in TopBar's own local state for as long as it's
   // shown on screen, so it doesn't sit around in the page after Settings
@@ -777,6 +795,8 @@ export default function App() {
         onBuyUltra={handleBuyUltra}
         onSetUltraColor={handleSetUltraColor}
         onSetNameColor={handleSetNameColor}
+        onUploadCustomEmoji={handleUploadCustomEmoji}
+        onRemoveCustomEmoji={handleRemoveCustomEmoji}
         onRevealToken={handleRevealToken}
         onRegenerateToken={handleRegenerateToken}
         billingConfigured={billingConfigured}

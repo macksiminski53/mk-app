@@ -164,7 +164,7 @@ router.get('/:id/messages', asyncHandler(async (req, res) => {
   const rows = await db.prepare(`
     SELECT msg.id, msg.content, msg.image_url as imageUrl, msg.created_at as createdAt,
            u.id as userId, u.username, u.avatar_color as avatarColor, u.avatar_url as avatarUrl,
-           u.is_ultra as isUltra, u.name_color as nameColor,
+           u.is_ultra as isUltra, u.name_color as nameColor, u.custom_emoji_url as customEmojiUrl,
            (SELECT COUNT(*) FROM message_likes ml WHERE ml.message_type = 'mini' AND ml.message_id = msg.id) as likeCount,
            EXISTS(SELECT 1 FROM message_likes ml WHERE ml.message_type = 'mini' AND ml.message_id = msg.id AND ml.user_id = ?) as likedByMe,
            pm.pinned_by as pinnedBy, pu.username as pinnedByUsername
@@ -176,7 +176,7 @@ router.get('/:id/messages', asyncHandler(async (req, res) => {
     ORDER BY msg.id DESC
     LIMIT ?
   `).all(req.user.id, groupId, limit);
-  res.json(rows.reverse().map((r) => ({ ...r, isUltra: !!r.isUltra, nameColor: r.isUltra ? r.nameColor : null, likedByMe: !!r.likedByMe, pinned: !!r.pinnedBy })));
+  res.json(rows.reverse().map((r) => ({ ...r, isUltra: !!r.isUltra, nameColor: r.isUltra ? r.nameColor : null, customEmojiUrl: r.isUltra ? r.customEmojiUrl : null, likedByMe: !!r.likedByMe, pinned: !!r.pinnedBy })));
 }));
 
 // Free perk: up to 10 pinned messages per Mini Chat.

@@ -32,6 +32,12 @@ export const api = {
     return request('/auth/banner', { method: 'POST', body: form, token, isForm: true });
   },
   removeBanner: (token) => request('/auth/banner', { method: 'DELETE', token }),
+  uploadCustomEmoji: (token, file) => {
+    const form = new FormData();
+    form.append('emoji', file);
+    return request('/auth/custom-emoji', { method: 'POST', body: form, token, isForm: true });
+  },
+  removeCustomEmoji: (token) => request('/auth/custom-emoji', { method: 'DELETE', token }),
   setStatus: (token, statusText) => request('/auth/status', { method: 'PATCH', body: { statusText }, token }),
   setBio: (token, bio) => request('/auth/bio', { method: 'PATCH', body: { bio }, token }),
   uploadRingtone: (token, type, file) => {
@@ -65,6 +71,7 @@ export const api = {
     return request(`/threads/${threadId}/attachments`, { method: 'POST', body: form, token, isForm: true });
   },
   listPinnedDm: (token, threadId) => request(`/threads/${threadId}/pinned`, { token }),
+  getReadState: (token, threadId) => request(`/threads/${threadId}/read-state`, { token }),
 
   // ---- Mega Chats ----
   createMegaChatCheckout: (token, name) => request('/billing/mega-chat-checkout', { method: 'POST', body: { name }, token }),

@@ -105,7 +105,7 @@ router.get('/:threadId/messages', asyncHandler(async (req, res) => {
   const rows = await db.prepare(`
     SELECT msg.id, msg.content, msg.image_url as imageUrl, msg.created_at as createdAt,
            u.id as userId, u.username, u.avatar_color as avatarColor, u.avatar_url as avatarUrl,
-           u.is_ultra as isUltra, u.name_color as nameColor,
+           u.is_ultra as isUltra, u.name_color as nameColor, u.custom_emoji_url as customEmojiUrl,
            msg.reply_to_id as replyToId,
            ru.username as replyToUsername, rm.content as replyToContent,
            (SELECT COUNT(*) FROM message_likes ml WHERE ml.message_type = 'dm' AND ml.message_id = msg.id) as likeCount,
@@ -121,7 +121,7 @@ router.get('/:threadId/messages', asyncHandler(async (req, res) => {
     ORDER BY msg.id DESC
     LIMIT ?
   `).all(req.user.id, threadId, limit);
-  res.json(rows.reverse().map((r) => ({ ...r, isUltra: !!r.isUltra, nameColor: r.isUltra ? r.nameColor : null, likedByMe: !!r.likedByMe, pinned: !!r.pinnedBy })));
+  res.json(rows.reverse().map((r) => ({ ...r, isUltra: !!r.isUltra, nameColor: r.isUltra ? r.nameColor : null, customEmojiUrl: r.isUltra ? r.customEmojiUrl : null, likedByMe: !!r.likedByMe, pinned: !!r.pinnedBy })));
 }));
 
 // Free perk: up to 10 pinned messages per DM thread, listed separately so
@@ -143,6 +143,21 @@ router.get('/:threadId/pinned', asyncHandler(async (req, res) => {
     ORDER BY pm.created_at ASC
   `).all(threadId);
   res.json(rows);
+}));
+
+// MK ULTRA perk: read receipts. Returns the *other* participant's read
+// progress in this thread so the client can show a "Seen" indicator under
+// the current user's last message. Always returns a value (even if neither
+// side has ULTRA) -- the client itself decides whether to display it.
+router.get('/:threadId/read-state', asyncHandler(async (req, res) => {
+  const { threadId } = req.params;
+  const thread = await userInThread(req.user.id, threadId);
+  if (!thread) return res.status(403).json({ error: 'No access to this conversation' });
+  const otherId = thread.user_a_id === req.user.id ? thread.user_b_id : thread.user_a_id;
+  const row = await db.prepare(
+    'SELECT last_read_message_id as lastReadMessageId FROM dm_read_state WHERE thread_id = ? AND user_id = ?'
+  ).get(threadId, otherId);
+  res.json({ theirLastRead: row?.lastReadMessageId || 0 });
 }));
 
 // upload an image or mp3 to attach to a message you're about to send

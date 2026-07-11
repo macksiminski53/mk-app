@@ -259,6 +259,26 @@ router.delete('/banner', requireAuth, asyncHandler(async (req, res) => {
   res.json({ ok: true });
 }));
 
+// MK ULTRA perk: a personal custom emoji, insertable from the emoji picker
+// and shown inline in any message that uses it (see EmojiPicker.jsx's
+// renderWithCustomEmoji). Same base64-in-DB storage as avatars/banners --
+// deliberately small file size cap since it's rendered at emoji scale.
+router.post('/custom-emoji', requireAuth, upload.single('emoji'), asyncHandler(async (req, res) => {
+  const row = await db.prepare('SELECT is_ultra FROM users WHERE id = ?').get(req.user.id);
+  if (!row?.is_ultra) return res.status(403).json({ error: 'MK ULTRA required' });
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+  const customEmojiUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+  await db.prepare('UPDATE users SET custom_emoji_url = ? WHERE id = ?').run(customEmojiUrl, req.user.id);
+  emitProfileChanged(req.user.id);
+  res.json({ customEmojiUrl });
+}));
+
+router.delete('/custom-emoji', requireAuth, asyncHandler(async (req, res) => {
+  await db.prepare('UPDATE users SET custom_emoji_url = NULL WHERE id = ?').run(req.user.id);
+  emitProfileChanged(req.user.id);
+  res.json({ ok: true });
+}));
+
 router.patch('/status', requireAuth, asyncHandler(async (req, res) => {
   const { statusText, source } = req.body;
   const clean = typeof statusText === 'string' ? statusText.trim().slice(0, 120) : null;

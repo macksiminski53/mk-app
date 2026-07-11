@@ -2422,6 +2422,14 @@ body {
 }
 .pinned-panel-item-unpin:hover { text-decoration: underline; }
 
+/* --- MK ULTRA: read receipts --- */
+.seen-indicator {
+  font-size: 11px;
+  color: #949ba4;
+  margin-top: 2px;
+  text-align: right;
+}
+
 .emoji-picker-wrap { position: relative; }
 
 .emoji-picker-btn {
@@ -2457,3 +2465,25 @@ body {
 }
 
 .emoji-picker-option:hover { background: #4a1414; }
+
+/* MK ULTRA perk: personal custom emoji, shown inline in messages and as an
+   extra thumbnail at the front of the emoji picker grid. */
+.emoji-picker-custom {
+  width: 20px;
+  height: 20px;
+  object-fit: cover;
+  border-radius: 4px;
+  cursor: pointer;
+  align-self: center;
+  justify-self: center;
+}
+.emoji-picker-custom:hover { outline: 2px solid #e0a944; }
+
+.inline-custom-emoji {
+  width: 22px;
+  height: 22px;
+  object-fit: cover;
+  border-radius: 4px;
+  vertical-align: middle;
+  display: inline-block;
+}

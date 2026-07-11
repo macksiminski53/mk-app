@@ -3,6 +3,7 @@ import { LANGUAGES } from '../i18n.js';
 import { listAudioDevices } from '../webrtc.js';
 
 const CHANGELOG = [
+  { version: '0.18.0', notes: 'MK PREMIUM/ULTRA split rework: MK PREMIUM takes over free Mega Chats, permanent Mini Chats/DMs, the emoji picker, and message likes. MK ULTRA adds a name color, avatar border, profile banner, read receipts, a raised Mini Chat cap, and a personal custom emoji. Message pinning (up to 10 per chat, never auto-deletes) is now free for everyone.' },
   { version: '0.16.0', notes: 'MK ULTRA is now MK PLUS (same $1 price, same perks). A new MK ULTRA ($5) tier takes its place with free Mega Chat creation, permanent Mini Chats, an emoji picker, and the ability to like messages.' },
   { version: '0.15.0', notes: 'Added a PC desktop app (with a system tray icon) and real OS notifications with a sound chime for new messages and incoming calls, even when the window isn\'t focused.' },
   { version: '0.14.0', notes: 'Redesigned audio message attachments as a cassette-tape player, with spinning reels and a scrubbable tape strip.' },
@@ -21,7 +22,7 @@ const CHANGELOG = [
   { version: '0.1.0', notes: 'Initial release: register/login, real-time messaging.' },
 ];
 
-export default function TopBar({ requests, onRefreshRequests, onRespond, onSendRequest, settings, onUpdateSettings, onLogout, currentUser, onUploadRingtone, onResetRingtone, onBuyPlus, onBuyPremium, onBuyUltra, onSetUltraColor, onSetNameColor, onRevealToken, onRegenerateToken, billingConfigured, onCreateMegaChat, onCreateMiniChat, onFetchStats, t }) {
+export default function TopBar({ requests, onRefreshRequests, onRespond, onSendRequest, settings, onUpdateSettings, onLogout, currentUser, onUploadRingtone, onResetRingtone, onBuyPlus, onBuyPremium, onBuyUltra, onSetUltraColor, onSetNameColor, onUploadCustomEmoji, onRemoveCustomEmoji, onRevealToken, onRegenerateToken, billingConfigured, onCreateMegaChat, onCreateMiniChat, onFetchStats, t }) {
   const [showExtra, setShowExtra] = useState(false);
   const [showLog, setShowLog] = useState(false);
   const [showStats, setShowStats] = useState(false);
@@ -35,6 +36,7 @@ export default function TopBar({ requests, onRefreshRequests, onRespond, onSendR
   const [addError, setAddError] = useState('');
   const [addSuccess, setAddSuccess] = useState('');
   const [ringtoneBusy, setRingtoneBusy] = useState(null); // 'outgoing' | 'incoming' | null
+  const [customEmojiBusy, setCustomEmojiBusy] = useState(false);
   const [plusBusy, setPlusBusy] = useState(false);
   const [plusError, setPlusError] = useState('');
   const [premiumBusy, setPremiumBusy] = useState(false);
@@ -42,6 +44,7 @@ export default function TopBar({ requests, onRefreshRequests, onRespond, onSendR
   const [ultraBusy, setUltraBusy] = useState(false);
   const [ultraError, setUltraError] = useState('');
   const outgoingFileRef = useRef(null);
+  const customEmojiFileRef = useRef(null);
   const incomingFileRef = useRef(null);
 
   // ---- Account token (Settings > Data) ----
@@ -163,6 +166,31 @@ export default function TopBar({ requests, onRefreshRequests, onRespond, onSendR
       console.error('Ringtone upload failed:', err.message);
     } finally {
       setRingtoneBusy(null);
+    }
+  }
+
+  async function handleCustomEmojiFile(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setCustomEmojiBusy(true);
+    try {
+      await onUploadCustomEmoji(file);
+    } catch (err) {
+      console.error('Custom emoji upload failed:', err.message);
+    } finally {
+      setCustomEmojiBusy(false);
+    }
+  }
+
+  async function handleRemoveCustomEmoji() {
+    setCustomEmojiBusy(true);
+    try {
+      await onRemoveCustomEmoji();
+    } catch (err) {
+      console.error('Custom emoji removal failed:', err.message);
+    } finally {
+      setCustomEmojiBusy(false);
     }
   }
 
@@ -480,7 +508,7 @@ export default function TopBar({ requests, onRefreshRequests, onRespond, onSendR
                       </div>
                       <div className="ultra-panel-desc">
                         Everything in MK PREMIUM, plus a custom name color, an avatar border, a profile banner,
-                        message pinning, read receipts, a raised Mini Chat member cap, and a personal custom emoji.
+                        read receipts, a raised Mini Chat member cap, and a personal custom emoji. (Message pinning is free for everyone.)
                       </div>
                       <div className="ultra-color-row">
                         <span className="ringtone-row-title">Name color</span>
@@ -490,13 +518,51 @@ export default function TopBar({ requests, onRefreshRequests, onRespond, onSendR
                           onChange={handleNameColorChange}
                         />
                       </div>
+                      <div className="ringtone-row">
+                        <div className="ringtone-row-info">
+                          <div className="ringtone-row-title">Custom emoji</div>
+                          <div className="ringtone-row-desc">
+                            {currentUser?.customEmojiUrl ? 'Insert it from the emoji picker in any chat' : 'Upload an image to use as your personal emoji'}
+                          </div>
+                        </div>
+                        <div className="ringtone-row-actions">
+                          {currentUser?.customEmojiUrl && (
+                            <img src={currentUser.customEmojiUrl} alt="your custom emoji" className="inline-custom-emoji" style={{ marginRight: 6 }} />
+                          )}
+                          <button
+                            type="button"
+                            className="secondary"
+                            disabled={customEmojiBusy}
+                            onClick={() => customEmojiFileRef.current?.click()}
+                          >
+                            {customEmojiBusy ? '…' : 'Upload'}
+                          </button>
+                          {currentUser?.customEmojiUrl && (
+                            <button
+                              type="button"
+                              className="secondary"
+                              disabled={customEmojiBusy}
+                              onClick={handleRemoveCustomEmoji}
+                            >
+                              Remove
+                            </button>
+                          )}
+                        </div>
+                        <input
+                          ref={customEmojiFileRef}
+                          type="file"
+                          accept="image/*"
+                          style={{ display: 'none' }}
+                          onChange={handleCustomEmojiFile}
+                        />
+                      </div>
                     </div>
                   ) : (
                     <div className="ultra-panel">
                       <div className="ultra-panel-desc">
                         One-time $5 purchase, on top of everything MK PREMIUM gives you: a custom name color,
-                        an avatar border, a profile banner, message pinning, read receipts, a raised Mini Chat
-                        member cap, and a personal custom emoji.
+                        an avatar border, a profile banner, read receipts, a raised Mini Chat member cap, and a
+                        personal custom emoji. (Message pinning is free for everyone, no purchase needed.)
                       </div>
                       {billingConfigured === false ? (
                         <div className="ultra-panel-notice">
