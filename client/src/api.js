@@ -54,6 +54,17 @@ export const api = {
     form.append('image', file);
     return request(`/threads/${threadId}/attachments`, { method: 'POST', body: form, token, isForm: true });
   },
+
+  // ---- Mega Chats ----
+  createMegaChatCheckout: (token, name) => request('/billing/mega-chat-checkout', { method: 'POST', body: { name }, token }),
+  listServers: (token) => request('/servers', { token }),
+  getServer: (token, serverId) => request(`/servers/${serverId}`, { token }),
+  createChannel: (token, serverId, name) => request(`/servers/${serverId}/channels`, { method: 'POST', body: { name }, token }),
+  deleteChannel: (token, serverId, channelId) => request(`/servers/${serverId}/channels/${channelId}`, { method: 'DELETE', token }),
+  addServerMember: (token, serverId, username) => request(`/servers/${serverId}/members`, { method: 'POST', body: { username }, token }),
+  removeServerMember: (token, serverId, userId) => request(`/servers/${serverId}/members/${userId}`, { method: 'DELETE', token }),
+  deleteServer: (token, serverId) => request(`/servers/${serverId}`, { method: 'DELETE', token }),
+  listChannelMessages: (token, serverId, channelId) => request(`/servers/${serverId}/channels/${channelId}/messages`, { token }),
 };
 
 export function resolveAvatarUrl(url) {

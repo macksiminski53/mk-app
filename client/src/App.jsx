@@ -4,6 +4,8 @@ import FriendsSidebar from './components/FriendsSidebar.jsx';
 import TopBar from './components/TopBar.jsx';
 import ChatArea from './components/ChatArea.jsx';
 import CallBar from './components/CallBar.jsx';
+import ServerRail from './components/ServerRail.jsx';
+import MegaChatView from './components/MegaChatView.jsx';
 import { api } from './api.js';
 import { connectSocket, disconnectSocket, getSocket } from './socket.js';
 import { getTranslator } from './i18n.js';
@@ -32,6 +34,8 @@ export default function App() {
   const [friends, setFriends] = useState([]);
   const [requests, setRequests] = useState([]);
   const [activeFriendId, setActiveFriendId] = useState(null);
+  const [servers, setServers] = useState([]);
+  const [activeServerId, setActiveServerId] = useState(null);
   const [settings, setSettings] = useState(loadSettings);
   const [chatSettingsTrigger, setChatSettingsTrigger] = useState(0);
   const [billingConfigured, setBillingConfigured] = useState(null); // null = unknown yet
@@ -102,6 +106,11 @@ export default function App() {
     api.listRequests(token).then(setRequests).catch(() => {});
   }, [token]);
 
+  const refreshServers = useCallback(() => {
+    if (!token) return;
+    api.listServers(token).then(setServers).catch(() => {});
+  }, [token]);
+
   const refreshSelf = useCallback(() => {
     if (!token) return;
     api.getMe(token).then((fresh) => {
@@ -159,11 +168,29 @@ export default function App() {
     }
   }, [token, refreshSelf]);
 
+  // Same pattern as ?ultra=success above, for returning from a Mega Chat
+  // purchase. The actual server row is created by the Stripe webhook (which
+  // may land slightly after this redirect), so the megachat:ready socket
+  // event below is what actually adds it to the list -- this just cleans up
+  // the URL and does a refetch as a safety net in case the socket event was
+  // missed (e.g. tab was backgrounded).
+  useEffect(() => {
+    if (!token) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('megachat')) {
+      if (params.get('megachat') === 'success') refreshServers();
+      params.delete('megachat');
+      const next = params.toString();
+      window.history.replaceState({}, '', window.location.pathname + (next ? `?${next}` : ''));
+    }
+  }, [token, refreshServers]);
+
   useEffect(() => {
     if (!token) return;
     connectSocket(token);
     refreshFriends();
     refreshRequests();
+    refreshServers();
 
     const socket = getSocket();
     function onPresence({ userId, online }) {
@@ -279,9 +306,14 @@ export default function App() {
       }
     }
 
+    function onMegaChatReady(server) {
+      setServers((prev) => (prev.find((s) => s.id === server.id) ? prev : [...prev, server]));
+    }
+
     socket.on('presence:update', onPresence);
     socket.on('friend:request-received', onRequestReceived);
     socket.on('profile:changed', onProfileChanged);
+    socket.on('megachat:ready', onMegaChatReady);
     socket.on('call:incoming', onCallIncoming);
     socket.on('call:accepted', onCallAccepted);
     socket.on('call:declined', onCallDeclined);
@@ -293,6 +325,7 @@ export default function App() {
       socket.off('presence:update', onPresence);
       socket.off('friend:request-received', onRequestReceived);
       socket.off('profile:changed', onProfileChanged);
+      socket.off('megachat:ready', onMegaChatReady);
       socket.off('call:incoming', onCallIncoming);
       socket.off('call:accepted', onCallAccepted);
       socket.off('notify:message', onNotifyMessage);
@@ -389,6 +422,17 @@ export default function App() {
     const res = await api.createUltraCheckout(token);
     if (res.url) window.location.href = res.url;
     else throw new Error('No checkout URL returned');
+  }
+
+  async function handleCreateMegaChat(name) {
+    const res = await api.createMegaChatCheckout(token, name);
+    if (res.url) window.location.href = res.url;
+    else throw new Error('No checkout URL returned');
+  }
+
+  function handleServerLeftOrDeleted(serverId) {
+    setServers((prev) => prev.filter((s) => s.id !== serverId));
+    setActiveServerId((prev) => (prev === serverId ? null : prev));
   }
 
   async function handleSetUltraColor(color) {
@@ -533,29 +577,54 @@ export default function App() {
       )}
       <audio ref={remoteAudioRef} autoPlay />
       <div className="app-shell">
-        <FriendsSidebar
-          friends={friends}
-          activeFriendId={activeFriendId}
-          onSelect={(f) => setActiveFriendId(f.id)}
-          currentUser={user}
-          token={token}
-          onLogout={handleLogout}
-          onChangeAvatar={handleChangeAvatar}
-          onSetBio={handleSetBio}
-          onOpenChatSettings={handleOpenChatSettings}
-          onRemoveFriend={handleRemoveFriend}
+        <ServerRail
+          servers={servers}
+          activeServerId={activeServerId}
+          onSelectHome={() => setActiveServerId(null)}
+          onSelectServer={(id) => setActiveServerId(id)}
+          isUltra={!!user.isUltra}
+          onCreate={handleCreateMegaChat}
         />
-        <ChatArea
-          token={token}
-          friend={activeFriend}
-          currentUser={user}
-          onRemoveFriend={handleRemoveFriend}
-          onStartCall={handleStartCall}
-          callActive={!!call}
-          chatLayout={settings.chatLayout}
-          openSettingsTrigger={chatSettingsTrigger}
-          t={t}
-        />
+        {activeServerId === null ? (
+          <>
+            <FriendsSidebar
+              friends={friends}
+              activeFriendId={activeFriendId}
+              onSelect={(f) => setActiveFriendId(f.id)}
+              currentUser={user}
+              token={token}
+              onLogout={handleLogout}
+              onChangeAvatar={handleChangeAvatar}
+              onSetBio={handleSetBio}
+              onOpenChatSettings={handleOpenChatSettings}
+              onRemoveFriend={handleRemoveFriend}
+            />
+            <ChatArea
+              token={token}
+              friend={activeFriend}
+              currentUser={user}
+              onRemoveFriend={handleRemoveFriend}
+              onStartCall={handleStartCall}
+              callActive={!!call}
+              chatLayout={settings.chatLayout}
+              openSettingsTrigger={chatSettingsTrigger}
+              t={t}
+            />
+          </>
+        ) : (
+          (() => {
+            const activeServer = servers.find((s) => s.id === activeServerId) || null;
+            return activeServer ? (
+              <MegaChatView
+                key={activeServer.id}
+                server={activeServer}
+                token={token}
+                currentUser={user}
+                onLeftOrDeleted={handleServerLeftOrDeleted}
+              />
+            ) : null;
+          })()
+        )}
       </div>
     </div>
   );
