@@ -259,6 +259,40 @@ CREATE TABLE IF NOT EXISTS mega_chat_purchases (
   await client.execute('CREATE INDEX IF NOT EXISTS idx_server_members_user ON server_members(user_id)');
   await client.execute('CREATE INDEX IF NOT EXISTS idx_server_channels_server ON server_channels(server_id)');
   await client.execute('CREATE INDEX IF NOT EXISTS idx_server_messages_channel ON server_messages(channel_id)');
+
+  // ---- Mini Chats -- free group chats, capped at 15 members ----
+  // No channels, no owner/roles: any member can add another member (up to
+  // the cap) or leave. Same free-tier 24h auto-delete rule as DMs (permanent
+  // once any member has MK ULTRA) -- see sweepAutoResetThreads in app.js,
+  // which now also sweeps these.
+  await client.execute(`
+CREATE TABLE IF NOT EXISTS group_chats (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  last_reset_at TEXT
+)`);
+
+  await client.execute(`
+CREATE TABLE IF NOT EXISTS group_chat_members (
+  group_chat_id INTEGER NOT NULL REFERENCES group_chats(id) ON DELETE CASCADE,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  joined_at TEXT NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (group_chat_id, user_id)
+)`);
+
+  await client.execute(`
+CREATE TABLE IF NOT EXISTS group_messages (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  group_chat_id INTEGER NOT NULL REFERENCES group_chats(id) ON DELETE CASCADE,
+  user_id INTEGER NOT NULL REFERENCES users(id),
+  content TEXT NOT NULL,
+  image_url TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+)`);
+
+  await client.execute('CREATE INDEX IF NOT EXISTS idx_group_chat_members_user ON group_chat_members(user_id)');
+  await client.execute('CREATE INDEX IF NOT EXISTS idx_group_messages_group ON group_messages(group_chat_id)');
 }
 
 export default db;
