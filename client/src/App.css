@@ -289,7 +289,10 @@ body {
 
 .pfp-overlay {
   position: absolute;
-  inset: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   border-radius: 50%;
   background: rgba(0,0,0,0.55);
   color: white;
@@ -374,7 +377,10 @@ body {
    the rest of the app. */
 .call-overlay-backdrop {
   position: fixed;
-  inset: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   background: rgba(0,0,0,0.45);
   z-index: 300;
   display: flex;
@@ -684,7 +690,10 @@ body {
 /* --- Fullscreen image lightbox (click a chat image to zoom) --- */
 .image-lightbox {
   position: fixed;
-  inset: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   background: rgba(0,0,0,0.85);
   z-index: 300;
   display: flex;
@@ -1067,7 +1076,10 @@ body {
 /* --- Modals --- */
 .modal-overlay {
   position: fixed;
-  inset: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   background: rgba(0,0,0,0.7);
   display: flex;
   align-items: center;
@@ -1161,7 +1173,10 @@ body {
 /* --- Avatar cropper (drag to position, slider to zoom) --- */
 .avatar-cropper-backdrop {
   position: fixed;
-  inset: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   background: rgba(0,0,0,0.7);
   z-index: 400;
   display: flex;
@@ -1204,7 +1219,10 @@ body {
 
 .avatar-cropper-mask {
   position: absolute;
-  inset: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   border-radius: 50%;
   box-shadow: 0 0 0 9999px rgba(0,0,0,0.55);
   pointer-events: none;
@@ -1346,7 +1364,10 @@ body {
 /* --- Profile card (Discord-style user popout) --- */
 .profile-card-backdrop {
   position: fixed;
-  inset: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   background: rgba(0,0,0,0.5);
   z-index: 200;
   display: flex;
@@ -1676,7 +1697,10 @@ body {
 
 .mini-switch-track {
   position: absolute;
-  inset: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   background: #4a1414;
   border-radius: 999px;
   cursor: pointer;
