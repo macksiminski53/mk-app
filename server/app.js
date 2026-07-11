@@ -122,7 +122,8 @@ io.on('connection', (socket) => {
     try {
       const trimmed = (content || '').trim();
       if (!trimmed && !imageUrl) return ack?.({ error: 'Empty message' });
-      if (!(await userInThread(userId, threadId))) return ack?.({ error: 'No access' });
+      const thread = await userInThread(userId, threadId);
+      if (!thread) return ack?.({ error: 'No access' });
 
       let validReplyToId = null;
       if (replyToId) {
@@ -137,6 +138,19 @@ io.on('connection', (socket) => {
       const row = await loadMessageRow(info.lastInsertRowid);
 
       io.to(`thread:${threadId}`).emit('message:new', { threadId: Number(threadId), message: row });
+
+      // Lightweight event so the recipient can show a desktop notification +
+      // sound even for a thread they don't currently have open (message:new
+      // above only reaches clients that have joined this specific thread's
+      // room via thread:join, i.e. only whoever is actively viewing it).
+      const otherId = thread.user_a_id === userId ? thread.user_b_id : thread.user_a_id;
+      io.to(`user:${otherId}`).emit('notify:message', {
+        threadId: Number(threadId),
+        fromUserId: userId,
+        fromUsername: socket.user.username,
+        preview: trimmed ? trimmed.slice(0, 120) : (imageUrl ? 'Sent an attachment' : ''),
+      });
+
       ack?.({ ok: true, message: row });
     } catch (err) {
       console.error('message:send error', err);

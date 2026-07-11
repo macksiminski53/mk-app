@@ -8,6 +8,7 @@ import { api } from './api.js';
 import { connectSocket, disconnectSocket, getSocket } from './socket.js';
 import { getTranslator } from './i18n.js';
 import { createPeerConnection, getMicStream, stopStream } from './webrtc.js';
+import { playMessageChime } from './notifySound.js';
 import './App.css';
 
 const DEFAULT_SETTINGS = { language: 'en', chatLayout: 'bubble', micDeviceId: '', speakerDeviceId: '' };
@@ -62,6 +63,21 @@ export default function App() {
   // look up the caller's avatar without becoming stale.
   const friendsRef = useRef([]);
   useEffect(() => { friendsRef.current = friends; }, [friends]);
+
+  // Same staleness problem as friendsRef, for the notify:message handler
+  // below to know whether the sender's chat is the one currently open
+  // (skip the notification/chime if so -- the message is already visible).
+  const activeFriendIdRef = useRef(null);
+  useEffect(() => { activeFriendIdRef.current = activeFriendId; }, [activeFriendId]);
+
+  // Ask for OS notification permission once we know who's logged in. Safe
+  // to call repeatedly -- the browser only ever prompts the user once and
+  // just returns the cached answer on subsequent calls.
+  useEffect(() => {
+    if (token && typeof Notification !== 'undefined' && Notification.permission === 'default') {
+      Notification.requestPermission().catch(() => {});
+    }
+  }, [token]);
 
   const cleanupCall = useCallback(() => {
     pcRef.current?.close();
@@ -176,6 +192,41 @@ export default function App() {
           fromAvatarUrl: fromFriend?.avatarUrl,
         };
       });
+      // The incoming ringtone (CallBar) already provides audio; this just
+      // adds a native OS popup so a call isn't missed while the window is
+      // minimized or behind other apps -- the main point of a desktop app.
+      if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+        try {
+          const notif = new Notification(`${fromUsername} is calling you`, { body: 'MK', tag: 'mk-call' });
+          notif.onclick = () => window.focus();
+        } catch {
+          // Notification constructor can throw in some embedded/webview
+          // contexts even when permission is 'granted' -- not worth surfacing.
+        }
+      }
+    }
+
+    // Fires for a new message on ANY thread (not just the one currently
+    // open -- see the notify:message emit in server/app.js), so a friend
+    // messaging you while you're chatting with someone else, or while the
+    // window is unfocused/minimized, still gets a chime + OS notification.
+    function onNotifyMessage({ threadId, fromUserId, fromUsername, preview }) {
+      const isActiveThread = friendsRef.current.find((f) => f.id === activeFriendIdRef.current)?.threadId === threadId;
+      if (isActiveThread && document.hasFocus()) return;
+
+      playMessageChime();
+
+      if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+        try {
+          const notif = new Notification(fromUsername, { body: preview || 'Sent a message', tag: `mk-thread-${threadId}` });
+          notif.onclick = () => {
+            window.focus();
+            setActiveFriendId(fromUserId);
+          };
+        } catch {
+          // See onCallIncoming above.
+        }
+      }
     }
 
     async function onCallAccepted({ fromUserId }) {
@@ -236,6 +287,7 @@ export default function App() {
     socket.on('call:declined', onCallDeclined);
     socket.on('call:ended', onCallEnded);
     socket.on('call:signal', onCallSignal);
+    socket.on('notify:message', onNotifyMessage);
 
     return () => {
       socket.off('presence:update', onPresence);
@@ -243,6 +295,7 @@ export default function App() {
       socket.off('profile:changed', onProfileChanged);
       socket.off('call:incoming', onCallIncoming);
       socket.off('call:accepted', onCallAccepted);
+      socket.off('notify:message', onNotifyMessage);
       socket.off('call:declined', onCallDeclined);
       socket.off('call:ended', onCallEnded);
       socket.off('call:signal', onCallSignal);
