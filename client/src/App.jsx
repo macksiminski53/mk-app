@@ -319,10 +319,15 @@ export default function App() {
       setServers((prev) => (prev.find((s) => s.id === server.id) ? prev : [...prev, server]));
     }
 
+    function onGroupUpdated({ groupId, avatarUrl }) {
+      setGroups((prev) => prev.map((g) => (g.id === groupId ? { ...g, avatarUrl } : g)));
+    }
+
     socket.on('presence:update', onPresence);
     socket.on('friend:request-received', onRequestReceived);
     socket.on('profile:changed', onProfileChanged);
     socket.on('megachat:ready', onMegaChatReady);
+    socket.on('group:updated', onGroupUpdated);
     socket.on('call:incoming', onCallIncoming);
     socket.on('call:accepted', onCallAccepted);
     socket.on('call:declined', onCallDeclined);
@@ -335,6 +340,7 @@ export default function App() {
       socket.off('friend:request-received', onRequestReceived);
       socket.off('profile:changed', onProfileChanged);
       socket.off('megachat:ready', onMegaChatReady);
+      socket.off('group:updated', onGroupUpdated);
       socket.off('call:incoming', onCallIncoming);
       socket.off('call:accepted', onCallAccepted);
       socket.off('notify:message', onNotifyMessage);

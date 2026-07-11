@@ -72,6 +72,11 @@ export const api = {
   addGroupMember: (token, groupId, username) => request(`/groups/${groupId}/members`, { method: 'POST', body: { username }, token }),
   leaveGroup: (token, groupId, userId) => request(`/groups/${groupId}/members/${userId}`, { method: 'DELETE', token }),
   listGroupMessages: (token, groupId) => request(`/groups/${groupId}/messages`, { token }),
+  uploadGroupAvatar: (token, groupId, file) => {
+    const form = new FormData();
+    form.append('avatar', file);
+    return request(`/groups/${groupId}/avatar`, { method: 'POST', body: form, token, isForm: true });
+  },
 };
 
 export function resolveAvatarUrl(url) {

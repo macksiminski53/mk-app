@@ -2131,3 +2131,8 @@ body {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+.minichat-header-avatar { position: relative; flex-shrink: 0; }
+.minichat-header-avatar-editable { cursor: pointer; }
+.minichat-header-avatar-editable:hover .pfp-overlay { opacity: 1; }
+.minichat-header-avatar .pfp-overlay { font-size: 10px; }
