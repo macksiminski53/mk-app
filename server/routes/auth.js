@@ -266,4 +266,32 @@ router.post('/ringtone/reset', requireAuth, asyncHandler(async (req, res) => {
   res.json({ type, ringtoneUrl: null });
 }));
 
+// A small "fun stats" panel in the client's Extra menu -- friend/Mega
+// Chat/Mini Chat counts and total messages sent, aggregated across DMs,
+// Mega Chat channels, and Mini Chats.
+router.get('/stats', requireAuth, asyncHandler(async (req, res) => {
+  const userId = req.user.id;
+
+  const [user, friendRow, megaRow, miniRow, dmMsgRow, serverMsgRow, groupMsgRow] = await Promise.all([
+    db.prepare('SELECT created_at FROM users WHERE id = ?').get(userId),
+    db.prepare(`
+      SELECT COUNT(*) as c FROM friend_requests
+      WHERE status = 'accepted' AND (from_id = ? OR to_id = ?)
+    `).get(userId, userId),
+    db.prepare('SELECT COUNT(*) as c FROM server_members WHERE user_id = ?').get(userId),
+    db.prepare('SELECT COUNT(*) as c FROM group_chat_members WHERE user_id = ?').get(userId),
+    db.prepare('SELECT COUNT(*) as c FROM messages WHERE user_id = ?').get(userId),
+    db.prepare('SELECT COUNT(*) as c FROM server_messages WHERE user_id = ?').get(userId),
+    db.prepare('SELECT COUNT(*) as c FROM group_messages WHERE user_id = ?').get(userId),
+  ]);
+
+  res.json({
+    createdAt: user?.created_at || null,
+    friendCount: Number(friendRow.c) || 0,
+    megaChatCount: Number(megaRow.c) || 0,
+    miniChatCount: Number(miniRow.c) || 0,
+    messagesSent: (Number(dmMsgRow.c) || 0) + (Number(serverMsgRow.c) || 0) + (Number(groupMsgRow.c) || 0),
+  });
+}));
+
 export default router;

@@ -37,6 +37,7 @@ export const api = {
   resetRingtone: (token, type) => request('/auth/ringtone/reset', { method: 'POST', body: { type }, token }),
 
   getBillingStatus: (token) => request('/billing/status', { token }),
+  getMyStats: (token) => request('/auth/stats', { token }),
   createUltraCheckout: (token) => request('/billing/checkout', { method: 'POST', token }),
   setUltraColor: (token, color) => request('/billing/ultra-color', { method: 'PATCH', body: { color }, token }),
 

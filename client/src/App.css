@@ -2193,3 +2193,43 @@ body {
   .call-video-stage { width: 280px; height: 190px; }
   .call-overlay-video { min-width: 0; }
 }
+
+/* --- Extra menu: accent color row + My Stats --- */
+.dropdown-item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  cursor: default;
+}
+.dropdown-item-row:hover { background: none; }
+.dropdown-item-row input[type="color"] {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid #404249;
+  border-radius: 4px;
+  background: none;
+  cursor: pointer;
+}
+
+.stats-loading { color: #949ba4; font-size: 14px; padding: 8px 0 16px; }
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.stats-item {
+  background: #0d0505;
+  border: 1px solid #3a1212;
+  border-radius: 8px;
+  padding: 12px;
+  text-align: center;
+}
+
+.stats-item-wide { grid-column: 1 / -1; }
+.stats-value { font-size: 22px; font-weight: 800; color: #ffffff; }
+.stats-label { font-size: 12px; color: #949ba4; margin-top: 2px; }

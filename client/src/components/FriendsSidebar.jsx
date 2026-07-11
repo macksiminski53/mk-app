@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Avatar from './Avatar.jsx';
 import ProfileCard from './ProfileCard.jsx';
 import AvatarCropper from './AvatarCropper.jsx';
@@ -6,7 +6,7 @@ import { groupDisplayName } from './MiniChatView.jsx';
 
 export default function FriendsSidebar({
   friends, activeFriendId, onSelect, currentUser, token, onLogout, onChangeAvatar, onSetBio,
-  onOpenChatSettings, onRemoveFriend, groups, activeGroupId, onSelectGroup, onCreateGroup,
+  onOpenChatSettings, onRemoveFriend, groups, activeGroupId, onSelectGroup, onCreateGroup, createGroupTrigger,
 }) {
   const fileInputRef = useRef(null);
   const [uploading, setUploading] = useState(false);
@@ -18,6 +18,14 @@ export default function FriendsSidebar({
   const [newGroupName, setNewGroupName] = useState('');
   const [creatingGroup, setCreatingGroup] = useState(false);
   const [createGroupError, setCreateGroupError] = useState('');
+  const prevCreateGroupTriggerRef = useRef(createGroupTrigger);
+
+  useEffect(() => {
+    if (createGroupTrigger !== undefined && createGroupTrigger !== prevCreateGroupTriggerRef.current) {
+      prevCreateGroupTriggerRef.current = createGroupTrigger;
+      setShowCreateGroup(true);
+    }
+  }, [createGroupTrigger]);
 
   async function handleFileChange(e) {
     const file = e.target.files?.[0];

@@ -14,7 +14,7 @@ import { createPeerConnection, getMicStream, getCamStream, stopStream } from './
 import { playMessageChime } from './notifySound.js';
 import './App.css';
 
-const DEFAULT_SETTINGS = { language: 'en', chatLayout: 'bubble', micDeviceId: '', speakerDeviceId: '' };
+const DEFAULT_SETTINGS = { language: 'en', chatLayout: 'bubble', micDeviceId: '', speakerDeviceId: '', customAccent: '' };
 
 function loadSettings() {
   try {
@@ -41,6 +41,8 @@ export default function App() {
   const [activeGroupId, setActiveGroupId] = useState(null);
   const [settings, setSettings] = useState(loadSettings);
   const [chatSettingsTrigger, setChatSettingsTrigger] = useState(0);
+  const [megaChatCreateTrigger, setMegaChatCreateTrigger] = useState(0);
+  const [miniChatCreateTrigger, setMiniChatCreateTrigger] = useState(0);
   const [billingConfigured, setBillingConfigured] = useState(null); // null = unknown yet
 
   // --- Voice call state ---
@@ -158,16 +160,19 @@ export default function App() {
     api.getBillingStatus(token).then((s) => setBillingConfigured(s.configured)).catch(() => setBillingConfigured(false));
   }, [token]);
 
-  // MK ULTRA's custom accent color is a personal preference (only visible
-  // in your own client), applied as a CSS variable rather than touching
-  // every element's color individually.
+  // Accent color: MK ULTRA's account-level color (synced across devices)
+  // takes priority when set; otherwise falls back to the free, local-only
+  // pick from Extra > Accent Color (just a client preference, not stored on
+  // the account -- available to everyone, not just ULTRA). Applied as a CSS
+  // variable rather than touching every element's color individually.
   useEffect(() => {
-    if (user?.isUltra && user?.ultraColor) {
-      document.documentElement.style.setProperty('--mk-accent', user.ultraColor);
+    const color = (user?.isUltra && user?.ultraColor) ? user.ultraColor : settings.customAccent;
+    if (color) {
+      document.documentElement.style.setProperty('--mk-accent', color);
     } else {
       document.documentElement.style.removeProperty('--mk-accent');
     }
-  }, [user?.isUltra, user?.ultraColor]);
+  }, [user?.isUltra, user?.ultraColor, settings.customAccent]);
 
   // Voice Chat > output device: <audio> has no JSX attribute for this, it's
   // an imperative-only API (setSinkId), and only Chromium browsers support
@@ -431,6 +436,18 @@ export default function App() {
   function handleOpenChatSettings(friend) {
     setActiveFriendId(friend.id);
     setChatSettingsTrigger((n) => n + 1);
+  }
+
+  function handleTriggerCreateMegaChat() {
+    setMegaChatCreateTrigger((n) => n + 1);
+  }
+
+  function handleTriggerCreateMiniChat() {
+    // The Mini Chat create modal lives inside FriendsSidebar, which is only
+    // mounted in the "Home" (friends/DMs) view -- switch there first so the
+    // trigger actually has something to reach.
+    setActiveServerId(null);
+    setMiniChatCreateTrigger((n) => n + 1);
   }
 
   async function handleRemoveFriend(friendId) {
@@ -713,6 +730,9 @@ export default function App() {
         onRevealToken={handleRevealToken}
         onRegenerateToken={handleRegenerateToken}
         billingConfigured={billingConfigured}
+        onCreateMegaChat={handleTriggerCreateMegaChat}
+        onCreateMiniChat={handleTriggerCreateMiniChat}
+        onFetchStats={() => api.getMyStats(token)}
         t={t}
       />
       {call && (
@@ -742,6 +762,7 @@ export default function App() {
           onSelectServer={(id) => setActiveServerId(id)}
           isUltra={!!user.isUltra}
           onCreate={handleCreateMegaChat}
+          createTrigger={megaChatCreateTrigger}
         />
         {activeServerId === null ? (
           <>
@@ -760,6 +781,7 @@ export default function App() {
               activeGroupId={activeGroupId}
               onSelectGroup={handleSelectGroup}
               onCreateGroup={handleCreateGroup}
+              createGroupTrigger={miniChatCreateTrigger}
             />
             {activeGroupId !== null ? (
               (() => {

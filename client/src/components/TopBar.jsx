@@ -20,9 +20,12 @@ const CHANGELOG = [
   { version: '0.1.0', notes: 'Initial release: register/login, real-time messaging.' },
 ];
 
-export default function TopBar({ requests, onRefreshRequests, onRespond, onSendRequest, settings, onUpdateSettings, onLogout, currentUser, onUploadRingtone, onResetRingtone, onBuyUltra, onSetUltraColor, onRevealToken, onRegenerateToken, billingConfigured, t }) {
+export default function TopBar({ requests, onRefreshRequests, onRespond, onSendRequest, settings, onUpdateSettings, onLogout, currentUser, onUploadRingtone, onResetRingtone, onBuyUltra, onSetUltraColor, onRevealToken, onRegenerateToken, billingConfigured, onCreateMegaChat, onCreateMiniChat, onFetchStats, t }) {
   const [showExtra, setShowExtra] = useState(false);
   const [showLog, setShowLog] = useState(false);
+  const [showStats, setShowStats] = useState(false);
+  const [stats, setStats] = useState(null);
+  const [statsLoading, setStatsLoading] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [settingsTab, setSettingsTab] = useState('account'); // 'account' | 'voice' | 'data'
   const [showRequests, setShowRequests] = useState(false);
@@ -78,6 +81,36 @@ export default function TopBar({ requests, onRefreshRequests, onRespond, onSendR
     } catch (err) {
       console.error('Failed to set MK ULTRA color:', err.message);
     }
+  }
+
+  async function handleOpenStats() {
+    setShowExtra(false);
+    setShowStats(true);
+    setStatsLoading(true);
+    try {
+      const data = await onFetchStats();
+      setStats(data);
+    } catch (err) {
+      console.error('Failed to load stats:', err.message);
+      setStats(null);
+    } finally {
+      setStatsLoading(false);
+    }
+  }
+
+  function formatAccountAge(createdAt) {
+    if (!createdAt) return 'Unknown';
+    const iso = createdAt.includes('T') ? createdAt : createdAt.replace(' ', 'T') + 'Z';
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return 'Unknown';
+    const days = Math.max(0, Math.floor((Date.now() - d.getTime()) / (1000 * 60 * 60 * 24)));
+    if (days < 1) return 'Joined today';
+    if (days === 1) return '1 day';
+    if (days < 30) return `${days} days`;
+    const months = Math.floor(days / 30);
+    if (months < 12) return `${months} month${months === 1 ? '' : 's'}`;
+    const years = Math.floor(months / 12);
+    return `${years} year${years === 1 ? '' : 's'}`;
   }
 
   async function handleRingtoneFile(type, e) {
@@ -175,7 +208,30 @@ export default function TopBar({ requests, onRefreshRequests, onRespond, onSendR
           <button className="top-bar-btn" onClick={() => setShowExtra((v) => !v)}>{t('extra')} ▾</button>
           {showExtra && (
             <div className="dropdown-menu" onMouseLeave={() => setShowExtra(false)}>
-              <div className="dropdown-item disabled">{t('nothingHere')}</div>
+              <div className="dropdown-item" onClick={() => { onCreateMegaChat(); setShowExtra(false); }}>
+                Create a Mega Chat
+              </div>
+              <div className="dropdown-item" onClick={() => { onCreateMiniChat(); setShowExtra(false); }}>
+                Create a Mini Chat
+              </div>
+              <div className="dropdown-item dropdown-item-row">
+                <span>Accent color</span>
+                <input
+                  type="color"
+                  value={settings.customAccent || '#ffffff'}
+                  onClick={(e) => e.stopPropagation()}
+                  onChange={(e) => onUpdateSettings({ customAccent: e.target.value })}
+                  title="Pick a personal accent color (only visible on this device)"
+                />
+              </div>
+              {settings.customAccent && (
+                <div className="dropdown-item" onClick={() => { onUpdateSettings({ customAccent: '' }); }}>
+                  Reset accent color
+                </div>
+              )}
+              <div className="dropdown-item" onClick={handleOpenStats}>
+                My Stats
+              </div>
             </div>
           )}
         </div>
@@ -548,6 +604,45 @@ export default function TopBar({ requests, onRefreshRequests, onRespond, onSendR
             ))}
             <div className="modal-actions">
               <button onClick={() => setShowLog(false)}>{t('close')}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showStats && (
+        <div className="modal-overlay" onClick={() => setShowStats(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h2>My Stats</h2>
+            {statsLoading ? (
+              <div className="stats-loading">Loading…</div>
+            ) : stats ? (
+              <div className="stats-grid">
+                <div className="stats-item">
+                  <div className="stats-value">{formatAccountAge(stats.createdAt)}</div>
+                  <div className="stats-label">On MK</div>
+                </div>
+                <div className="stats-item">
+                  <div className="stats-value">{stats.friendCount}</div>
+                  <div className="stats-label">Friends</div>
+                </div>
+                <div className="stats-item">
+                  <div className="stats-value">{stats.megaChatCount}</div>
+                  <div className="stats-label">Mega Chats</div>
+                </div>
+                <div className="stats-item">
+                  <div className="stats-value">{stats.miniChatCount}</div>
+                  <div className="stats-label">Mini Chats</div>
+                </div>
+                <div className="stats-item stats-item-wide">
+                  <div className="stats-value">{stats.messagesSent.toLocaleString()}</div>
+                  <div className="stats-label">Messages sent</div>
+                </div>
+              </div>
+            ) : (
+              <div className="stats-loading">Couldn't load stats.</div>
+            )}
+            <div className="modal-actions">
+              <button onClick={() => setShowStats(false)}>{t('close')}</button>
             </div>
           </div>
         </div>

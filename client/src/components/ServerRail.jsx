@@ -1,13 +1,24 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 // The vertical strip of Mega Chat icons down the left edge, Discord-style.
 // "Home" always goes back to the regular friends/DM view; each server is a
 // colored circle with its initial; "+" opens the create-a-Mega-Chat modal.
-export default function ServerRail({ servers, activeServerId, onSelectHome, onSelectServer, isUltra, onCreate }) {
+export default function ServerRail({ servers, activeServerId, onSelectHome, onSelectServer, isUltra, onCreate, createTrigger }) {
   const [showCreate, setShowCreate] = useState(false);
   const [name, setName] = useState('');
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
+  const prevCreateTriggerRef = useRef(createTrigger);
+
+  // Lets the top bar's Extra menu open this same modal without needing to
+  // lift showCreate's state all the way up -- same "bump a counter, watch
+  // it change" pattern ChatArea uses for openSettingsTrigger.
+  useEffect(() => {
+    if (createTrigger !== undefined && createTrigger !== prevCreateTriggerRef.current) {
+      prevCreateTriggerRef.current = createTrigger;
+      setShowCreate(true);
+    }
+  }, [createTrigger]);
 
   const price = isUltra ? '50¢' : '$1';
 
