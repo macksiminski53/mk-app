@@ -205,6 +205,60 @@ CREATE TABLE IF NOT EXISTS ultra_purchases (
   } catch (e) {
     console.error('Failed to backfill last_reset_at for mandatory 24h auto-delete:', e.message);
   }
+
+  // ---- Mega Chats -- Discord-style paid servers with channels ----
+  // $1 to create (50c with MK ULTRA), unlimited members, added by username.
+  // Flat permissions: the owner can create channels, add/remove members,
+  // and delete the whole server; every other member is equal.
+  await client.execute(`
+CREATE TABLE IF NOT EXISTS servers (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  owner_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  icon_color TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+)`);
+
+  await client.execute(`
+CREATE TABLE IF NOT EXISTS server_members (
+  server_id INTEGER NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  joined_at TEXT NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (server_id, user_id)
+)`);
+
+  await client.execute(`
+CREATE TABLE IF NOT EXISTS server_channels (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  server_id INTEGER NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  position INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+)`);
+
+  await client.execute(`
+CREATE TABLE IF NOT EXISTS server_messages (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  channel_id INTEGER NOT NULL REFERENCES server_channels(id) ON DELETE CASCADE,
+  user_id INTEGER NOT NULL REFERENCES users(id),
+  content TEXT NOT NULL,
+  image_url TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+)`);
+
+  await client.execute(`
+CREATE TABLE IF NOT EXISTS mega_chat_purchases (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  stripe_session_id TEXT UNIQUE NOT NULL,
+  pending_name TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending',
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+)`);
+
+  await client.execute('CREATE INDEX IF NOT EXISTS idx_server_members_user ON server_members(user_id)');
+  await client.execute('CREATE INDEX IF NOT EXISTS idx_server_channels_server ON server_channels(server_id)');
+  await client.execute('CREATE INDEX IF NOT EXISTS idx_server_messages_channel ON server_messages(channel_id)');
 }
 
 export default db;
