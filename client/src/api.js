@@ -65,6 +65,13 @@ export const api = {
   removeServerMember: (token, serverId, userId) => request(`/servers/${serverId}/members/${userId}`, { method: 'DELETE', token }),
   deleteServer: (token, serverId) => request(`/servers/${serverId}`, { method: 'DELETE', token }),
   listChannelMessages: (token, serverId, channelId) => request(`/servers/${serverId}/channels/${channelId}/messages`, { token }),
+
+  // ---- Mini Chats ----
+  listGroups: (token) => request('/groups', { token }),
+  createGroup: (token, name) => request('/groups', { method: 'POST', body: { name }, token }),
+  addGroupMember: (token, groupId, username) => request(`/groups/${groupId}/members`, { method: 'POST', body: { username }, token }),
+  leaveGroup: (token, groupId, userId) => request(`/groups/${groupId}/members/${userId}`, { method: 'DELETE', token }),
+  listGroupMessages: (token, groupId) => request(`/groups/${groupId}/messages`, { token }),
 };
 
 export function resolveAvatarUrl(url) {

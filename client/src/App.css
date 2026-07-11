@@ -2089,3 +2089,45 @@ body {
   .server-rail-icon { width: 36px; height: 36px; font-size: 12px; }
   .megachat-channels { width: 160px; }
 }
+
+/* --- Mini Chats --- */
+.minichat-list { padding: 8px 8px 0; flex-shrink: 0; }
+
+.minichat-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 4px 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: #7a7f87;
+}
+
+.minichat-create-btn {
+  cursor: pointer;
+  color: #c4c9ce;
+  font-weight: 800;
+  font-size: 14px;
+  padding: 0 4px;
+}
+.minichat-create-btn:hover { color: #ffffff; }
+
+.minichat-main { border-left: none; }
+
+.minichat-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px;
+}
+
+.minichat-header-name {
+  flex: 1;
+  font-weight: 700;
+  color: #ffffff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

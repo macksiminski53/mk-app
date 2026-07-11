@@ -6,6 +6,7 @@ import ChatArea from './components/ChatArea.jsx';
 import CallBar from './components/CallBar.jsx';
 import ServerRail from './components/ServerRail.jsx';
 import MegaChatView from './components/MegaChatView.jsx';
+import MiniChatView from './components/MiniChatView.jsx';
 import { api } from './api.js';
 import { connectSocket, disconnectSocket, getSocket } from './socket.js';
 import { getTranslator } from './i18n.js';
@@ -36,6 +37,8 @@ export default function App() {
   const [activeFriendId, setActiveFriendId] = useState(null);
   const [servers, setServers] = useState([]);
   const [activeServerId, setActiveServerId] = useState(null);
+  const [groups, setGroups] = useState([]);
+  const [activeGroupId, setActiveGroupId] = useState(null);
   const [settings, setSettings] = useState(loadSettings);
   const [chatSettingsTrigger, setChatSettingsTrigger] = useState(0);
   const [billingConfigured, setBillingConfigured] = useState(null); // null = unknown yet
@@ -109,6 +112,11 @@ export default function App() {
   const refreshServers = useCallback(() => {
     if (!token) return;
     api.listServers(token).then(setServers).catch(() => {});
+  }, [token]);
+
+  const refreshGroups = useCallback(() => {
+    if (!token) return;
+    api.listGroups(token).then(setGroups).catch(() => {});
   }, [token]);
 
   const refreshSelf = useCallback(() => {
@@ -191,6 +199,7 @@ export default function App() {
     refreshFriends();
     refreshRequests();
     refreshServers();
+    refreshGroups();
 
     const socket = getSocket();
     function onPresence({ userId, online }) {
@@ -435,6 +444,23 @@ export default function App() {
     setActiveServerId((prev) => (prev === serverId ? null : prev));
   }
 
+  async function handleCreateGroup(name) {
+    const group = await api.createGroup(token, name);
+    setGroups((prev) => [group, ...prev]);
+    setActiveGroupId(group.id);
+    setActiveFriendId(null);
+  }
+
+  function handleSelectGroup(groupId) {
+    setActiveGroupId(groupId);
+    setActiveFriendId(null);
+  }
+
+  function handleGroupLeft(groupId) {
+    setGroups((prev) => prev.filter((g) => g.id !== groupId));
+    setActiveGroupId((prev) => (prev === groupId ? null : prev));
+  }
+
   async function handleSetUltraColor(color) {
     const res = await api.setUltraColor(token, color);
     setUser((prev) => {
@@ -590,7 +616,7 @@ export default function App() {
             <FriendsSidebar
               friends={friends}
               activeFriendId={activeFriendId}
-              onSelect={(f) => setActiveFriendId(f.id)}
+              onSelect={(f) => { setActiveFriendId(f.id); setActiveGroupId(null); }}
               currentUser={user}
               token={token}
               onLogout={handleLogout}
@@ -598,18 +624,37 @@ export default function App() {
               onSetBio={handleSetBio}
               onOpenChatSettings={handleOpenChatSettings}
               onRemoveFriend={handleRemoveFriend}
+              groups={groups}
+              activeGroupId={activeGroupId}
+              onSelectGroup={handleSelectGroup}
+              onCreateGroup={handleCreateGroup}
             />
-            <ChatArea
-              token={token}
-              friend={activeFriend}
-              currentUser={user}
-              onRemoveFriend={handleRemoveFriend}
-              onStartCall={handleStartCall}
-              callActive={!!call}
-              chatLayout={settings.chatLayout}
-              openSettingsTrigger={chatSettingsTrigger}
-              t={t}
-            />
+            {activeGroupId !== null ? (
+              (() => {
+                const activeGroup = groups.find((g) => g.id === activeGroupId) || null;
+                return activeGroup ? (
+                  <MiniChatView
+                    key={activeGroup.id}
+                    group={activeGroup}
+                    token={token}
+                    currentUser={user}
+                    onLeft={handleGroupLeft}
+                  />
+                ) : null;
+              })()
+            ) : (
+              <ChatArea
+                token={token}
+                friend={activeFriend}
+                currentUser={user}
+                onRemoveFriend={handleRemoveFriend}
+                onStartCall={handleStartCall}
+                callActive={!!call}
+                chatLayout={settings.chatLayout}
+                openSettingsTrigger={chatSettingsTrigger}
+                t={t}
+              />
+            )}
           </>
         ) : (
           (() => {

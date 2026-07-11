@@ -2,14 +2,21 @@ import { useRef, useState } from 'react';
 import Avatar from './Avatar.jsx';
 import ProfileCard from './ProfileCard.jsx';
 import AvatarCropper from './AvatarCropper.jsx';
+import { groupDisplayName } from './MiniChatView.jsx';
 
-export default function FriendsSidebar({ friends, activeFriendId, onSelect, currentUser, token, onLogout, onChangeAvatar, onSetBio, onOpenChatSettings, onRemoveFriend }) {
+export default function FriendsSidebar({
+  friends, activeFriendId, onSelect, currentUser, token, onLogout, onChangeAvatar, onSetBio,
+  onOpenChatSettings, onRemoveFriend, groups, activeGroupId, onSelectGroup, onCreateGroup,
+}) {
   const fileInputRef = useRef(null);
   const [uploading, setUploading] = useState(false);
   const [showProfileCard, setShowProfileCard] = useState(false);
   const [viewingFriend, setViewingFriend] = useState(null);
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [croppingFile, setCroppingFile] = useState(null);
+  const [showCreateGroup, setShowCreateGroup] = useState(false);
+  const [newGroupName, setNewGroupName] = useState('');
+  const [creatingGroup, setCreatingGroup] = useState(false);
 
   async function handleFileChange(e) {
     const file = e.target.files?.[0];
@@ -37,6 +44,18 @@ export default function FriendsSidebar({ friends, activeFriendId, onSelect, curr
       await onChangeAvatar(new File([blob], 'avatar.png', { type: 'image/png' }));
     } finally {
       setUploading(false);
+    }
+  }
+
+  async function handleCreateGroup(e) {
+    e.preventDefault();
+    setCreatingGroup(true);
+    try {
+      await onCreateGroup(newGroupName.trim());
+      setShowCreateGroup(false);
+      setNewGroupName('');
+    } finally {
+      setCreatingGroup(false);
     }
   }
 
@@ -75,6 +94,53 @@ export default function FriendsSidebar({ friends, activeFriendId, onSelect, curr
           </div>
         </div>
       </div>
+
+      <div className="minichat-list">
+        <div className="minichat-list-header">
+          <span>Mini Chats</span>
+          <span className="minichat-create-btn" onClick={() => setShowCreateGroup(true)} title="Create a Mini Chat">+</span>
+        </div>
+        {(groups || []).map((g) => (
+          <div
+            key={g.id}
+            className={`friend-row ${activeGroupId === g.id ? 'active' : ''}`}
+            onClick={() => onSelectGroup(g.id)}
+          >
+            <Avatar username={groupDisplayName(g, currentUser.id)} avatarColor="#6e1f22" size={40} />
+            <div className="friend-info">
+              <span className="friend-name">{groupDisplayName(g, currentUser.id)}</span>
+              <span className="friend-status">{(g.members || []).length}/15 members</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {showCreateGroup && (
+        <div className="modal-overlay" onClick={() => !creatingGroup && setShowCreateGroup(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h2>Create a Mini Chat</h2>
+            <p className="server-rail-create-hint">
+              A free group chat for up to 15 people, no channels or roles. You can add members by username afterwards.
+            </p>
+            <form onSubmit={handleCreateGroup}>
+              <div className="settings-section">
+                <div className="settings-label">Name (optional)</div>
+                <input
+                  autoFocus
+                  value={newGroupName}
+                  onChange={(e) => setNewGroupName(e.target.value)}
+                  placeholder="Leave blank to use member names"
+                  maxLength={60}
+                />
+              </div>
+              <div className="modal-actions">
+                <button type="button" className="secondary" onClick={() => setShowCreateGroup(false)} disabled={creatingGroup}>Cancel</button>
+                <button type="submit" disabled={creatingGroup}>{creatingGroup ? 'Creating…' : 'Create'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       <div className="friends-list">
         {friends.length === 0 && (
