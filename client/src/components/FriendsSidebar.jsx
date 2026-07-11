@@ -17,6 +17,7 @@ export default function FriendsSidebar({
   const [showCreateGroup, setShowCreateGroup] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
   const [creatingGroup, setCreatingGroup] = useState(false);
+  const [createGroupError, setCreateGroupError] = useState('');
 
   async function handleFileChange(e) {
     const file = e.target.files?.[0];
@@ -50,10 +51,13 @@ export default function FriendsSidebar({
   async function handleCreateGroup(e) {
     e.preventDefault();
     setCreatingGroup(true);
+    setCreateGroupError('');
     try {
       await onCreateGroup(newGroupName.trim());
       setShowCreateGroup(false);
       setNewGroupName('');
+    } catch (err) {
+      setCreateGroupError(err.message || 'Failed to create Mini Chat');
     } finally {
       setCreatingGroup(false);
     }
@@ -133,6 +137,7 @@ export default function FriendsSidebar({
                   maxLength={60}
                 />
               </div>
+              {createGroupError && <div className="form-error">{createGroupError}</div>}
               <div className="modal-actions">
                 <button type="button" className="secondary" onClick={() => setShowCreateGroup(false)} disabled={creatingGroup}>Cancel</button>
                 <button type="submit" disabled={creatingGroup}>{creatingGroup ? 'Creating…' : 'Create'}</button>
