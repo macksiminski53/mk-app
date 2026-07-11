@@ -21,7 +21,7 @@ const CHANGELOG = [
   { version: '0.1.0', notes: 'Initial release: register/login, real-time messaging.' },
 ];
 
-export default function TopBar({ requests, onRefreshRequests, onRespond, onSendRequest, settings, onUpdateSettings, onLogout, currentUser, onUploadRingtone, onResetRingtone, onBuyPlus, onBuyUltra, onSetUltraColor, onRevealToken, onRegenerateToken, billingConfigured, onCreateMegaChat, onCreateMiniChat, onFetchStats, t }) {
+export default function TopBar({ requests, onRefreshRequests, onRespond, onSendRequest, settings, onUpdateSettings, onLogout, currentUser, onUploadRingtone, onResetRingtone, onBuyPlus, onBuyPremium, onBuyUltra, onSetUltraColor, onSetNameColor, onRevealToken, onRegenerateToken, billingConfigured, onCreateMegaChat, onCreateMiniChat, onFetchStats, t }) {
   const [showExtra, setShowExtra] = useState(false);
   const [showLog, setShowLog] = useState(false);
   const [showStats, setShowStats] = useState(false);
@@ -37,6 +37,8 @@ export default function TopBar({ requests, onRefreshRequests, onRespond, onSendR
   const [ringtoneBusy, setRingtoneBusy] = useState(null); // 'outgoing' | 'incoming' | null
   const [plusBusy, setPlusBusy] = useState(false);
   const [plusError, setPlusError] = useState('');
+  const [premiumBusy, setPremiumBusy] = useState(false);
+  const [premiumError, setPremiumError] = useState('');
   const [ultraBusy, setUltraBusy] = useState(false);
   const [ultraError, setUltraError] = useState('');
   const outgoingFileRef = useRef(null);
@@ -78,6 +80,19 @@ export default function TopBar({ requests, onRefreshRequests, onRespond, onSendR
     // On success this navigates away to Stripe, so no need to clear busy.
   }
 
+  async function handleBuyPremium() {
+    setPremiumBusy(true);
+    setPremiumError('');
+    try {
+      await onBuyPremium();
+    } catch (err) {
+      console.error('MK PREMIUM checkout failed:', err.message);
+      setPremiumError(err.message || 'Something went wrong starting checkout.');
+      setPremiumBusy(false);
+    }
+    // On success this navigates away to Stripe, so no need to clear busy.
+  }
+
   async function handleBuyUltra() {
     setUltraBusy(true);
     setUltraError('');
@@ -96,6 +111,14 @@ export default function TopBar({ requests, onRefreshRequests, onRespond, onSendR
       await onSetUltraColor(e.target.value);
     } catch (err) {
       console.error('Failed to set accent color:', err.message);
+    }
+  }
+
+  async function handleNameColorChange(e) {
+    try {
+      await onSetNameColor(e.target.value);
+    } catch (err) {
+      console.error('Failed to set name color:', err.message);
     }
   }
 
@@ -410,6 +433,45 @@ export default function TopBar({ requests, onRefreshRequests, onRespond, onSendR
                 </div>
 
                 <div className="settings-section">
+                  <div className="settings-label">MK PREMIUM</div>
+                  {currentUser?.isPremium ? (
+                    <div className="ultra-panel">
+                      <div className="ultra-panel-title">
+                        <span className="premium-badge" title="MK PREMIUM">PREMIUM</span> You're an MK PREMIUM member
+                      </div>
+                      <div className="ultra-panel-desc">
+                        Everything in MK PLUS, plus free Mega Chat creation, permanent Mini Chats/DMs whenever
+                        you're a member, an emoji picker, and the ability to like messages.
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="ultra-panel">
+                      <div className="ultra-panel-desc">
+                        One-time $2.50 purchase, on top of everything MK PLUS gives you: free Mega Chat creation,
+                        permanent Mini Chats/DMs, an emoji picker in the message box, and the ability to like messages.
+                      </div>
+                      {billingConfigured === false ? (
+                        <div className="ultra-panel-notice">
+                          Payments aren't set up yet — check back soon.
+                        </div>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            className="premium-buy-btn"
+                            disabled={premiumBusy}
+                            onClick={handleBuyPremium}
+                          >
+                            {premiumBusy ? '…' : 'Get MK PREMIUM — $2.50'}
+                          </button>
+                          {premiumError && <div className="ultra-panel-error">{premiumError}</div>}
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <div className="settings-section">
                   <div className="settings-label">MK ULTRA</div>
                   {currentUser?.isUltra ? (
                     <div className="ultra-panel">
@@ -417,15 +479,24 @@ export default function TopBar({ requests, onRefreshRequests, onRespond, onSendR
                         <span className="ultra-badge" title="MK ULTRA">ULTRA</span> You're an MK ULTRA member
                       </div>
                       <div className="ultra-panel-desc">
-                        Everything in MK PLUS, plus free Mega Chat creation, permanent Mini Chats whenever
-                        you're a member, an emoji picker, and the ability to like messages.
+                        Everything in MK PREMIUM, plus a custom name color, an avatar border, a profile banner,
+                        message pinning, read receipts, a raised Mini Chat member cap, and a personal custom emoji.
+                      </div>
+                      <div className="ultra-color-row">
+                        <span className="ringtone-row-title">Name color</span>
+                        <input
+                          type="color"
+                          value={currentUser.nameColor || '#ffffff'}
+                          onChange={handleNameColorChange}
+                        />
                       </div>
                     </div>
                   ) : (
                     <div className="ultra-panel">
                       <div className="ultra-panel-desc">
-                        One-time $5 purchase, on top of everything MK PLUS gives you: free Mega Chat creation,
-                        permanent Mini Chats, an emoji picker in the message box, and the ability to like messages.
+                        One-time $5 purchase, on top of everything MK PREMIUM gives you: a custom name color,
+                        an avatar border, a profile banner, message pinning, read receipts, a raised Mini Chat
+                        member cap, and a personal custom emoji.
                       </div>
                       {billingConfigured === false ? (
                         <div className="ultra-panel-notice">

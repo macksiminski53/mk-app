@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 // The vertical strip of Mega Chat icons down the left edge, Discord-style.
 // "Home" always goes back to the regular friends/DM view; each server is a
 // colored circle with its initial; "+" opens the create-a-Mega-Chat modal.
-export default function ServerRail({ servers, activeServerId, onSelectHome, onSelectServer, isUltra, onCreate, createTrigger }) {
+export default function ServerRail({ servers, activeServerId, onSelectHome, onSelectServer, isPremium, onCreate, createTrigger }) {
   const [showCreate, setShowCreate] = useState(false);
   const [name, setName] = useState('');
   const [creating, setCreating] = useState(false);
@@ -20,7 +20,7 @@ export default function ServerRail({ servers, activeServerId, onSelectHome, onSe
     }
   }, [createTrigger]);
 
-  const isFree = isUltra;
+  const isFree = isPremium;
   const price = isFree ? 'Free' : '$1';
 
   async function handleCreate(e) {
@@ -75,7 +75,7 @@ export default function ServerRail({ servers, activeServerId, onSelectHome, onSe
             <p className="server-rail-create-hint">
               A Mega Chat is a server with unlimited members and its own text channels.
               {isFree
-                ? ' Free for MK ULTRA members.'
+                ? ' Free for MK PREMIUM/ULTRA members.'
                 : ' Costs $1, one time, via Stripe.'}
             </p>
             <form onSubmit={handleCreate}>

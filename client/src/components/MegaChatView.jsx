@@ -224,12 +224,13 @@ export default function MegaChatView({ server, token, currentUser, onLeftOrDelet
             <div className="megachat-members-list">
               {(detail?.members || []).map((m) => (
                 <div key={m.id} className="megachat-member-row">
-                  <Avatar username={m.username} avatarColor={m.avatarColor} avatarUrl={m.avatarUrl} size={32} />
+                  <Avatar username={m.username} avatarColor={m.avatarColor} avatarUrl={m.avatarUrl} size={32} ultraBorder={m.isUltra} />
                   <span className="megachat-member-name">
                     {m.username}
                     {m.id === detail.ownerId && <span className="ultra-badge" title="Owner">OWNER</span>}
                     {m.isUltra && <span className="ultra-badge" title="MK ULTRA">ULTRA</span>}
-                    {!m.isUltra && m.isPlus && <span className="plus-badge" title="MK PLUS">PLUS</span>}
+                    {!m.isUltra && m.isPremium && <span className="premium-badge" title="MK PREMIUM">PREMIUM</span>}
+                    {!m.isUltra && !m.isPremium && m.isPlus && <span className="plus-badge" title="MK PLUS">PLUS</span>}
                   </span>
                   {isOwner && m.id !== detail.ownerId && (
                     <span className="megachat-member-kick" onClick={() => handleRemoveMember(m.id)}>Remove</span>
@@ -243,17 +244,17 @@ export default function MegaChatView({ server, token, currentUser, onLeftOrDelet
             <div className="megachat-message-list">
               {messages.map((m) => (
                 <div key={m.id} className="megachat-message-row">
-                  <Avatar username={m.username} avatarColor={m.avatarColor} avatarUrl={m.avatarUrl} size={36} />
+                  <Avatar username={m.username} avatarColor={m.avatarColor} avatarUrl={m.avatarUrl} size={36} ultraBorder={m.isUltra} />
                   <div className="megachat-message-body">
                     <div className="megachat-message-meta">
-                      <span className="megachat-message-username">{m.username}</span>
+                      <span className="megachat-message-username" style={m.nameColor ? { color: m.nameColor } : undefined}>{m.username}</span>
                       <span className="megachat-message-time">{formatTime(m.createdAt)}</span>
                     </div>
                     <div className="megachat-message-content">{m.content}</div>
                     <LikeButton
                       likeCount={m.likeCount}
                       likedByMe={m.likedByMe}
-                      canLike={!!currentUser?.isUltra}
+                      canLike={!!currentUser?.isPremium}
                       onToggle={() => toggleLike(m.id)}
                     />
                   </div>
@@ -262,7 +263,7 @@ export default function MegaChatView({ server, token, currentUser, onLeftOrDelet
               <div ref={messagesEndRef} />
             </div>
             <form className="megachat-input-row" onSubmit={handleSend}>
-              {currentUser?.isUltra && (
+              {currentUser?.isPremium && (
                 <EmojiPicker onSelect={(emoji) => setInput((prev) => prev + emoji)} />
               )}
               <input

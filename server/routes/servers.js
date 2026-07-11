@@ -51,7 +51,7 @@ router.get('/:id', asyncHandler(async (req, res) => {
     return res.status(403).json({ error: 'Not a member of this Mega Chat' });
   }
   const members = await db.prepare(`
-    SELECT u.id, u.username, u.avatar_color as avatarColor, u.avatar_url as avatarUrl, u.is_plus as isPlus, u.is_ultra as isUltra
+    SELECT u.id, u.username, u.avatar_color as avatarColor, u.avatar_url as avatarUrl, u.is_plus as isPlus, u.is_premium as isPremium, u.is_ultra as isUltra, u.name_color as nameColor
     FROM server_members sm
     JOIN users u ON u.id = sm.user_id
     WHERE sm.server_id = ?
@@ -64,7 +64,7 @@ router.get('/:id', asyncHandler(async (req, res) => {
     ownerId: server.owner_id,
     iconColor: server.icon_color,
     channels: await loadChannels(server.id),
-    members: members.map((m) => ({ ...m, isPlus: !!(m.isPlus || m.isUltra), isUltra: !!m.isUltra })),
+    members: members.map((m) => ({ ...m, isPlus: !!(m.isPlus || m.isPremium || m.isUltra), isPremium: !!(m.isPremium || m.isUltra), isUltra: !!m.isUltra, nameColor: m.isUltra ? m.nameColor : null })),
   });
 }));
 
@@ -113,7 +113,7 @@ router.post('/:id/members', asyncHandler(async (req, res) => {
   const clean = typeof username === 'string' ? username.trim() : '';
   if (!clean) return res.status(400).json({ error: 'Username is required' });
 
-  const target = await db.prepare('SELECT id, username, avatar_color as avatarColor, avatar_url as avatarUrl, is_plus as isPlus, is_ultra as isUltra FROM users WHERE username = ?').get(clean);
+  const target = await db.prepare('SELECT id, username, avatar_color as avatarColor, avatar_url as avatarUrl, is_plus as isPlus, is_premium as isPremium, is_ultra as isUltra, name_color as nameColor FROM users WHERE username = ?').get(clean);
   if (!target) return res.status(404).json({ error: `No user named "${clean}" found` });
 
   if (await isMember(server.id, target.id)) {
@@ -121,7 +121,7 @@ router.post('/:id/members', asyncHandler(async (req, res) => {
   }
 
   await db.prepare('INSERT INTO server_members (server_id, user_id) VALUES (?, ?)').run(server.id, target.id);
-  res.json({ id: target.id, username: target.username, avatarColor: target.avatarColor, avatarUrl: target.avatarUrl, isPlus: !!(target.isPlus || target.isUltra), isUltra: !!target.isUltra });
+  res.json({ id: target.id, username: target.username, avatarColor: target.avatarColor, avatarUrl: target.avatarUrl, isPlus: !!(target.isPlus || target.isPremium || target.isUltra), isPremium: !!(target.isPremium || target.isUltra), isUltra: !!target.isUltra, nameColor: target.isUltra ? target.nameColor : null });
 }));
 
 // Remove a member. The owner can remove anyone; anyone can remove themself
@@ -167,6 +167,7 @@ router.get('/:id/channels/:channelId/messages', asyncHandler(async (req, res) =>
   const rows = await db.prepare(`
     SELECT msg.id, msg.content, msg.image_url as imageUrl, msg.created_at as createdAt,
            u.id as userId, u.username, u.avatar_color as avatarColor, u.avatar_url as avatarUrl,
+           u.is_ultra as isUltra, u.name_color as nameColor,
            (SELECT COUNT(*) FROM message_likes ml WHERE ml.message_type = 'mega' AND ml.message_id = msg.id) as likeCount,
            EXISTS(SELECT 1 FROM message_likes ml WHERE ml.message_type = 'mega' AND ml.message_id = msg.id AND ml.user_id = ?) as likedByMe
     FROM server_messages msg
@@ -175,7 +176,7 @@ router.get('/:id/channels/:channelId/messages', asyncHandler(async (req, res) =>
     ORDER BY msg.id DESC
     LIMIT ?
   `).all(req.user.id, channel.id, limit);
-  res.json(rows.reverse().map((r) => ({ ...r, likedByMe: !!r.likedByMe })));
+  res.json(rows.reverse().map((r) => ({ ...r, isUltra: !!r.isUltra, nameColor: r.isUltra ? r.nameColor : null, likedByMe: !!r.likedByMe })));
 }));
 
 export default router;

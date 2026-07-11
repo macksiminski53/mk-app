@@ -81,7 +81,7 @@ export default function FriendsSidebar({
             onClick={() => setShowEditProfile(true)}
             title="Edit profile"
           >
-            <Avatar username={currentUser.username} avatarColor={currentUser.avatarColor} avatarUrl={currentUser.avatarUrl} size={44} />
+            <Avatar username={currentUser.username} avatarColor={currentUser.avatarColor} avatarUrl={currentUser.avatarUrl} size={44} ultraBorder={currentUser.isUltra} />
             <div className="pfp-overlay">Edit</div>
           </div>
           <input
@@ -95,7 +95,8 @@ export default function FriendsSidebar({
             <div className="activity-username" onClick={() => setShowProfileCard(true)} title="View profile">
               {currentUser.username}
               {currentUser.isUltra && <span className="ultra-badge" title="MK ULTRA">ULTRA</span>}
-              {!currentUser.isUltra && currentUser.isPlus && <span className="plus-badge" title="MK PLUS">PLUS</span>}
+              {!currentUser.isUltra && currentUser.isPremium && <span className="premium-badge" title="MK PREMIUM">PREMIUM</span>}
+              {!currentUser.isUltra && !currentUser.isPremium && currentUser.isPlus && <span className="plus-badge" title="MK PLUS">PLUS</span>}
             </div>
             <div
               className={`activity-status ${currentUser.statusSource !== 'music' ? 'activity-status-hint' : ''}`}
@@ -122,7 +123,7 @@ export default function FriendsSidebar({
             <Avatar username={groupDisplayName(g, currentUser.id)} avatarColor="#6e1f22" avatarUrl={g.avatarUrl} size={40} />
             <div className="friend-info">
               <span className="friend-name">{groupDisplayName(g, currentUser.id)}</span>
-              <span className="friend-status">{(g.members || []).length}/15 members</span>
+              <span className="friend-status">{(g.members || []).length}/{(g.members || []).find((m) => m.id === g.createdBy)?.isUltra ? 30 : 15} members</span>
             </div>
           </div>
         ))}
@@ -171,13 +172,14 @@ export default function FriendsSidebar({
               onClick={(e) => { e.stopPropagation(); setViewingFriend(f); }}
               title={`View ${f.username}'s profile`}
             >
-              <Avatar username={f.username} avatarColor={f.avatarColor} avatarUrl={f.avatarUrl} size={40} online={f.online} />
+              <Avatar username={f.username} avatarColor={f.avatarColor} avatarUrl={f.avatarUrl} size={40} online={f.online} ultraBorder={f.isUltra} />
             </div>
             <div className="friend-info">
-              <span className="friend-name">
+              <span className="friend-name" style={f.nameColor ? { color: f.nameColor } : undefined}>
                 {f.username}
                 {f.isUltra && <span className="ultra-badge" title="MK ULTRA">ULTRA</span>}
-                {!f.isUltra && f.isPlus && <span className="plus-badge" title="MK PLUS">PLUS</span>}
+                {!f.isUltra && f.isPremium && <span className="premium-badge" title="MK PREMIUM">PREMIUM</span>}
+                {!f.isUltra && !f.isPremium && f.isPlus && <span className="plus-badge" title="MK PLUS">PLUS</span>}
               </span>
               {f.statusSource === 'music' && f.statusText && <span className="friend-status">{f.statusText}</span>}
             </div>

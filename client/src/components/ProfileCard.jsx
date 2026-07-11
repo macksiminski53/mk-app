@@ -90,14 +90,15 @@ export default function ProfileCard({ user, isOwn, token, viewerIsPlus, onClose,
 
         <div className="profile-card-body">
           <div className="profile-card-avatar-wrap">
-            <Avatar username={user.username} avatarColor={user.avatarColor} avatarUrl={user.avatarUrl} size={72} className="profile-card-avatar" />
+            <Avatar username={user.username} avatarColor={user.avatarColor} avatarUrl={user.avatarUrl} size={72} className="profile-card-avatar" ultraBorder={user.isUltra} />
             <span className="profile-card-status-dot" style={{ background: isOwn || user.online ? '#3ba55d' : '#747f8d' }} />
           </div>
 
-          <div className="profile-card-name">
+          <div className="profile-card-name" style={user.nameColor ? { color: user.nameColor } : undefined}>
             {user.username}
             {user.isUltra && <span className="ultra-badge" title="MK ULTRA">ULTRA</span>}
-            {!user.isUltra && user.isPlus && <span className="plus-badge" title="MK PLUS">PLUS</span>}
+            {!user.isUltra && user.isPremium && <span className="premium-badge" title="MK PREMIUM">PREMIUM</span>}
+            {!user.isUltra && !user.isPremium && user.isPlus && <span className="plus-badge" title="MK PLUS">PLUS</span>}
           </div>
           <div className="profile-card-sub">
             <span>{user.username.toLowerCase()}</span>

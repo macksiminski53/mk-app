@@ -164,6 +164,46 @@ CREATE TABLE IF NOT EXISTS messages (
     if (!/duplicate column/i.test(e.message || '')) throw e;
   }
 
+  // MK PREMIUM: a second three-way split. MK PREMIUM ($2.50) takes over
+  // what MK ULTRA used to grant (free Mega Chat creation, permanent Mini
+  // Chats/DMs whenever a member has PREMIUM or higher, an emoji picker,
+  // and the ability to like messages). MK ULTRA is now repriced to $5 and
+  // sits above PREMIUM with its own extra perks (name color, avatar
+  // border, profile banner, message pinning, read receipts, a raised Mini
+  // Chat member cap, and personal custom emoji). Same one-time migration
+  // trick as the PLUS split above: only fires the moment is_premium is
+  // first added -- existing is_ultra=1 accounts (the old $5 purchasers)
+  // become is_premium=1 and are reset to is_ultra=0, since they bought
+  // what's now called PREMIUM, not the new top ULTRA tier. ULTRA is a
+  // superset of PREMIUM, which is a superset of PLUS -- perk checks
+  // throughout the app treat is_ultra as implying is_premium and is_plus.
+  try {
+    await client.execute('ALTER TABLE users ADD COLUMN is_premium INTEGER NOT NULL DEFAULT 0');
+    await client.execute("UPDATE users SET is_premium = 1, is_ultra = 0 WHERE is_ultra = 1");
+  } catch (e) {
+    if (!/duplicate column/i.test(e.message || '')) throw e;
+  }
+
+  // MK ULTRA's new cosmetic/utility perks: a custom name color in chat
+  // (distinct from the shared accent-color perk), a profile banner image,
+  // and one personal custom emoji, all stored as base64 data URIs same as
+  // avatars/group pictures.
+  try {
+    await client.execute('ALTER TABLE users ADD COLUMN name_color TEXT');
+  } catch (e) {
+    if (!/duplicate column/i.test(e.message || '')) throw e;
+  }
+  try {
+    await client.execute('ALTER TABLE users ADD COLUMN banner_url TEXT');
+  } catch (e) {
+    if (!/duplicate column/i.test(e.message || '')) throw e;
+  }
+  try {
+    await client.execute('ALTER TABLE users ADD COLUMN custom_emoji_url TEXT');
+  } catch (e) {
+    if (!/duplicate column/i.test(e.message || '')) throw e;
+  }
+
   // Distinguishes a status set by the MusicToDiscord reporter script
   // ('music') from any other write to status_text ('manual'/NULL). The
   // "Playing" card UI only renders for source='music', so a hand-typed
@@ -222,7 +262,8 @@ CREATE TABLE IF NOT EXISTS ultra_purchases (
           SELECT dm.id FROM dm_threads dm
           JOIN users ua ON ua.id = dm.user_a_id
           JOIN users ub ON ub.id = dm.user_b_id
-          WHERE ua.is_plus = 0 AND ua.is_ultra = 0 AND ub.is_plus = 0 AND ub.is_ultra = 0
+          WHERE ua.is_plus = 0 AND ua.is_premium = 0 AND ua.is_ultra = 0
+            AND ub.is_plus = 0 AND ub.is_premium = 0 AND ub.is_ultra = 0
         )
     `);
   } catch (e) {
@@ -331,7 +372,7 @@ CREATE TABLE IF NOT EXISTS group_messages (
     if (!/duplicate column/i.test(e.message || '')) throw e;
   }
 
-  // MK ULTRA perk: liking a message. One row per (message, liker); the
+  // MK PREMIUM perk: liking a message. One row per (message, liker); the
   // message_type column disambiguates ids across the three separate message
   // tables (DMs, Mega Chat channels, Mini Chats) since they don't share an
   // id space.
@@ -345,6 +386,34 @@ CREATE TABLE IF NOT EXISTS message_likes (
   UNIQUE(message_type, message_id, user_id)
 )`);
   await client.execute('CREATE INDEX IF NOT EXISTS idx_message_likes_msg ON message_likes(message_type, message_id)');
+
+  // MK ULTRA perk: pinning a message. Same message_type + message_id
+  // disambiguation pattern as message_likes above. pinned_by is who pinned
+  // it (for display -- "Pinned by X"), not who can unpin (anyone with
+  // ULTRA can unpin any pin in a chat they're in).
+  await client.execute(`
+CREATE TABLE IF NOT EXISTS pinned_messages (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  message_type TEXT NOT NULL,
+  message_id INTEGER NOT NULL,
+  pinned_by INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(message_type, message_id)
+)`);
+  await client.execute('CREATE INDEX IF NOT EXISTS idx_pinned_messages_msg ON pinned_messages(message_type, message_id)');
+
+  // MK ULTRA perk: read receipts for DMs. One row per (thread, user) --
+  // last_read_message_id is the highest message id that user has seen in
+  // that thread. Only meaningful/shown when at least one side has ULTRA
+  // (checked at query time, not enforced here).
+  await client.execute(`
+CREATE TABLE IF NOT EXISTS dm_read_state (
+  thread_id INTEGER NOT NULL REFERENCES dm_threads(id) ON DELETE CASCADE,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  last_read_message_id INTEGER NOT NULL DEFAULT 0,
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (thread_id, user_id)
+)`);
 }
 
 export default db;

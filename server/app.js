@@ -108,6 +108,7 @@ async function loadMessageRow(id) {
   const row = await db.prepare(`
     SELECT msg.id, msg.content, msg.image_url as imageUrl, msg.created_at as createdAt,
            u.id as userId, u.username, u.avatar_color as avatarColor, u.avatar_url as avatarUrl,
+           u.is_ultra as isUltra, u.name_color as nameColor,
            msg.reply_to_id as replyToId,
            ru.username as replyToUsername, rm.content as replyToContent
     FROM messages msg
@@ -116,31 +117,33 @@ async function loadMessageRow(id) {
     LEFT JOIN users ru ON ru.id = rm.user_id
     WHERE msg.id = ?
   `).get(id);
-  return row ? { ...row, likeCount: 0, likedByMe: false } : row;
+  return row ? { ...row, isUltra: !!row.isUltra, nameColor: row.isUltra ? row.nameColor : null, likeCount: 0, likedByMe: false } : row;
 }
 
 async function loadServerMessageRow(id) {
   const row = await db.prepare(`
     SELECT msg.id, msg.content, msg.image_url as imageUrl, msg.created_at as createdAt,
            msg.channel_id as channelId,
-           u.id as userId, u.username, u.avatar_color as avatarColor, u.avatar_url as avatarUrl
+           u.id as userId, u.username, u.avatar_color as avatarColor, u.avatar_url as avatarUrl,
+           u.is_ultra as isUltra, u.name_color as nameColor
     FROM server_messages msg
     JOIN users u ON u.id = msg.user_id
     WHERE msg.id = ?
   `).get(id);
-  return row ? { ...row, likeCount: 0, likedByMe: false } : row;
+  return row ? { ...row, isUltra: !!row.isUltra, nameColor: row.isUltra ? row.nameColor : null, likeCount: 0, likedByMe: false } : row;
 }
 
 async function loadGroupMessageRow(id) {
   const row = await db.prepare(`
     SELECT msg.id, msg.content, msg.image_url as imageUrl, msg.created_at as createdAt,
            msg.group_chat_id as groupId,
-           u.id as userId, u.username, u.avatar_color as avatarColor, u.avatar_url as avatarUrl
+           u.id as userId, u.username, u.avatar_color as avatarColor, u.avatar_url as avatarUrl,
+           u.is_ultra as isUltra, u.name_color as nameColor
     FROM group_messages msg
     JOIN users u ON u.id = msg.user_id
     WHERE msg.id = ?
   `).get(id);
-  return row ? { ...row, likeCount: 0, likedByMe: false } : row;
+  return row ? { ...row, isUltra: !!row.isUltra, nameColor: row.isUltra ? row.nameColor : null, likeCount: 0, likedByMe: false } : row;
 }
 
 // MK ULTRA perk: liking a message. `messageType` disambiguates ids across
@@ -301,7 +304,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  // MK ULTRA perk: liking a message. Toggles the current user's like on/off
+  // MK PREMIUM perk: liking a message. Toggles the current user's like on/off
   // and broadcasts the new total count to everyone in the room; only the
   // liker's own client needs to know whether *they* liked it (returned via
   // the ack), so that part isn't broadcast.
@@ -310,8 +313,8 @@ io.on('connection', (socket) => {
       const cfg = LIKE_TABLES[messageType];
       if (!cfg) return ack?.({ error: 'Invalid message type' });
 
-      const userRow = await db.prepare('SELECT is_ultra FROM users WHERE id = ?').get(userId);
-      if (!userRow?.is_ultra) return ack?.({ error: 'MK ULTRA required' });
+      const userRow = await db.prepare('SELECT is_premium, is_ultra FROM users WHERE id = ?').get(userId);
+      if (!userRow?.is_premium && !userRow?.is_ultra) return ack?.({ error: 'MK PREMIUM required' });
 
       const msgRow = await db.prepare(`SELECT id FROM ${cfg.table} WHERE id = ?`).get(messageId);
       if (!msgRow) return ack?.({ error: 'Message not found' });
@@ -431,23 +434,23 @@ io.on('connection', (socket) => {
 // messages wiped once last_reset_at is more than 24h old, then
 // last_reset_at is bumped so the cycle repeats. This is not an opt-in
 // toggle -- it applies to every free-tier thread unconditionally (the old
-// `auto_reset_24h` per-thread flag is no longer consulted). Having MK PLUS
-// or MK ULTRA on either side of a conversation makes that chat permanent
-// (ULTRA includes every PLUS perk on top of its own). Runs on an interval
-// rather than per-message so it works even for threads nobody is actively
-// viewing.
+// `auto_reset_24h` per-thread flag is no longer consulted). Having MK PLUS,
+// PREMIUM, or ULTRA on either side of a conversation makes that chat
+// permanent (each tier includes every lower tier's perks). Runs on an
+// interval rather than per-message so it works even for threads nobody is
+// actively viewing.
 const AUTO_RESET_SWEEP_MS = 5 * 60 * 1000; // check every 5 minutes
 const AUTO_RESET_WINDOW = "24 hours";
 
 async function sweepAutoResetThreads() {
   try {
-    // MK PLUS/ULTRA perk: chats with a PLUS or ULTRA participant never auto-delete.
+    // MK PLUS/PREMIUM/ULTRA perk: chats with a paid participant never auto-delete.
     const due = await db.prepare(`
       SELECT dm.id FROM dm_threads dm
       JOIN users ua ON ua.id = dm.user_a_id
       JOIN users ub ON ub.id = dm.user_b_id
-      WHERE ua.is_plus = 0 AND ua.is_ultra = 0
-        AND ub.is_plus = 0 AND ub.is_ultra = 0
+      WHERE ua.is_plus = 0 AND ua.is_premium = 0 AND ua.is_ultra = 0
+        AND ub.is_plus = 0 AND ub.is_premium = 0 AND ub.is_ultra = 0
         AND (
           dm.last_reset_at IS NULL
           OR datetime(dm.last_reset_at, '+${AUTO_RESET_WINDOW}') <= datetime('now')
@@ -464,10 +467,11 @@ async function sweepAutoResetThreads() {
 }
 
 // Same mandatory 24h rule for free-tier Mini Chats -- permanent as soon as
-// any single member has MK PLUS or MK ULTRA, otherwise wiped on the same
-// cycle as DMs. (MK ULTRA's own perk description calls this out
+// any single member has MK PLUS, PREMIUM, or ULTRA, otherwise wiped on the
+// same cycle as DMs. (MK PREMIUM's own perk description calls this out
 // specifically for Mini Chats, but it's really just PLUS's permanent-chat
-// perk, which ULTRA also carries since ULTRA is a superset of PLUS.)
+// perk, which PREMIUM and ULTRA also carry since each tier is a superset
+// of the one below it.)
 async function sweepAutoResetGroups() {
   try {
     const due = await db.prepare(`
@@ -475,7 +479,7 @@ async function sweepAutoResetGroups() {
       WHERE NOT EXISTS (
         SELECT 1 FROM group_chat_members gm
         JOIN users u ON u.id = gm.user_id
-        WHERE gm.group_chat_id = g.id AND (u.is_plus = 1 OR u.is_ultra = 1)
+        WHERE gm.group_chat_id = g.id AND (u.is_plus = 1 OR u.is_premium = 1 OR u.is_ultra = 1)
       )
       AND (
         g.last_reset_at IS NULL

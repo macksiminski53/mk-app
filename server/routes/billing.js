@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { db } from '../db.js';
 import { requireAuth } from '../auth.js';
 import { emitProfileChanged, emitMegaChatReady } from '../events.js';
-import { sendPlusPurchaseEmail, sendUltraPurchaseEmail, sendMegaChatPurchaseEmail } from '../email.js';
+import { sendPlusPurchaseEmail, sendPremiumPurchaseEmail, sendUltraPurchaseEmail, sendMegaChatPurchaseEmail } from '../email.js';
 
 // Two ways to configure the MK PLUS checkout, in order of preference:
 //  1. STRIPE_PAYMENT_LINK -- a Stripe-hosted Payment Link (buy.stripe.com/...).
@@ -16,12 +16,16 @@ import { sendPlusPurchaseEmail, sendUltraPurchaseEmail, sendMegaChatPurchaseEmai
 // processed but unsigned, which is fine for local testing but must not ship
 // live.
 //
-// MK PLUS ($1) is the original MK ULTRA tier, renamed -- same perks
-// (permanent chats, GIF avatars, a custom accent color, a badge). MK ULTRA
-// is now a separate, pricier ($5) tier layered on top: everything PLUS
-// gets, plus free Mega Chat creation, permanent Mini Chats whenever an
-// ULTRA member is present, an emoji picker, and the ability to like
-// messages. The $5 ULTRA checkout always goes through a dynamically-created
+// Three tiers, each a superset of the one below it:
+//  - MK PLUS ($1): permanent chats, GIF avatars, a custom accent color, a badge.
+//  - MK PREMIUM ($2.50): everything PLUS has, plus free Mega Chat creation,
+//    permanent Mini Chats/DMs whenever a PREMIUM+ member is present, an
+//    emoji picker, and the ability to like messages. (This is what MK
+//    ULTRA used to grant before the second split.)
+//  - MK ULTRA ($5): everything PREMIUM has, plus a custom name color, an
+//    avatar border, a profile banner, message pinning, read receipts, a
+//    raised Mini Chat member cap, and a personal custom emoji.
+// PREMIUM and ULTRA checkouts always go through a dynamically-created
 // Checkout Session (STRIPE_SECRET_KEY), same as Mega Chats, since
 // STRIPE_PAYMENT_LINK is a fixed price tied to the $1 PLUS tier.
 const stripeSecret = process.env.STRIPE_SECRET_KEY;
@@ -102,9 +106,45 @@ router.post('/checkout', requireAuth, asyncHandler(async (req, res) => {
   res.json({ url: session.url });
 }));
 
-// Kick off a $5 one-time MK ULTRA purchase -- the new, pricier tier layered
-// on top of MK PLUS. Always a dynamic Checkout Session (no static Payment
-// Link support for this tier, since PLUS already owns STRIPE_PAYMENT_LINK).
+// Kick off a $2.50 one-time MK PREMIUM purchase -- sits between PLUS and
+// ULTRA. Always a dynamic Checkout Session (no static Payment Link support
+// for this tier, since PLUS already owns STRIPE_PAYMENT_LINK).
+router.post('/premium-checkout', requireAuth, asyncHandler(async (req, res) => {
+  if (!stripeSecret) return res.status(503).json({ error: 'Payments are not configured yet' });
+
+  const stripe = await getStripe();
+  const origin = process.env.CLIENT_ORIGIN || 'http://localhost:5173';
+  const session = await stripe.checkout.sessions.create({
+    mode: 'payment',
+    payment_method_types: ['card'],
+    line_items: [
+      {
+        price_data: {
+          currency: 'usd',
+          product_data: {
+            name: 'MK PREMIUM',
+            description: 'Everything in MK PLUS, plus free Mega Chats, permanent Mini Chats, emoji reactions, and message likes.',
+          },
+          unit_amount: 250, // $2.50
+        },
+        quantity: 1,
+      },
+    ],
+    success_url: `${origin}?premium=success`,
+    cancel_url: `${origin}?premium=cancelled`,
+    client_reference_id: String(req.user.id),
+    metadata: { userId: String(req.user.id), type: 'premium' },
+  });
+
+  await db.prepare(
+    'INSERT INTO ultra_purchases (user_id, stripe_session_id, status, tier) VALUES (?, ?, ?, ?)'
+  ).run(req.user.id, session.id, 'pending', 'premium');
+
+  res.json({ url: session.url });
+}));
+
+// Kick off a $5 one-time MK ULTRA purchase -- the top tier, layered on top
+// of MK PREMIUM. Always a dynamic Checkout Session.
 router.post('/ultra-checkout', requireAuth, asyncHandler(async (req, res) => {
   if (!stripeSecret) return res.status(503).json({ error: 'Payments are not configured yet' });
 
@@ -119,7 +159,7 @@ router.post('/ultra-checkout', requireAuth, asyncHandler(async (req, res) => {
           currency: 'usd',
           product_data: {
             name: 'MK ULTRA',
-            description: 'Everything in MK PLUS, plus free Mega Chats, permanent Mini Chats, emoji reactions, and message likes.',
+            description: 'Everything in MK PREMIUM, plus a custom name color, avatar border, profile banner, message pinning, read receipts, and a personal custom emoji.',
           },
           unit_amount: 500, // $5.00
         },
@@ -140,25 +180,24 @@ router.post('/ultra-checkout', requireAuth, asyncHandler(async (req, res) => {
 }));
 
 // Kick off a Mega Chat (paid Discord-style server) purchase -- $1, or free
-// for MK ULTRA members (one of ULTRA's perks). PLUS members still pay full
-// price; the old 50c PLUS/ULTRA discount was replaced by ULTRA getting Mega
-// Chats free outright. Paid creation needs STRIPE_SECRET_KEY (a static
-// Payment Link can't vary its price per-user), so it always uses a
-// dynamically-created Checkout Session rather than falling back to
+// for MK PREMIUM+ members (one of PREMIUM's perks, inherited by ULTRA).
+// PLUS members still pay full price. Paid creation needs STRIPE_SECRET_KEY
+// (a static Payment Link can't vary its price per-user), so it always uses
+// a dynamically-created Checkout Session rather than falling back to
 // STRIPE_PAYMENT_LINK like the MK PLUS /checkout route above does. The
 // server itself isn't created until the webhook below confirms payment --
 // until then we only remember the requested name in mega_chat_purchases.
-// For ULTRA members there's no payment step at all, so the server is
+// For PREMIUM+ members there's no payment step at all, so the server is
 // created immediately, same as a free Mini Chat.
 router.post('/mega-chat-checkout', requireAuth, asyncHandler(async (req, res) => {
   const { name } = req.body;
   const clean = typeof name === 'string' ? name.trim().slice(0, 60) : '';
   if (!clean) return res.status(400).json({ error: 'Server name is required' });
 
-  const row = await db.prepare('SELECT is_ultra FROM users WHERE id = ?').get(req.user.id);
-  const isUltra = !!row?.is_ultra;
+  const row = await db.prepare('SELECT is_premium, is_ultra FROM users WHERE id = ?').get(req.user.id);
+  const isFree = !!(row?.is_premium || row?.is_ultra);
 
-  if (isUltra) {
+  if (isFree) {
     const serverInfo = await db.prepare(
       'INSERT INTO servers (name, owner_id, icon_color) VALUES (?, ?, ?)'
     ).run(clean, req.user.id, randomServerColor());
@@ -216,9 +255,10 @@ router.post('/mega-chat-checkout', requireAuth, asyncHandler(async (req, res) =>
 }));
 
 router.get('/status', requireAuth, asyncHandler(async (req, res) => {
-  const row = await db.prepare('SELECT is_plus, is_ultra, ultra_color FROM users WHERE id = ?').get(req.user.id);
+  const row = await db.prepare('SELECT is_plus, is_premium, is_ultra, ultra_color FROM users WHERE id = ?').get(req.user.id);
   res.json({
-    isPlus: !!(row?.is_plus || row?.is_ultra),
+    isPlus: !!(row?.is_plus || row?.is_premium || row?.is_ultra),
+    isPremium: !!(row?.is_premium || row?.is_ultra),
     isUltra: !!row?.is_ultra,
     ultraColor: row?.ultra_color || null,
     configured: checkoutConfigured,
@@ -226,14 +266,27 @@ router.get('/status', requireAuth, asyncHandler(async (req, res) => {
 }));
 
 router.patch('/ultra-color', requireAuth, asyncHandler(async (req, res) => {
-  const row = await db.prepare('SELECT is_plus, is_ultra FROM users WHERE id = ?').get(req.user.id);
-  if (!row?.is_plus && !row?.is_ultra) return res.status(403).json({ error: 'MK PLUS required' });
+  const row = await db.prepare('SELECT is_plus, is_premium, is_ultra FROM users WHERE id = ?').get(req.user.id);
+  if (!row?.is_plus && !row?.is_premium && !row?.is_ultra) return res.status(403).json({ error: 'MK PLUS required' });
 
   const { color } = req.body;
   const clean = typeof color === 'string' && /^#[0-9a-fA-F]{6}$/.test(color) ? color : null;
   await db.prepare('UPDATE users SET ultra_color = ? WHERE id = ?').run(clean, req.user.id);
   emitProfileChanged(req.user.id);
   res.json({ ultraColor: clean });
+}));
+
+// MK ULTRA perk: a custom name color shown next to the username in chat
+// (distinct from the shared accent-color perk above).
+router.patch('/name-color', requireAuth, asyncHandler(async (req, res) => {
+  const row = await db.prepare('SELECT is_ultra FROM users WHERE id = ?').get(req.user.id);
+  if (!row?.is_ultra) return res.status(403).json({ error: 'MK ULTRA required' });
+
+  const { color } = req.body;
+  const clean = typeof color === 'string' && /^#[0-9a-fA-F]{6}$/.test(color) ? color : null;
+  await db.prepare('UPDATE users SET name_color = ? WHERE id = ?').run(clean, req.user.id);
+  emitProfileChanged(req.user.id);
+  res.json({ nameColor: clean });
 }));
 
 export default router;
@@ -311,6 +364,11 @@ export async function handleStripeWebhook(req, res) {
       await db.prepare('UPDATE users SET is_ultra = 1 WHERE id = ?').run(userId);
       emitProfileChanged(userId);
       sendUltraPurchaseEmail(buyerEmail).catch((err) => console.error('sendUltraPurchaseEmail error:', err));
+    } else if (userId && purchaseType === 'premium') {
+      await db.prepare("UPDATE ultra_purchases SET status = 'completed' WHERE stripe_session_id = ?").run(session.id);
+      await db.prepare('UPDATE users SET is_premium = 1 WHERE id = ?').run(userId);
+      emitProfileChanged(userId);
+      sendPremiumPurchaseEmail(buyerEmail).catch((err) => console.error('sendPremiumPurchaseEmail error:', err));
     } else if (userId) {
       // MK PLUS ($1) -- the default/legacy checkout path, including the
       // static Payment Link flow which has no `type` metadata at all.

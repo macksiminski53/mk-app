@@ -508,6 +508,12 @@ export default function App() {
     else throw new Error('No checkout URL returned');
   }
 
+  async function handleBuyPremium() {
+    const res = await api.createPremiumCheckout(token);
+    if (res.url) window.location.href = res.url;
+    else throw new Error('No checkout URL returned');
+  }
+
   async function handleBuyUltra() {
     const res = await api.createUltraCheckout(token);
     if (res.url) window.location.href = res.url;
@@ -517,7 +523,7 @@ export default function App() {
   async function handleCreateMegaChat(name) {
     const res = await api.createMegaChatCheckout(token, name);
     if (res.free && res.server) {
-      // MK ULTRA perk: free Mega Chat creation, no Stripe redirect -- the
+      // MK PREMIUM/ULTRA perk: free Mega Chat creation, no Stripe redirect -- the
       // server already exists, so just add it locally the same way the
       // megachat:ready socket event would for the paid flow.
       setServers((prev) => (prev.find((s) => s.id === res.server.id) ? prev : [...prev, res.server]));
@@ -555,6 +561,15 @@ export default function App() {
     const res = await api.setUltraColor(token, color);
     setUser((prev) => {
       const updated = { ...prev, ultraColor: res.ultraColor };
+      localStorage.setItem('user', JSON.stringify(updated));
+      return updated;
+    });
+  }
+
+  async function handleSetNameColor(color) {
+    const res = await api.setNameColor(token, color);
+    setUser((prev) => {
+      const updated = { ...prev, nameColor: res.nameColor };
       localStorage.setItem('user', JSON.stringify(updated));
       return updated;
     });
@@ -749,8 +764,10 @@ export default function App() {
         onUploadRingtone={handleUploadRingtone}
         onResetRingtone={handleResetRingtone}
         onBuyPlus={handleBuyPlus}
+        onBuyPremium={handleBuyPremium}
         onBuyUltra={handleBuyUltra}
         onSetUltraColor={handleSetUltraColor}
+        onSetNameColor={handleSetNameColor}
         onRevealToken={handleRevealToken}
         onRegenerateToken={handleRegenerateToken}
         billingConfigured={billingConfigured}
@@ -784,8 +801,7 @@ export default function App() {
           activeServerId={activeServerId}
           onSelectHome={() => setActiveServerId(null)}
           onSelectServer={(id) => setActiveServerId(id)}
-          isUltra={!!user.isUltra}
-          isPlus={!!user.isPlus}
+          isPremium={!!user.isPremium}
           onCreate={handleCreateMegaChat}
           createTrigger={megaChatCreateTrigger}
         />

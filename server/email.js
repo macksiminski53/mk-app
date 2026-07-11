@@ -67,6 +67,25 @@ export function sendPlusPurchaseEmail(to) {
   });
 }
 
+export function sendPremiumPurchaseEmail(to) {
+  return sendEmail({
+    to,
+    subject: 'You\'ve got MK PREMIUM!',
+    text: [
+      'Thanks for buying MK PREMIUM!',
+      '',
+      'On top of everything MK PLUS includes, your account now also has:',
+      '- Free Mega Chat creation, no charge',
+      '- Permanent Mini Chats/DMs whenever you\'re a member',
+      '- An emoji picker in the message box',
+      '- The ability to like messages',
+      '- A PREMIUM badge next to your name',
+      '',
+      'Open MK to see it in action.',
+    ].join('\n'),
+  });
+}
+
 export function sendUltraPurchaseEmail(to) {
   return sendEmail({
     to,
@@ -74,11 +93,14 @@ export function sendUltraPurchaseEmail(to) {
     text: [
       'Thanks for buying MK ULTRA!',
       '',
-      'On top of everything MK PLUS includes, your account now also has:',
-      '- Free Mega Chat creation, no charge',
-      '- Permanent Mini Chats whenever you\'re a member',
-      '- An emoji picker in the message box',
-      '- The ability to like messages',
+      'On top of everything MK PREMIUM includes, your account now also has:',
+      '- A custom name color in chat',
+      '- An avatar border',
+      '- A profile banner image',
+      '- Message pinning',
+      '- Read receipts',
+      '- A raised Mini Chat member cap',
+      '- A personal custom emoji',
       '- An ULTRA badge next to your name',
       '',
       'Open MK to see it in action.',

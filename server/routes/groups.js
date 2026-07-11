@@ -5,6 +5,7 @@ import { requireAuth } from '../auth.js';
 import { emitGroupAvatarChanged } from '../events.js';
 
 const MAX_MEMBERS = 15;
+const MAX_MEMBERS_ULTRA = 30; // MK ULTRA perk: a raised cap for Mini Chats the ULTRA member created
 
 // Same in-memory + base64-in-DB pattern as user avatars in auth.js -- Render
 // has no persistent disk, so this is what survives a redeploy.
@@ -30,13 +31,13 @@ async function isMember(groupId, userId) {
 
 async function loadMembers(groupId) {
   const rows = await db.prepare(`
-    SELECT u.id, u.username, u.avatar_color as avatarColor, u.avatar_url as avatarUrl, u.is_plus as isPlus, u.is_ultra as isUltra
+    SELECT u.id, u.username, u.avatar_color as avatarColor, u.avatar_url as avatarUrl, u.is_plus as isPlus, u.is_premium as isPremium, u.is_ultra as isUltra, u.name_color as nameColor
     FROM group_chat_members gm
     JOIN users u ON u.id = gm.user_id
     WHERE gm.group_chat_id = ?
     ORDER BY u.username COLLATE NOCASE ASC
   `).all(groupId);
-  return rows.map((r) => ({ ...r, isPlus: !!(r.isPlus || r.isUltra), isUltra: !!r.isUltra }));
+  return rows.map((r) => ({ ...r, isPlus: !!(r.isPlus || r.isPremium || r.isUltra), isPremium: !!(r.isPremium || r.isUltra), isUltra: !!r.isUltra, nameColor: r.isUltra ? r.nameColor : null }));
 }
 
 // Every Mini Chat the current user is in, each with its full member list so
@@ -89,9 +90,17 @@ router.post('/:id/members', asyncHandler(async (req, res) => {
   const clean = typeof username === 'string' ? username.trim() : '';
   if (!clean) return res.status(400).json({ error: 'Username is required' });
 
+  // MK ULTRA perk: a Mini Chat created by an ULTRA member gets a raised
+  // member cap.
+  const group = await db.prepare('SELECT created_by FROM group_chats WHERE id = ?').get(groupId);
+  const creatorRow = group?.created_by
+    ? await db.prepare('SELECT is_ultra FROM users WHERE id = ?').get(group.created_by)
+    : null;
+  const cap = creatorRow?.is_ultra ? MAX_MEMBERS_ULTRA : MAX_MEMBERS;
+
   const countRow = await db.prepare('SELECT COUNT(*) as c FROM group_chat_members WHERE group_chat_id = ?').get(groupId);
-  if (Number(countRow.c) >= MAX_MEMBERS) {
-    return res.status(400).json({ error: `Mini Chats are capped at ${MAX_MEMBERS} members` });
+  if (Number(countRow.c) >= cap) {
+    return res.status(400).json({ error: `Mini Chats are capped at ${cap} members` });
   }
 
   const target = await db.prepare('SELECT id, username FROM users WHERE username = ?').get(clean);
@@ -155,6 +164,7 @@ router.get('/:id/messages', asyncHandler(async (req, res) => {
   const rows = await db.prepare(`
     SELECT msg.id, msg.content, msg.image_url as imageUrl, msg.created_at as createdAt,
            u.id as userId, u.username, u.avatar_color as avatarColor, u.avatar_url as avatarUrl,
+           u.is_ultra as isUltra, u.name_color as nameColor,
            (SELECT COUNT(*) FROM message_likes ml WHERE ml.message_type = 'mini' AND ml.message_id = msg.id) as likeCount,
            EXISTS(SELECT 1 FROM message_likes ml WHERE ml.message_type = 'mini' AND ml.message_id = msg.id AND ml.user_id = ?) as likedByMe
     FROM group_messages msg
@@ -163,7 +173,7 @@ router.get('/:id/messages', asyncHandler(async (req, res) => {
     ORDER BY msg.id DESC
     LIMIT ?
   `).all(req.user.id, groupId, limit);
-  res.json(rows.reverse().map((r) => ({ ...r, likedByMe: !!r.likedByMe })));
+  res.json(rows.reverse().map((r) => ({ ...r, isUltra: !!r.isUltra, nameColor: r.isUltra ? r.nameColor : null, likedByMe: !!r.likedByMe })));
 }));
 
 export default router;

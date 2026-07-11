@@ -210,7 +210,8 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
         <span className="chat-header-name">
           {friend.username}
           {friend.isUltra && <span className="ultra-badge" title="MK ULTRA">ULTRA</span>}
-          {!friend.isUltra && friend.isPlus && <span className="plus-badge" title="MK PLUS">PLUS</span>}
+          {!friend.isUltra && friend.isPremium && <span className="premium-badge" title="MK PREMIUM">PREMIUM</span>}
+          {!friend.isUltra && !friend.isPremium && friend.isPlus && <span className="plus-badge" title="MK PLUS">PLUS</span>}
         </span>
         <div className="dropdown-wrap chat-settings-wrap">
           <span
@@ -281,12 +282,12 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
           return (
             <div key={m.id} className={`message-row ${isOwn ? 'own' : 'friend'}`}>
               {(!isBubble || !isOwn) && (
-                <Avatar username={m.username} avatarColor={m.avatarColor} avatarUrl={m.avatarUrl} size={isBubble ? 32 : 40} />
+                <Avatar username={m.username} avatarColor={m.avatarColor} avatarUrl={m.avatarUrl} size={isBubble ? 32 : 40} ultraBorder={m.isUltra} />
               )}
               <div className="message-body">
                 {(!isBubble || !isOwn) && (
                   <div className="message-header">
-                    <span className="message-author">{m.username}</span>
+                    <span className="message-author" style={m.nameColor ? { color: m.nameColor } : undefined}>{m.username}</span>
                     <span className="message-time">{formatTime(m.createdAt)}</span>
                   </div>
                 )}
@@ -339,7 +340,7 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
                   <LikeButton
                     likeCount={m.likeCount}
                     likedByMe={m.likedByMe}
-                    canLike={!!currentUser?.isUltra}
+                    canLike={!!currentUser?.isPremium}
                     onToggle={() => toggleLike(m.id)}
                   />
                 </div>
@@ -394,7 +395,7 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
           style={{ display: 'none' }}
           onChange={handleFileSelect}
         />
-        {currentUser?.isUltra && (
+        {currentUser?.isPremium && (
           <EmojiPicker onSelect={(emoji) => setDraft((prev) => prev + emoji)} />
         )}
         <input

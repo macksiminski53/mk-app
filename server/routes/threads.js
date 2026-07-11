@@ -105,6 +105,7 @@ router.get('/:threadId/messages', asyncHandler(async (req, res) => {
   const rows = await db.prepare(`
     SELECT msg.id, msg.content, msg.image_url as imageUrl, msg.created_at as createdAt,
            u.id as userId, u.username, u.avatar_color as avatarColor, u.avatar_url as avatarUrl,
+           u.is_ultra as isUltra, u.name_color as nameColor,
            msg.reply_to_id as replyToId,
            ru.username as replyToUsername, rm.content as replyToContent,
            (SELECT COUNT(*) FROM message_likes ml WHERE ml.message_type = 'dm' AND ml.message_id = msg.id) as likeCount,
@@ -117,7 +118,7 @@ router.get('/:threadId/messages', asyncHandler(async (req, res) => {
     ORDER BY msg.id DESC
     LIMIT ?
   `).all(req.user.id, threadId, limit);
-  res.json(rows.reverse().map((r) => ({ ...r, likedByMe: !!r.likedByMe })));
+  res.json(rows.reverse().map((r) => ({ ...r, isUltra: !!r.isUltra, nameColor: r.isUltra ? r.nameColor : null, likedByMe: !!r.likedByMe })));
 }));
 
 // upload an image or mp3 to attach to a message you're about to send

@@ -130,7 +130,12 @@ export default function MiniChatView({ group, token, currentUser, onLeft }) {
   }
 
   const displayName = groupDisplayName({ ...group, members }, currentUser.id);
-  const atCap = members.length >= 15;
+  // MK ULTRA perk: a Mini Chat created by an ULTRA member gets a raised
+  // member cap (30 instead of 15) -- derived from the creator's isUltra
+  // flag, which is already present on each member row.
+  const creatorMember = members.find((m) => m.id === group.createdBy);
+  const maxMembers = creatorMember?.isUltra ? 30 : 15;
+  const atCap = members.length >= maxMembers;
   const isCreator = group.createdBy === currentUser.id;
 
   return (
@@ -155,7 +160,7 @@ export default function MiniChatView({ group, token, currentUser, onLeft }) {
         )}
         <span className="minichat-header-name">{displayName}</span>
         <span className="megachat-footer-btn" onClick={() => setShowMembers((v) => !v)}>
-          {showMembers ? 'Hide Members' : `Members (${members.length}/15)`}
+          {showMembers ? 'Hide Members' : `Members (${members.length}/${maxMembers})`}
         </span>
         <span className="megachat-footer-btn megachat-danger" onClick={handleLeave}>Leave</span>
       </div>
@@ -174,7 +179,7 @@ export default function MiniChatView({ group, token, currentUser, onLeft }) {
             <input
               value={addUsername}
               onChange={(e) => setAddUsername(e.target.value)}
-              placeholder={atCap ? 'Mini Chat is full (15/15)' : 'Add member by username'}
+              placeholder={atCap ? `Mini Chat is full (${maxMembers}/${maxMembers})` : 'Add member by username'}
               maxLength={40}
               disabled={atCap}
             />
@@ -184,11 +189,12 @@ export default function MiniChatView({ group, token, currentUser, onLeft }) {
           <div className="megachat-members-list">
             {members.map((m) => (
               <div key={m.id} className="megachat-member-row">
-                <Avatar username={m.username} avatarColor={m.avatarColor} avatarUrl={m.avatarUrl} size={32} />
+                <Avatar username={m.username} avatarColor={m.avatarColor} avatarUrl={m.avatarUrl} size={32} ultraBorder={m.isUltra} />
                 <span className="megachat-member-name">
                   {m.username}
                   {m.isUltra && <span className="ultra-badge" title="MK ULTRA">ULTRA</span>}
-                  {!m.isUltra && m.isPlus && <span className="plus-badge" title="MK PLUS">PLUS</span>}
+                  {!m.isUltra && m.isPremium && <span className="premium-badge" title="MK PREMIUM">PREMIUM</span>}
+                  {!m.isUltra && !m.isPremium && m.isPlus && <span className="plus-badge" title="MK PLUS">PLUS</span>}
                 </span>
               </div>
             ))}
@@ -199,17 +205,17 @@ export default function MiniChatView({ group, token, currentUser, onLeft }) {
           <div className="megachat-message-list">
             {messages.map((m) => (
               <div key={m.id} className="megachat-message-row">
-                <Avatar username={m.username} avatarColor={m.avatarColor} avatarUrl={m.avatarUrl} size={36} />
+                <Avatar username={m.username} avatarColor={m.avatarColor} avatarUrl={m.avatarUrl} size={36} ultraBorder={m.isUltra} />
                 <div className="megachat-message-body">
                   <div className="megachat-message-meta">
-                    <span className="megachat-message-username">{m.username}</span>
+                    <span className="megachat-message-username" style={m.nameColor ? { color: m.nameColor } : undefined}>{m.username}</span>
                     <span className="megachat-message-time">{formatTime(m.createdAt)}</span>
                   </div>
                   <div className="megachat-message-content">{m.content}</div>
                   <LikeButton
                     likeCount={m.likeCount}
                     likedByMe={m.likedByMe}
-                    canLike={!!currentUser?.isUltra}
+                    canLike={!!currentUser?.isPremium}
                     onToggle={() => toggleLike(m.id)}
                   />
                 </div>
@@ -218,7 +224,7 @@ export default function MiniChatView({ group, token, currentUser, onLeft }) {
             <div ref={messagesEndRef} />
           </div>
           <form className="megachat-input-row" onSubmit={handleSend}>
-            {currentUser?.isUltra && (
+            {currentUser?.isPremium && (
               <EmojiPicker onSelect={(emoji) => setInput((prev) => prev + emoji)} />
             )}
             <input

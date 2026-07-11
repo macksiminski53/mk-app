@@ -103,8 +103,12 @@ router.post('/register', asyncHandler(async (req, res) => {
       ringtoneOutgoingUrl: null,
       ringtoneIncomingUrl: null,
       isPlus: false,
+      isPremium: false,
       isUltra: false,
       ultraColor: null,
+      nameColor: null,
+      bannerUrl: null,
+      customEmojiUrl: null,
     },
   });
 }));
@@ -128,9 +132,13 @@ router.post('/login', asyncHandler(async (req, res) => {
       bio: row.bio,
       ringtoneOutgoingUrl: row.ringtone_outgoing_url,
       ringtoneIncomingUrl: row.ringtone_incoming_url,
-      isPlus: !!(row.is_plus || row.is_ultra),
+      isPlus: !!(row.is_plus || row.is_premium || row.is_ultra),
+      isPremium: !!(row.is_premium || row.is_ultra),
       isUltra: !!row.is_ultra,
       ultraColor: row.ultra_color,
+      nameColor: row.name_color,
+      bannerUrl: row.banner_url,
+      customEmojiUrl: row.custom_emoji_url,
     },
   });
 }));
@@ -158,9 +166,13 @@ router.post('/login-token', asyncHandler(async (req, res) => {
       bio: row.bio,
       ringtoneOutgoingUrl: row.ringtone_outgoing_url,
       ringtoneIncomingUrl: row.ringtone_incoming_url,
-      isPlus: !!(row.is_plus || row.is_ultra),
+      isPlus: !!(row.is_plus || row.is_premium || row.is_ultra),
+      isPremium: !!(row.is_premium || row.is_ultra),
       isUltra: !!row.is_ultra,
       ultraColor: row.ultra_color,
+      nameColor: row.name_color,
+      bannerUrl: row.banner_url,
+      customEmojiUrl: row.custom_emoji_url,
     },
   });
 }));
@@ -179,9 +191,13 @@ router.get('/me', requireAuth, asyncHandler(async (req, res) => {
     createdAt: row.created_at,
     ringtoneOutgoingUrl: row.ringtone_outgoing_url,
     ringtoneIncomingUrl: row.ringtone_incoming_url,
-    isPlus: !!(row.is_plus || row.is_ultra),
+    isPlus: !!(row.is_plus || row.is_premium || row.is_ultra),
+    isPremium: !!(row.is_premium || row.is_ultra),
     isUltra: !!row.is_ultra,
     ultraColor: row.ultra_color,
+    nameColor: row.name_color,
+    bannerUrl: row.banner_url,
+    customEmojiUrl: row.custom_emoji_url,
   });
 }));
 
