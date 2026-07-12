@@ -100,6 +100,7 @@ router.post('/register', authRateLimit, asyncHandler(async (req, res) => {
     user: {
       id: user.id,
       username,
+      displayName: null,
       avatarColor: color,
       avatarUrl: null,
       statusText: null,
@@ -130,6 +131,7 @@ router.post('/login', authRateLimit, asyncHandler(async (req, res) => {
     user: {
       id: row.id,
       username: row.username,
+      displayName: row.display_name,
       avatarColor: row.avatar_color,
       avatarUrl: row.avatar_url,
       statusText: row.status_text,
@@ -164,6 +166,7 @@ router.post('/login-token', authRateLimit, asyncHandler(async (req, res) => {
     user: {
       id: row.id,
       username: row.username,
+      displayName: row.display_name,
       avatarColor: row.avatar_color,
       avatarUrl: row.avatar_url,
       statusText: row.status_text,
@@ -188,6 +191,7 @@ router.get('/me', requireAuth, asyncHandler(async (req, res) => {
   res.json({
     id: row.id,
     username: row.username,
+    displayName: row.display_name,
     avatarColor: row.avatar_color,
     avatarUrl: row.avatar_url,
     statusText: row.status_text,
@@ -277,6 +281,19 @@ router.delete('/custom-emoji', requireAuth, asyncHandler(async (req, res) => {
   await db.prepare('UPDATE users SET custom_emoji_url = NULL WHERE id = ?').run(req.user.id);
   emitProfileChanged(req.user.id);
   res.json({ ok: true });
+}));
+
+// A free, optional display name shown throughout the UI in place of the
+// username. Sending an empty string clears it (falls back to showing the
+// username again) -- the client also does this via a "Reset" button rather
+// than requiring the user to select-all-delete the input.
+router.patch('/display-name', requireAuth, asyncHandler(async (req, res) => {
+  const { displayName } = req.body;
+  const trimmed = typeof displayName === 'string' ? displayName.trim().slice(0, 32) : '';
+  const clean = trimmed ? trimmed : null;
+  await db.prepare('UPDATE users SET display_name = ? WHERE id = ?').run(clean, req.user.id);
+  emitProfileChanged(req.user.id);
+  res.json({ displayName: clean });
 }));
 
 router.patch('/status', requireAuth, asyncHandler(async (req, res) => {

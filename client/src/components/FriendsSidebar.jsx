@@ -81,7 +81,7 @@ export default function FriendsSidebar({
             onClick={() => setShowEditProfile(true)}
             title="Edit profile"
           >
-            <Avatar username={currentUser.username} avatarColor={currentUser.avatarColor} avatarUrl={currentUser.avatarUrl} size={44} ultraBorder={currentUser.isUltra} />
+            <Avatar username={currentUser.displayName || currentUser.username} avatarColor={currentUser.avatarColor} avatarUrl={currentUser.avatarUrl} size={44} ultraBorder={currentUser.isUltra} />
             <div className="pfp-overlay">Edit</div>
           </div>
           <input
@@ -93,7 +93,7 @@ export default function FriendsSidebar({
           />
           <div className="activity-info">
             <div className="activity-username" onClick={() => setShowProfileCard(true)} title="View profile">
-              {currentUser.username}
+              {currentUser.displayName || currentUser.username}
               {currentUser.isUltra && <span className="ultra-badge" title="MK ULTRA">ULTRA</span>}
               {!currentUser.isUltra && currentUser.isPremium && <span className="premium-badge" title="MK PREMIUM">PREMIUM</span>}
               {!currentUser.isUltra && !currentUser.isPremium && currentUser.isPlus && <span className="plus-badge" title="MK PLUS">PLUS</span>}
@@ -170,13 +170,13 @@ export default function FriendsSidebar({
             <div
               className="friend-avatar-wrap"
               onClick={(e) => { e.stopPropagation(); setViewingFriend(f); }}
-              title={`View ${f.username}'s profile`}
+              title={`View ${f.displayName || f.username}'s profile`}
             >
-              <Avatar username={f.username} avatarColor={f.avatarColor} avatarUrl={f.avatarUrl} size={40} online={f.online} ultraBorder={f.isUltra} />
+              <Avatar username={f.displayName || f.username} avatarColor={f.avatarColor} avatarUrl={f.avatarUrl} size={40} online={f.online} ultraBorder={f.isUltra} />
             </div>
             <div className="friend-info">
               <span className="friend-name" style={f.nameColor ? { color: f.nameColor } : undefined}>
-                {f.username}
+                {f.displayName || f.username}
                 {f.isUltra && <span className="ultra-badge" title="MK ULTRA">ULTRA</span>}
                 {!f.isUltra && f.isPremium && <span className="premium-badge" title="MK PREMIUM">PREMIUM</span>}
                 {!f.isUltra && !f.isPremium && f.isPlus && <span className="plus-badge" title="MK PLUS">PLUS</span>}
@@ -230,7 +230,7 @@ export default function FriendsSidebar({
                   title="Change profile picture"
                 >
                   <Avatar
-                    username={currentUser.username}
+                    username={currentUser.displayName || currentUser.username}
                     avatarColor={currentUser.avatarColor}
                     avatarUrl={currentUser.avatarUrl}
                     size={72}

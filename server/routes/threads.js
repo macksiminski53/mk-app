@@ -104,7 +104,7 @@ router.get('/:threadId/messages', asyncHandler(async (req, res) => {
   const limit = Math.min(parseInt(req.query.limit) || 50, 200);
   const rows = await db.prepare(`
     SELECT msg.id, msg.content, msg.image_url as imageUrl, msg.created_at as createdAt,
-           u.id as userId, u.username, u.avatar_color as avatarColor, u.avatar_url as avatarUrl,
+           u.id as userId, u.username, u.display_name as displayName, u.avatar_color as avatarColor, u.avatar_url as avatarUrl,
            u.is_ultra as isUltra, u.name_color as nameColor, u.custom_emoji_url as customEmojiUrl,
            msg.reply_to_id as replyToId,
            ru.username as replyToUsername, rm.content as replyToContent,
@@ -134,7 +134,7 @@ router.get('/:threadId/pinned', asyncHandler(async (req, res) => {
   }
   const rows = await db.prepare(`
     SELECT msg.id, msg.content, msg.image_url as imageUrl, msg.created_at as createdAt,
-           u.username, pm.pinned_by as pinnedBy, pu.username as pinnedByUsername, pm.created_at as pinnedAt
+           u.username, u.display_name as displayName, pm.pinned_by as pinnedBy, pu.username as pinnedByUsername, pm.created_at as pinnedAt
     FROM pinned_messages pm
     JOIN messages msg ON msg.id = pm.message_id
     JOIN users u ON u.id = msg.user_id

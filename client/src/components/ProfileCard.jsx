@@ -126,12 +126,12 @@ export default function ProfileCard({ user, isOwn, token, viewerIsPlus, onClose,
 
         <div className="profile-card-body">
           <div className="profile-card-avatar-wrap">
-            <Avatar username={user.username} avatarColor={user.avatarColor} avatarUrl={user.avatarUrl} size={72} className="profile-card-avatar" ultraBorder={user.isUltra} />
+            <Avatar username={user.displayName || user.username} avatarColor={user.avatarColor} avatarUrl={user.avatarUrl} size={72} className="profile-card-avatar" ultraBorder={user.isUltra} />
             <span className="profile-card-status-dot" style={{ background: isOwn || user.online ? '#3ba55d' : '#747f8d' }} />
           </div>
 
           <div className="profile-card-name" style={user.nameColor ? { color: user.nameColor } : undefined}>
-            {user.username}
+            {user.displayName || user.username}
             {user.isUltra && <span className="ultra-badge" title="MK ULTRA">ULTRA</span>}
             {!user.isUltra && user.isPremium && <span className="premium-badge" title="MK PREMIUM">PREMIUM</span>}
             {!user.isUltra && !user.isPremium && user.isPlus && <span className="plus-badge" title="MK PLUS">PLUS</span>}
@@ -251,7 +251,7 @@ export default function ProfileCard({ user, isOwn, token, viewerIsPlus, onClose,
                   </div>
                   <div className="profile-friend-settings-status">
                     You: {deleteVotes.myVote ? 'Yes' : 'No vote'}<br />
-                    {user.username}: {deleteVotes.otherVote ? 'Yes' : 'No vote'}
+                    {user.displayName || user.username}: {deleteVotes.otherVote ? 'Yes' : 'No vote'}
                   </div>
                   {deleteVotes.myVote ? (
                     <button type="button" className="secondary" onClick={() => castDeleteVote(false)}>Cancel my vote</button>

@@ -107,7 +107,7 @@ events.on('group:avatar-changed', ({ memberIds, groupId, avatarUrl }) => {
 async function loadMessageRow(id) {
   const row = await db.prepare(`
     SELECT msg.id, msg.content, msg.image_url as imageUrl, msg.created_at as createdAt,
-           u.id as userId, u.username, u.avatar_color as avatarColor, u.avatar_url as avatarUrl,
+           u.id as userId, u.username, u.display_name as displayName, u.avatar_color as avatarColor, u.avatar_url as avatarUrl,
            u.is_ultra as isUltra, u.name_color as nameColor, u.custom_emoji_url as customEmojiUrl,
            msg.reply_to_id as replyToId,
            ru.username as replyToUsername, rm.content as replyToContent
@@ -124,7 +124,7 @@ async function loadServerMessageRow(id) {
   const row = await db.prepare(`
     SELECT msg.id, msg.content, msg.image_url as imageUrl, msg.created_at as createdAt,
            msg.channel_id as channelId,
-           u.id as userId, u.username, u.avatar_color as avatarColor, u.avatar_url as avatarUrl,
+           u.id as userId, u.username, u.display_name as displayName, u.avatar_color as avatarColor, u.avatar_url as avatarUrl,
            u.is_ultra as isUltra, u.name_color as nameColor, u.custom_emoji_url as customEmojiUrl
     FROM server_messages msg
     JOIN users u ON u.id = msg.user_id
@@ -137,7 +137,7 @@ async function loadGroupMessageRow(id) {
   const row = await db.prepare(`
     SELECT msg.id, msg.content, msg.image_url as imageUrl, msg.created_at as createdAt,
            msg.group_chat_id as groupId,
-           u.id as userId, u.username, u.avatar_color as avatarColor, u.avatar_url as avatarUrl,
+           u.id as userId, u.username, u.display_name as displayName, u.avatar_color as avatarColor, u.avatar_url as avatarUrl,
            u.is_ultra as isUltra, u.name_color as nameColor, u.custom_emoji_url as customEmojiUrl
     FROM group_messages msg
     JOIN users u ON u.id = msg.user_id

@@ -267,7 +267,7 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
     <div className={`chat-area layout-${isBubble ? 'bubble' : 'flat'}`}>
       <div className="chat-header">
         <span className="chat-header-name">
-          {friend.username}
+          {friend.displayName || friend.username}
           {friend.isUltra && <span className="ultra-badge" title="MK ULTRA">ULTRA</span>}
           {!friend.isUltra && friend.isPremium && <span className="premium-badge" title="MK PREMIUM">PREMIUM</span>}
           {!friend.isUltra && !friend.isPremium && friend.isPlus && <span className="plus-badge" title="MK PLUS">PLUS</span>}
@@ -309,7 +309,7 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
                   </div>
                   <div className="delete-chat-panel-status">
                     You: {deleteVotes.myVote ? 'Yes' : 'No vote'}<br />
-                    {friend.username}: {deleteVotes.otherVote ? 'Yes' : 'No vote'}
+                    {friend.displayName || friend.username}: {deleteVotes.otherVote ? 'Yes' : 'No vote'}
                   </div>
                   {deleteVotes.myVote ? (
                     <button className="secondary" onClick={() => castDeleteVote(false)}>Cancel my vote</button>
@@ -332,7 +332,7 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
           className="call-header-btn call-header-btn-right"
           onClick={() => onStartCall(friend)}
           disabled={callActive}
-          title={callActive ? 'Already on a call' : `Call ${friend.username}`}
+          title={callActive ? 'Already on a call' : `Call ${friend.displayName || friend.username}`}
         >
           <PhoneIcon size={16} />
         </button>
@@ -347,12 +347,12 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
           return (
             <div key={m.id} className={`message-row ${isOwn ? 'own' : 'friend'}`}>
               {(!isBubble || !isOwn) && (
-                <Avatar username={m.username} avatarColor={m.avatarColor} avatarUrl={m.avatarUrl} size={isBubble ? 32 : 40} ultraBorder={m.isUltra} />
+                <Avatar username={m.displayName || m.username} avatarColor={m.avatarColor} avatarUrl={m.avatarUrl} size={isBubble ? 32 : 40} ultraBorder={m.isUltra} />
               )}
               <div className="message-body">
                 {(!isBubble || !isOwn) && (
                   <div className="message-header">
-                    <span className="message-author" style={m.nameColor ? { color: m.nameColor } : undefined}>{m.username}</span>
+                    <span className="message-author" style={m.nameColor ? { color: m.nameColor } : undefined}>{m.displayName || m.username}</span>
                     <span className="message-time">{formatTime(m.createdAt)}</span>
                     {m.pinned && <span className="pinned-tag" title={m.pinnedByUsername ? `Pinned by ${m.pinnedByUsername}` : 'Pinned'}><PinIcon size={10} /> Pinned</span>}
                   </div>
@@ -421,7 +421,7 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
       </div>
 
       <div className="typing-indicator">
-        {typing && t('isTyping', friend.username)}
+        {typing && t('isTyping', friend.displayName || friend.username)}
       </div>
 
       {replyTo && (
@@ -478,7 +478,7 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
         <input
           value={draft}
           onChange={handleChange}
-          placeholder={t('messagePlaceholder', friend.username)}
+          placeholder={t('messagePlaceholder', friend.displayName || friend.username)}
         />
         <button type="submit" disabled={uploading}>{uploading ? t('sending') : t('send')}</button>
       </form>

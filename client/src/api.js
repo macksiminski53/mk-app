@@ -40,6 +40,7 @@ export const api = {
   removeCustomEmoji: (token) => request('/auth/custom-emoji', { method: 'DELETE', token }),
   setStatus: (token, statusText) => request('/auth/status', { method: 'PATCH', body: { statusText }, token }),
   setBio: (token, bio) => request('/auth/bio', { method: 'PATCH', body: { bio }, token }),
+  setDisplayName: (token, displayName) => request('/auth/display-name', { method: 'PATCH', body: { displayName }, token }),
   uploadRingtone: (token, type, file) => {
     const form = new FormData();
     form.append('type', type);

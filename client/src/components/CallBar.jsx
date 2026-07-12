@@ -71,9 +71,9 @@ export default function CallBar({ call, onAccept, onDecline, onCancel, onHangUp,
         {ringtones}
         <div className="call-overlay call-overlay-ringing">
           <div className="call-overlay-avatar-wrap call-overlay-pulse">
-            <Avatar username={call.fromUsername} avatarColor={call.fromAvatarColor} avatarUrl={call.fromAvatarUrl} size={88} />
+            <Avatar username={call.fromDisplayName || call.fromUsername} avatarColor={call.fromAvatarColor} avatarUrl={call.fromAvatarUrl} size={88} />
           </div>
-          <div className="call-overlay-name">{call.fromUsername}</div>
+          <div className="call-overlay-name">{call.fromDisplayName || call.fromUsername}</div>
           <div className="call-overlay-sub call-overlay-sub-ringing">Incoming call…</div>
           <div className="call-overlay-actions">
             <button className="call-overlay-btn call-overlay-btn-decline" onClick={onDecline} title="Decline">
@@ -94,9 +94,9 @@ export default function CallBar({ call, onAccept, onDecline, onCancel, onHangUp,
         {ringtones}
         <div className="call-overlay call-overlay-ringing">
           <div className="call-overlay-avatar-wrap call-overlay-pulse">
-            <Avatar username={call.friend.username} avatarColor={call.friend.avatarColor} avatarUrl={call.friend.avatarUrl} size={88} />
+            <Avatar username={call.friend.displayName || call.friend.username} avatarColor={call.friend.avatarColor} avatarUrl={call.friend.avatarUrl} size={88} />
           </div>
-          <div className="call-overlay-name">{call.friend.username}</div>
+          <div className="call-overlay-name">{call.friend.displayName || call.friend.username}</div>
           <div className="call-overlay-sub call-overlay-sub-ringing">Calling…</div>
           <div className="call-overlay-actions">
             <button className="call-overlay-btn call-overlay-btn-decline" onClick={onCancel} title="Cancel">
@@ -120,7 +120,7 @@ export default function CallBar({ call, onAccept, onDecline, onCancel, onHangUp,
               <video ref={remoteVideoRef} autoPlay playsInline className="call-video-remote" />
             ) : (
               <div className="call-video-remote call-video-remote-placeholder">
-                <Avatar username={call.friend.username} avatarColor={call.friend.avatarColor} avatarUrl={call.friend.avatarUrl} size={72} />
+                <Avatar username={call.friend.displayName || call.friend.username} avatarColor={call.friend.avatarColor} avatarUrl={call.friend.avatarUrl} size={72} />
               </div>
             )}
             {cameraOn && (
@@ -130,11 +130,11 @@ export default function CallBar({ call, onAccept, onDecline, onCancel, onHangUp,
         )}
         {!showVideo && (
           <div className="call-overlay-avatar-wrap">
-            <Avatar username={call.friend.username} avatarColor={call.friend.avatarColor} avatarUrl={call.friend.avatarUrl} size={72} />
+            <Avatar username={call.friend.displayName || call.friend.username} avatarColor={call.friend.avatarColor} avatarUrl={call.friend.avatarUrl} size={72} />
             <span className="call-overlay-live-dot" />
           </div>
         )}
-        <div className="call-overlay-name">{call.friend.username}</div>
+        <div className="call-overlay-name">{call.friend.displayName || call.friend.username}</div>
         <div className="call-overlay-sub">{formatDuration(elapsed)}</div>
         <div className="call-overlay-actions">
           <button

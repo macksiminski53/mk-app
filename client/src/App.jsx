@@ -278,6 +278,7 @@ export default function App() {
           status: 'incoming',
           fromUserId,
           fromUsername,
+          fromDisplayName: fromFriend?.displayName,
           fromAvatarColor: fromFriend?.avatarColor,
           fromAvatarUrl: fromFriend?.avatarUrl,
         };
@@ -486,6 +487,15 @@ export default function App() {
     const res = await api.setBio(token, bio);
     setUser((prev) => {
       const updated = { ...prev, bio: res.bio };
+      localStorage.setItem('user', JSON.stringify(updated));
+      return updated;
+    });
+  }
+
+  async function handleSetDisplayName(displayName) {
+    const res = await api.setDisplayName(token, displayName);
+    setUser((prev) => {
+      const updated = { ...prev, displayName: res.displayName };
       localStorage.setItem('user', JSON.stringify(updated));
       return updated;
     });
@@ -795,6 +805,7 @@ export default function App() {
         onBuyUltra={handleBuyUltra}
         onSetUltraColor={handleSetUltraColor}
         onSetNameColor={handleSetNameColor}
+        onSetDisplayName={handleSetDisplayName}
         onUploadCustomEmoji={handleUploadCustomEmoji}
         onRemoveCustomEmoji={handleRemoveCustomEmoji}
         onRevealToken={handleRevealToken}

@@ -204,6 +204,16 @@ CREATE TABLE IF NOT EXISTS messages (
     if (!/duplicate column/i.test(e.message || '')) throw e;
   }
 
+  // A free, optional display name shown throughout the UI instead of the
+  // account's username. The username itself never changes (it's still what
+  // you log in with and how friends find/add you) -- this is purely a
+  // cosmetic override for how your name is *shown* to others.
+  try {
+    await client.execute('ALTER TABLE users ADD COLUMN display_name TEXT');
+  } catch (e) {
+    if (!/duplicate column/i.test(e.message || '')) throw e;
+  }
+
   // Distinguishes a status set by the MusicToDiscord reporter script
   // ('music') from any other write to status_text ('manual'/NULL). The
   // "Playing" card UI only renders for source='music', so a hand-typed

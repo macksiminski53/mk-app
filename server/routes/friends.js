@@ -34,8 +34,8 @@ async function friendshipStatus(meId, otherId) {
 router.get('/', asyncHandler(async (req, res) => {
   const meId = req.user.id;
   const rows = await db.prepare(`
-    SELECT fr.*, u1.username as fromUsername, u1.avatar_color as fromColor, u1.avatar_url as fromUrl, u1.status_text as fromStatus, u1.status_source as fromStatusSource, u1.bio as fromBio, u1.created_at as fromCreatedAt, u1.is_plus as fromPlus, u1.is_premium as fromPremium, u1.is_ultra as fromUltra, u1.name_color as fromNameColor, u1.banner_url as fromBannerUrl,
-           u2.username as toUsername, u2.avatar_color as toColor, u2.avatar_url as toUrl, u2.status_text as toStatus, u2.status_source as toStatusSource, u2.bio as toBio, u2.created_at as toCreatedAt, u2.is_plus as toPlus, u2.is_premium as toPremium, u2.is_ultra as toUltra, u2.name_color as toNameColor, u2.banner_url as toBannerUrl
+    SELECT fr.*, u1.username as fromUsername, u1.display_name as fromDisplayName, u1.avatar_color as fromColor, u1.avatar_url as fromUrl, u1.status_text as fromStatus, u1.status_source as fromStatusSource, u1.bio as fromBio, u1.created_at as fromCreatedAt, u1.is_plus as fromPlus, u1.is_premium as fromPremium, u1.is_ultra as fromUltra, u1.name_color as fromNameColor, u1.banner_url as fromBannerUrl,
+           u2.username as toUsername, u2.display_name as toDisplayName, u2.avatar_color as toColor, u2.avatar_url as toUrl, u2.status_text as toStatus, u2.status_source as toStatusSource, u2.bio as toBio, u2.created_at as toCreatedAt, u2.is_plus as toPlus, u2.is_premium as toPremium, u2.is_ultra as toUltra, u2.name_color as toNameColor, u2.banner_url as toBannerUrl
     FROM friend_requests fr
     JOIN users u1 ON u1.id = fr.from_id
     JOIN users u2 ON u2.id = fr.to_id
@@ -46,6 +46,7 @@ router.get('/', asyncHandler(async (req, res) => {
   for (const r of rows) {
     const otherId = r.from_id === meId ? r.to_id : r.from_id;
     const otherUsername = r.from_id === meId ? r.toUsername : r.fromUsername;
+    const otherDisplayName = r.from_id === meId ? r.toDisplayName : r.fromDisplayName;
     const otherColor = r.from_id === meId ? r.toColor : r.fromColor;
     const otherUrl = r.from_id === meId ? r.toUrl : r.fromUrl;
     const otherStatus = r.from_id === meId ? r.toStatus : r.fromStatus;
@@ -61,6 +62,7 @@ router.get('/', asyncHandler(async (req, res) => {
     friends.push({
       id: otherId,
       username: otherUsername,
+      displayName: otherDisplayName,
       avatarColor: otherColor,
       avatarUrl: otherUrl,
       statusText: otherStatus,
@@ -81,7 +83,7 @@ router.get('/', asyncHandler(async (req, res) => {
 
 router.get('/requests', asyncHandler(async (req, res) => {
   const rows = await db.prepare(`
-    SELECT fr.id, fr.created_at as createdAt, u.id as fromId, u.username as fromUsername
+    SELECT fr.id, fr.created_at as createdAt, u.id as fromId, u.username as fromUsername, u.display_name as fromDisplayName
     FROM friend_requests fr
     JOIN users u ON u.id = fr.from_id
     WHERE fr.to_id = ? AND fr.status = 'pending'

@@ -23,7 +23,7 @@ export default function PinnedPanel({ pinned, onUnpin, onClose, cap = 10 }) {
             {pinned.map((m) => (
               <div key={m.id} className="pinned-panel-item">
                 <div className="pinned-panel-item-meta">
-                  <span className="pinned-panel-item-author">{m.username}</span>
+                  <span className="pinned-panel-item-author">{m.displayName || m.username}</span>
                   <span className="pinned-panel-item-time">{formatPinnedTime(m.createdAt)}</span>
                 </div>
                 <div className="pinned-panel-item-content">
