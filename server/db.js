@@ -495,6 +495,34 @@ CREATE TABLE IF NOT EXISTS message_reactions (
       if (!/duplicate column/i.test(e.message || '')) throw e;
     }
   }
+
+  // Default profile picture: instead of a colored circle + initials, every
+  // account gets a random everyday-object illustration (see
+  // client/src/components/ObjectAvatars.jsx -- the ids below must match its
+  // OBJECT_AVATARS keys exactly, since only the id string is ever stored/
+  // sent here, not image data). Added after the fact via ALTER TABLE like
+  // the other post-hoc columns above, so every existing row starts out
+  // NULL -- the UPDATE right after backfills those in one pass, and is
+  // cheap to re-run on every boot since it only ever touches NULL rows.
+  try {
+    await client.execute('ALTER TABLE users ADD COLUMN avatar_icon TEXT');
+  } catch (e) {
+    if (!/duplicate column/i.test(e.message || '')) throw e;
+  }
+  await client.execute(`
+UPDATE users SET avatar_icon = CASE ABS(RANDOM()) % 10
+  WHEN 0 THEN 'coffee'
+  WHEN 1 THEN 'plant'
+  WHEN 2 THEN 'book'
+  WHEN 3 THEN 'camera'
+  WHEN 4 THEN 'headphones'
+  WHEN 5 THEN 'bulb'
+  WHEN 6 THEN 'rocket'
+  WHEN 7 THEN 'cactus'
+  WHEN 8 THEN 'umbrella'
+  ELSE 'vinyl'
+END
+WHERE avatar_icon IS NULL`);
 }
 
 export default db;

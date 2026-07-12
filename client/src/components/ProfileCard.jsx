@@ -134,7 +134,7 @@ export default function ProfileCard({ user, isOwn, token, viewerIsPlus, onClose,
 
         <div className="profile-card-body">
           <div className="profile-card-avatar-wrap">
-            <Avatar username={user.displayName || user.username} avatarColor={user.avatarColor} avatarUrl={user.avatarUrl} size={72} className="profile-card-avatar" ultraBorder={user.isUltra} />
+            <Avatar username={user.displayName || user.username} avatarColor={user.avatarColor} avatarIcon={user.avatarIcon} avatarUrl={user.avatarUrl} size={72} className="profile-card-avatar" ultraBorder={user.isUltra} />
             <span className="profile-card-status-dot" style={{ background: isOwn || user.online ? '#3ba55d' : '#747f8d' }} />
           </div>
 

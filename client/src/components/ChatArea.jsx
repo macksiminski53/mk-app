@@ -457,7 +457,7 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
           return (
             <div key={m.id} className={`message-row ${isOwn ? 'own' : 'friend'}`} onContextMenu={(e) => openContextMenu(e, m)}>
               {(!isBubble || !isOwn) && (
-                <Avatar username={m.displayName || m.username} avatarColor={m.avatarColor} avatarUrl={m.avatarUrl} size={isBubble ? 32 : 40} ultraBorder={m.isUltra} />
+                <Avatar username={m.displayName || m.username} avatarColor={m.avatarColor} avatarIcon={m.avatarIcon} avatarUrl={m.avatarUrl} size={isBubble ? 32 : 40} ultraBorder={m.isUltra} />
               )}
               <div className="message-body">
                 {(!isBubble || !isOwn) && (

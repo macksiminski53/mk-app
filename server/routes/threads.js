@@ -105,7 +105,7 @@ router.get('/:threadId/messages', asyncHandler(async (req, res) => {
   const limit = Math.min(parseInt(req.query.limit) || 50, 200);
   const rows = await db.prepare(`
     SELECT msg.id, msg.content, msg.image_url as imageUrl, msg.created_at as createdAt, msg.edited_at as editedAt,
-           u.id as userId, u.username, u.display_name as displayName, u.avatar_color as avatarColor, u.avatar_url as avatarUrl,
+           u.id as userId, u.username, u.display_name as displayName, u.avatar_color as avatarColor, u.avatar_icon as avatarIcon, u.avatar_url as avatarUrl,
            u.is_ultra as isUltra, u.name_color as nameColor, u.custom_emoji_url as customEmojiUrl,
            msg.reply_to_id as replyToId,
            ru.username as replyToUsername, rm.content as replyToContent,

@@ -1037,6 +1037,15 @@ body {
   object-fit: cover;
 }
 
+/* Default "object" avatars (see ObjectAvatars.jsx) are raw inline <svg>s,
+   not <img> tags, so they need their own fill rule to match avatar-img's
+   edge-to-edge sizing instead of shrinking to the SVG's intrinsic size. */
+.avatar > svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
 .avatar.small { width: 28px; height: 28px; font-size: 12px; }
 
 .avatar-online {

@@ -45,6 +45,15 @@ function randomColor() {
   return COLORS[Math.floor(Math.random() * COLORS.length)];
 }
 
+// Default profile picture assigned at registration -- ids must match
+// client/src/components/ObjectAvatars.jsx's OBJECT_AVATARS keys exactly
+// (and db.js's initSchema() backfill CASE for pre-existing accounts), since
+// only this id string is ever stored/sent, never image data.
+const OBJECT_AVATARS = ['coffee', 'plant', 'book', 'camera', 'headphones', 'bulb', 'rocket', 'cactus', 'umbrella', 'vinyl'];
+function randomObjectAvatar() {
+  return OBJECT_AVATARS[Math.floor(Math.random() * OBJECT_AVATARS.length)];
+}
+
 // Avatars are kept in memory (not written to disk) and stored as a base64
 // data URI directly in the users.avatar_url column. Render's free tier has
 // no persistent disk, so anything written to server/uploads/ disappears on
@@ -88,10 +97,11 @@ router.post('/register', authRateLimit, asyncHandler(async (req, res) => {
 
   const hash = await bcrypt.hash(password, 10);
   const color = randomColor();
+  const icon = randomObjectAvatar();
   const accountToken = await createUniqueAccountToken();
   const info = await db.prepare(
-    'INSERT INTO users (username, password_hash, avatar_color, account_token) VALUES (?, ?, ?, ?)'
-  ).run(username, hash, color, accountToken);
+    'INSERT INTO users (username, password_hash, avatar_color, avatar_icon, account_token) VALUES (?, ?, ?, ?, ?)'
+  ).run(username, hash, color, icon, accountToken);
 
   const user = { id: info.lastInsertRowid, username };
   const token = signToken(user);
@@ -102,6 +112,7 @@ router.post('/register', authRateLimit, asyncHandler(async (req, res) => {
       username,
       displayName: null,
       avatarColor: color,
+      avatarIcon: icon,
       avatarUrl: null,
       statusText: null,
       statusSource: null,
@@ -134,6 +145,7 @@ router.post('/login', authRateLimit, asyncHandler(async (req, res) => {
       username: row.username,
       displayName: row.display_name,
       avatarColor: row.avatar_color,
+      avatarIcon: row.avatar_icon,
       avatarUrl: row.avatar_url,
       statusText: row.status_text,
       statusSource: row.status_source,
@@ -170,6 +182,7 @@ router.post('/login-token', authRateLimit, asyncHandler(async (req, res) => {
       username: row.username,
       displayName: row.display_name,
       avatarColor: row.avatar_color,
+      avatarIcon: row.avatar_icon,
       avatarUrl: row.avatar_url,
       statusText: row.status_text,
       statusSource: row.status_source,
@@ -196,6 +209,7 @@ router.get('/me', requireAuth, asyncHandler(async (req, res) => {
     username: row.username,
     displayName: row.display_name,
     avatarColor: row.avatar_color,
+    avatarIcon: row.avatar_icon,
     avatarUrl: row.avatar_url,
     statusText: row.status_text,
     statusSource: row.status_source,

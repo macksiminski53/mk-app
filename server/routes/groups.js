@@ -32,7 +32,7 @@ async function isMember(groupId, userId) {
 
 async function loadMembers(groupId) {
   const rows = await db.prepare(`
-    SELECT u.id, u.username, u.display_name as displayName, u.avatar_color as avatarColor, u.avatar_url as avatarUrl, u.is_plus as isPlus, u.is_premium as isPremium, u.is_ultra as isUltra, u.is_admin as isAdmin, u.name_color as nameColor
+    SELECT u.id, u.username, u.display_name as displayName, u.avatar_color as avatarColor, u.avatar_icon as avatarIcon, u.avatar_url as avatarUrl, u.is_plus as isPlus, u.is_premium as isPremium, u.is_ultra as isUltra, u.is_admin as isAdmin, u.name_color as nameColor
     FROM group_chat_members gm
     JOIN users u ON u.id = gm.user_id
     WHERE gm.group_chat_id = ?
@@ -164,7 +164,7 @@ router.get('/:id/messages', asyncHandler(async (req, res) => {
   const limit = Math.min(parseInt(req.query.limit) || 50, 200);
   const rows = await db.prepare(`
     SELECT msg.id, msg.content, msg.image_url as imageUrl, msg.created_at as createdAt, msg.edited_at as editedAt,
-           u.id as userId, u.username, u.display_name as displayName, u.avatar_color as avatarColor, u.avatar_url as avatarUrl,
+           u.id as userId, u.username, u.display_name as displayName, u.avatar_color as avatarColor, u.avatar_icon as avatarIcon, u.avatar_url as avatarUrl,
            u.is_ultra as isUltra, u.name_color as nameColor, u.custom_emoji_url as customEmojiUrl,
            (SELECT COUNT(*) FROM message_likes ml WHERE ml.message_type = 'mini' AND ml.message_id = msg.id) as likeCount,
            EXISTS(SELECT 1 FROM message_likes ml WHERE ml.message_type = 'mini' AND ml.message_id = msg.id AND ml.user_id = ?) as likedByMe,

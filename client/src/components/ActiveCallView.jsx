@@ -45,7 +45,7 @@ export default function ActiveCallView({ call, muted, cameraOn, screenSharing, r
               <video ref={remoteVideoRef} autoPlay playsInline className="active-call-video-remote" />
             ) : (
               <div className="active-call-video-remote active-call-video-placeholder">
-                <Avatar username={name} avatarColor={call.friend.avatarColor} avatarUrl={call.friend.avatarUrl} size={96} />
+                <Avatar username={name} avatarColor={call.friend.avatarColor} avatarIcon={call.friend.avatarIcon} avatarUrl={call.friend.avatarUrl} size={96} />
                 <span className="active-call-placeholder-name">{name}</span>
               </div>
             )}
@@ -62,7 +62,7 @@ export default function ActiveCallView({ call, muted, cameraOn, screenSharing, r
         ) : (
           <div className="active-call-avatar-wrap">
             <div className="active-call-avatar-pulse">
-              <Avatar username={name} avatarColor={call.friend.avatarColor} avatarUrl={call.friend.avatarUrl} size={128} />
+              <Avatar username={name} avatarColor={call.friend.avatarColor} avatarIcon={call.friend.avatarIcon} avatarUrl={call.friend.avatarUrl} size={128} />
             </div>
             <div className="active-call-name">{name}</div>
             <div className="active-call-sub">Voice Connected</div>

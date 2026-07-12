@@ -17,7 +17,7 @@ const MESSAGE_TABLES = { dm: 'messages', mega: 'server_messages', mini: 'group_m
 // -- this is an operator tool for a small app, not a consumer-facing list.
 router.get('/users', asyncHandler(async (req, res) => {
   const rows = await db.prepare(`
-    SELECT id, username, display_name as displayName, avatar_color as avatarColor, avatar_url as avatarUrl,
+    SELECT id, username, display_name as displayName, avatar_color as avatarColor, avatar_icon as avatarIcon, avatar_url as avatarUrl,
            is_plus as isPlus, is_premium as isPremium, is_ultra as isUltra, is_admin as isAdmin,
            created_at as createdAt
     FROM users

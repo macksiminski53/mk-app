@@ -290,6 +290,7 @@ export default function App() {
           fromUsername,
           fromDisplayName: fromFriend?.displayName,
           fromAvatarColor: fromFriend?.avatarColor,
+          fromAvatarIcon: fromFriend?.avatarIcon,
           fromAvatarUrl: fromFriend?.avatarUrl,
         };
       });
@@ -690,7 +691,7 @@ export default function App() {
 
   async function handleAcceptCall() {
     if (!call || call.status !== 'incoming') return;
-    const { fromUserId, fromUsername, fromAvatarColor, fromAvatarUrl } = call;
+    const { fromUserId, fromUsername, fromAvatarColor, fromAvatarIcon, fromAvatarUrl } = call;
     try {
       localStreamRef.current = await getMicStream(settings.micDeviceId);
     } catch (err) {
@@ -706,6 +707,7 @@ export default function App() {
       id: fromUserId,
       username: fromUsername,
       avatarColor: fromAvatarColor,
+      avatarIcon: fromAvatarIcon,
       avatarUrl: fromAvatarUrl,
     };
     setCall({ status: 'active', friend, startedAt: Date.now() });

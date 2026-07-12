@@ -81,7 +81,7 @@ export default function FriendsSidebar({
             onClick={() => setShowEditProfile(true)}
             title="Edit profile"
           >
-            <Avatar username={currentUser.displayName || currentUser.username} avatarColor={currentUser.avatarColor} avatarUrl={currentUser.avatarUrl} size={44} ultraBorder={currentUser.isUltra} />
+            <Avatar username={currentUser.displayName || currentUser.username} avatarColor={currentUser.avatarColor} avatarIcon={currentUser.avatarIcon} avatarUrl={currentUser.avatarUrl} size={44} ultraBorder={currentUser.isUltra} />
             <div className="pfp-overlay">Edit</div>
           </div>
           <input
@@ -173,7 +173,7 @@ export default function FriendsSidebar({
               onClick={(e) => { e.stopPropagation(); setViewingFriend(f); }}
               title={`View ${f.displayName || f.username}'s profile`}
             >
-              <Avatar username={f.displayName || f.username} avatarColor={f.avatarColor} avatarUrl={f.avatarUrl} size={40} online={f.online} ultraBorder={f.isUltra} />
+              <Avatar username={f.displayName || f.username} avatarColor={f.avatarColor} avatarIcon={f.avatarIcon} avatarUrl={f.avatarUrl} size={40} online={f.online} ultraBorder={f.isUltra} />
             </div>
             <div className="friend-info">
               <span className="friend-name" style={f.nameColor ? { color: f.nameColor } : undefined}>
@@ -235,6 +235,7 @@ export default function FriendsSidebar({
                   <Avatar
                     username={currentUser.displayName || currentUser.username}
                     avatarColor={currentUser.avatarColor}
+                    avatarIcon={currentUser.avatarIcon}
                     avatarUrl={currentUser.avatarUrl}
                     size={72}
                   />

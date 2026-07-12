@@ -56,7 +56,7 @@ export default function CallBar({ call, onAccept, onDecline, onCancel, ringtoneO
         {ringtones}
         <div className="call-overlay call-overlay-ringing">
           <div className="call-overlay-avatar-wrap call-overlay-pulse">
-            <Avatar username={call.fromDisplayName || call.fromUsername} avatarColor={call.fromAvatarColor} avatarUrl={call.fromAvatarUrl} size={88} />
+            <Avatar username={call.fromDisplayName || call.fromUsername} avatarColor={call.fromAvatarColor} avatarIcon={call.fromAvatarIcon} avatarUrl={call.fromAvatarUrl} size={88} />
           </div>
           <div className="call-overlay-name">{call.fromDisplayName || call.fromUsername}</div>
           <div className="call-overlay-sub call-overlay-sub-ringing">Incoming call…</div>
@@ -79,7 +79,7 @@ export default function CallBar({ call, onAccept, onDecline, onCancel, ringtoneO
         {ringtones}
         <div className="call-overlay call-overlay-ringing">
           <div className="call-overlay-avatar-wrap call-overlay-pulse">
-            <Avatar username={call.friend.displayName || call.friend.username} avatarColor={call.friend.avatarColor} avatarUrl={call.friend.avatarUrl} size={88} />
+            <Avatar username={call.friend.displayName || call.friend.username} avatarColor={call.friend.avatarColor} avatarIcon={call.friend.avatarIcon} avatarUrl={call.friend.avatarUrl} size={88} />
           </div>
           <div className="call-overlay-name">{call.friend.displayName || call.friend.username}</div>
           <div className="call-overlay-sub call-overlay-sub-ringing">Calling…</div>

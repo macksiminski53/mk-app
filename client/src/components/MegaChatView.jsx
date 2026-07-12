@@ -365,7 +365,7 @@ export default function MegaChatView({ server, token, currentUser, onLeftOrDelet
             <div className="megachat-members-list">
               {(detail?.members || []).map((m) => (
                 <div key={m.id} className="megachat-member-row">
-                  <Avatar username={m.displayName || m.username} avatarColor={m.avatarColor} avatarUrl={m.avatarUrl} size={32} ultraBorder={m.isUltra} />
+                  <Avatar username={m.displayName || m.username} avatarColor={m.avatarColor} avatarIcon={m.avatarIcon} avatarUrl={m.avatarUrl} size={32} ultraBorder={m.isUltra} />
                   <span className="megachat-member-name">
                     {m.displayName || m.username}
                     {m.id === detail.ownerId && <span className="ultra-badge" title="Owner">OWNER</span>}
@@ -386,7 +386,7 @@ export default function MegaChatView({ server, token, currentUser, onLeftOrDelet
             <div className="megachat-message-list">
               {messages.map((m) => (
                 <div key={m.id} className="megachat-message-row" onContextMenu={(e) => openContextMenu(e, m)}>
-                  <Avatar username={m.displayName || m.username} avatarColor={m.avatarColor} avatarUrl={m.avatarUrl} size={36} ultraBorder={m.isUltra} />
+                  <Avatar username={m.displayName || m.username} avatarColor={m.avatarColor} avatarIcon={m.avatarIcon} avatarUrl={m.avatarUrl} size={36} ultraBorder={m.isUltra} />
                   <div className="megachat-message-body">
                     <div className="megachat-message-meta">
                       <span className="megachat-message-username" style={m.nameColor ? { color: m.nameColor } : undefined}>{m.displayName || m.username}</span>

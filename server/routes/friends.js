@@ -34,8 +34,8 @@ async function friendshipStatus(meId, otherId) {
 router.get('/', asyncHandler(async (req, res) => {
   const meId = req.user.id;
   const rows = await db.prepare(`
-    SELECT fr.*, u1.username as fromUsername, u1.display_name as fromDisplayName, u1.avatar_color as fromColor, u1.avatar_url as fromUrl, u1.status_text as fromStatus, u1.status_source as fromStatusSource, u1.bio as fromBio, u1.created_at as fromCreatedAt, u1.is_plus as fromPlus, u1.is_premium as fromPremium, u1.is_ultra as fromUltra, u1.is_admin as fromAdmin, u1.name_color as fromNameColor, u1.banner_url as fromBannerUrl,
-           u2.username as toUsername, u2.display_name as toDisplayName, u2.avatar_color as toColor, u2.avatar_url as toUrl, u2.status_text as toStatus, u2.status_source as toStatusSource, u2.bio as toBio, u2.created_at as toCreatedAt, u2.is_plus as toPlus, u2.is_premium as toPremium, u2.is_ultra as toUltra, u2.is_admin as toAdmin, u2.name_color as toNameColor, u2.banner_url as toBannerUrl
+    SELECT fr.*, u1.username as fromUsername, u1.display_name as fromDisplayName, u1.avatar_color as fromColor, u1.avatar_icon as fromIcon, u1.avatar_url as fromUrl, u1.status_text as fromStatus, u1.status_source as fromStatusSource, u1.bio as fromBio, u1.created_at as fromCreatedAt, u1.is_plus as fromPlus, u1.is_premium as fromPremium, u1.is_ultra as fromUltra, u1.is_admin as fromAdmin, u1.name_color as fromNameColor, u1.banner_url as fromBannerUrl,
+           u2.username as toUsername, u2.display_name as toDisplayName, u2.avatar_color as toColor, u2.avatar_icon as toIcon, u2.avatar_url as toUrl, u2.status_text as toStatus, u2.status_source as toStatusSource, u2.bio as toBio, u2.created_at as toCreatedAt, u2.is_plus as toPlus, u2.is_premium as toPremium, u2.is_ultra as toUltra, u2.is_admin as toAdmin, u2.name_color as toNameColor, u2.banner_url as toBannerUrl
     FROM friend_requests fr
     JOIN users u1 ON u1.id = fr.from_id
     JOIN users u2 ON u2.id = fr.to_id
@@ -48,6 +48,7 @@ router.get('/', asyncHandler(async (req, res) => {
     const otherUsername = r.from_id === meId ? r.toUsername : r.fromUsername;
     const otherDisplayName = r.from_id === meId ? r.toDisplayName : r.fromDisplayName;
     const otherColor = r.from_id === meId ? r.toColor : r.fromColor;
+    const otherIcon = r.from_id === meId ? r.toIcon : r.fromIcon;
     const otherUrl = r.from_id === meId ? r.toUrl : r.fromUrl;
     const otherStatus = r.from_id === meId ? r.toStatus : r.fromStatus;
     const otherStatusSource = r.from_id === meId ? r.toStatusSource : r.fromStatusSource;
@@ -65,6 +66,7 @@ router.get('/', asyncHandler(async (req, res) => {
       username: otherUsername,
       displayName: otherDisplayName,
       avatarColor: otherColor,
+      avatarIcon: otherIcon,
       avatarUrl: otherUrl,
       statusText: otherStatus,
       statusSource: otherStatusSource,
