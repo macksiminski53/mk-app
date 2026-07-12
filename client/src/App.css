@@ -2930,3 +2930,31 @@ body {
   color: #949ba4;
   margin-left: 6px;
 }
+
+/* ---- Right-click message context menu ---- */
+.message-context-menu {
+  position: fixed;
+  min-width: 140px;
+  background: #2b0f0f;
+  border: 1px solid #4e5058;
+  border-radius: 8px;
+  padding: 4px;
+  z-index: 50;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
+}
+
+.context-menu-item {
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #ffffff;
+  cursor: pointer;
+}
+.context-menu-item:hover { background: #4a1414; }
+
+.context-menu-emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 4px;
+  padding: 4px;
+}

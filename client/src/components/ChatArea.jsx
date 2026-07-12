@@ -12,6 +12,7 @@ import PinButton from './PinButton.jsx';
 import PinnedPanel from './PinnedPanel.jsx';
 import ReactionPicker from './ReactionPicker.jsx';
 import MentionAutocomplete from './MentionAutocomplete.jsx';
+import MessageContextMenu from './MessageContextMenu.jsx';
 import { renderMessageContent, getMentionQuery, applyMentionPick } from './MessageContent.jsx';
 
 function formatTime(createdAt) {
@@ -75,6 +76,7 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
   const [theirLastRead, setTheirLastRead] = useState(0);
   const [editingId, setEditingId] = useState(null);
   const [editDraft, setEditDraft] = useState('');
+  const [contextMenu, setContextMenu] = useState(null); // { message, x, y }
   const bottomRef = useRef(null);
   const typingTimeout = useRef(null);
   const fileInputRef = useRef(null);
@@ -248,6 +250,13 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
 
   function pickMention(username) {
     setDraft((prev) => applyMentionPick(prev, username));
+  }
+
+  function openContextMenu(e, m) {
+    e.preventDefault();
+    const x = Math.min(e.clientX, window.innerWidth - 170);
+    const y = Math.min(e.clientY, window.innerHeight - 200);
+    setContextMenu({ message: m, x, y });
   }
 
   function castDeleteVote(vote) {
@@ -429,7 +438,7 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
           const isOwn = m.username === currentUser.username;
           const showSeen = readReceiptsEnabled && isOwn && m.id === lastOwnMessageId && theirLastRead >= m.id;
           return (
-            <div key={m.id} className={`message-row ${isOwn ? 'own' : 'friend'}`}>
+            <div key={m.id} className={`message-row ${isOwn ? 'own' : 'friend'}`} onContextMenu={(e) => openContextMenu(e, m)}>
               {(!isBubble || !isOwn) && (
                 <Avatar username={m.displayName || m.username} avatarColor={m.avatarColor} avatarUrl={m.avatarUrl} size={isBubble ? 32 : 40} ultraBorder={m.isUltra} />
               )}
@@ -564,6 +573,20 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
           pinned={pinnedMessages}
           onUnpin={unpinFromPanel}
           onClose={() => setShowPinnedPanel(false)}
+        />
+      )}
+
+      {contextMenu && (
+        <MessageContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          canEdit={contextMenu.message.username === currentUser.username && !!contextMenu.message.content}
+          pinned={!!contextMenu.message.pinned}
+          onReply={() => setReplyTo({ id: contextMenu.message.id, username: contextMenu.message.username, content: contextMenu.message.content })}
+          onEdit={() => startEdit(contextMenu.message)}
+          onReact={(emoji) => toggleReaction(contextMenu.message.id, emoji)}
+          onPin={() => togglePin(contextMenu.message.id)}
+          onClose={() => setContextMenu(null)}
         />
       )}
 

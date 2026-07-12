@@ -10,6 +10,7 @@ import { BackIcon, PinIcon } from './Icons.jsx';
 import PinnedPanel from './PinnedPanel.jsx';
 import ReactionPicker from './ReactionPicker.jsx';
 import MentionAutocomplete from './MentionAutocomplete.jsx';
+import MessageContextMenu from './MessageContextMenu.jsx';
 import { renderMessageContent, getMentionQuery, applyMentionPick } from './MessageContent.jsx';
 
 function formatTime(createdAt) {
@@ -54,6 +55,7 @@ export default function MegaChatView({ server, token, currentUser, onLeftOrDelet
   const [showPinnedPanel, setShowPinnedPanel] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editDraft, setEditDraft] = useState('');
+  const [contextMenu, setContextMenu] = useState(null); // { message, x, y }
 
   const isOwner = detail?.ownerId === currentUser.id;
 
@@ -168,6 +170,13 @@ export default function MegaChatView({ server, token, currentUser, onLeftOrDelet
 
   function pickMention(username) {
     setInput((prev) => applyMentionPick(prev, username));
+  }
+
+  function openContextMenu(e, m) {
+    e.preventDefault();
+    const x = Math.min(e.clientX, window.innerWidth - 170);
+    const y = Math.min(e.clientY, window.innerHeight - 200);
+    setContextMenu({ message: m, x, y });
   }
 
   useEffect(() => {
@@ -355,7 +364,7 @@ export default function MegaChatView({ server, token, currentUser, onLeftOrDelet
           <>
             <div className="megachat-message-list">
               {messages.map((m) => (
-                <div key={m.id} className="megachat-message-row">
+                <div key={m.id} className="megachat-message-row" onContextMenu={(e) => openContextMenu(e, m)}>
                   <Avatar username={m.displayName || m.username} avatarColor={m.avatarColor} avatarUrl={m.avatarUrl} size={36} ultraBorder={m.isUltra} />
                   <div className="megachat-message-body">
                     <div className="megachat-message-meta">
@@ -429,6 +438,19 @@ export default function MegaChatView({ server, token, currentUser, onLeftOrDelet
           pinned={pinnedMessages}
           onUnpin={togglePin}
           onClose={() => setShowPinnedPanel(false)}
+        />
+      )}
+
+      {contextMenu && (
+        <MessageContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          canEdit={contextMenu.message.userId === currentUser.id && !!contextMenu.message.content}
+          pinned={!!contextMenu.message.pinned}
+          onEdit={() => startEdit(contextMenu.message)}
+          onReact={(emoji) => toggleReaction(contextMenu.message.id, emoji)}
+          onPin={() => togglePin(contextMenu.message.id)}
+          onClose={() => setContextMenu(null)}
         />
       )}
     </div>
