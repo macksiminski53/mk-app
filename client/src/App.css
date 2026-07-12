@@ -2330,6 +2330,161 @@ body {
   transform: none;
 }
 
+/* --- Active call: Discord-style full takeover of the chat pane. Renders
+   in place of ChatArea/MegaChatView/MiniChatView (see App.jsx's
+   activeCallView) so the server rail + friends/channel list stay visible
+   on the left, matching how Discord keeps the channel list up during a
+   call and only swaps out the message area. --- */
+.active-call-view {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: #0a0404;
+}
+
+.active-call-topbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-bottom: 1px solid #3f4147;
+  background: #150808;
+  flex-shrink: 0;
+}
+
+.active-call-live-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #2b0f0f;
+  color: #23a55a;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+
+.active-call-live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #23a55a;
+}
+
+.active-call-topbar-name { font-size: 14px; font-weight: 700; color: #f2f3f5; }
+
+.active-call-stage {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  padding: 24px;
+}
+
+.active-call-avatar-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.active-call-avatar-pulse {
+  position: relative;
+  border-radius: 50%;
+  margin-bottom: 14px;
+}
+.active-call-avatar-pulse::before {
+  content: '';
+  position: absolute;
+  inset: -14px;
+  border-radius: 50%;
+  border: 3px solid #23a55a;
+  animation: call-pulse 1.6s ease-out infinite;
+}
+
+.active-call-name { font-size: 22px; font-weight: 800; color: #ffffff; }
+.active-call-sub { font-size: 14px; color: #23a55a; font-weight: 600; }
+
+.active-call-stage-video {
+  padding: 0;
+  align-items: stretch;
+  justify-content: stretch;
+}
+
+.active-call-video-remote {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: #0a0404;
+}
+
+.active-call-video-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+.active-call-placeholder-name { font-size: 18px; font-weight: 700; color: #f2f3f5; }
+
+.active-call-video-local {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  width: 200px;
+  height: 150px;
+  border-radius: 10px;
+  object-fit: cover;
+  border: 2px solid #150808;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.6);
+  transform: scaleX(-1); /* mirror the self-view, matches every other camera app */
+}
+.active-call-video-local-screen { transform: none; }
+
+.active-call-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 18px;
+  background: #150808;
+  border-top: 1px solid #3f4147;
+  flex-shrink: 0;
+}
+
+.active-call-btn {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  background: #2b0f0f;
+  transition: transform 0.1s ease, background 0.15s ease;
+}
+.active-call-btn:hover { transform: scale(1.06); background: #4a1414; }
+.active-call-btn:active { transform: scale(0.96); }
+
+.active-call-btn-off { background: #ffffff; color: #1a0d0d; }
+.active-call-btn-off:hover { background: #e6e6e6; }
+
+.active-call-btn-on { background: #23a55a; color: #ffffff; }
+.active-call-btn-on:hover { background: #1e9750; }
+
+.active-call-btn-hangup { background: #f23f43; }
+.active-call-btn-hangup:hover { background: #d3373b; }
+
+@media (max-width: 768px) {
+  .active-call-view { width: 100%; flex: 1 1 auto; }
+  .active-call-video-local { width: 110px; height: 82px; bottom: 12px; right: 12px; }
+}
+
 @media (max-width: 640px) {
   .call-video-stage { width: 280px; height: 190px; }
   .call-overlay-video { min-width: 0; }
@@ -2661,7 +2816,8 @@ body {
     display: none;
   }
   .app-shell:not(.mobile-chat-open) > .chat-area,
-  .app-shell:not(.mobile-chat-open) > .megachat-main.minichat-main {
+  .app-shell:not(.mobile-chat-open) > .megachat-main.minichat-main,
+  .app-shell:not(.mobile-chat-open) > .active-call-view {
     display: none;
   }
 
@@ -2675,7 +2831,8 @@ body {
   }
   .chat-area,
   .megachat-main.minichat-main,
-  .megachat-view {
+  .megachat-view,
+  .active-call-view {
     width: 100%;
     flex: 1 1 auto;
   }

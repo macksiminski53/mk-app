@@ -1,32 +1,17 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import Avatar from './Avatar.jsx';
-import { PhoneIcon, PhoneHangupIcon, MicIcon, MicMutedIcon, CameraIcon, CameraOffIcon, ScreenShareIcon, ScreenShareOffIcon, CallCloseIcon } from './CallIcons.jsx';
+import { PhoneIcon, CallCloseIcon } from './CallIcons.jsx';
 
-function formatDuration(seconds) {
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return `${m}:${String(s).padStart(2, '0')}`;
-}
-
-// Renders whichever call UI is active as a floating overlay card centered
-// near the top of the screen (rather than a thin full-width bar) -- a
-// bigger avatar with a pulsing ring while ringing, and larger controls,
-// closer to a phone call screen than Discord's compact bar. Renders
-// nothing if call.status is null -- App.jsx only mounts this when there's
-// a call.
-export default function CallBar({ call, onAccept, onDecline, onCancel, onHangUp, onToggleMute, muted, cameraOn, screenSharing, remoteHasVideo, localVideoRef, remoteVideoRef, onToggleCamera, onToggleScreenShare, ringtoneOutgoingUrl, ringtoneIncomingUrl }) {
-  const [elapsed, setElapsed] = useState(0);
+// Renders the incoming/outgoing ringing screen as a floating overlay card
+// centered near the top of the app -- a modal-ish dialog since you're not
+// yet "in" the call. Once the call goes active, App.jsx stops mounting this
+// and mounts ActiveCallView instead (the full Discord-style takeover of the
+// chat pane) -- see the call.status === 'active' branches in App.jsx's main
+// content area. Renders nothing once call.status leaves 'incoming'/
+// 'outgoing' -- App.jsx only mounts this for those two ringing states.
+export default function CallBar({ call, onAccept, onDecline, onCancel, ringtoneOutgoingUrl, ringtoneIncomingUrl }) {
   const outgoingAudioRef = useRef(null);
   const incomingAudioRef = useRef(null);
-
-  useEffect(() => {
-    if (call?.status !== 'active') return;
-    setElapsed(Math.floor((Date.now() - call.startedAt) / 1000));
-    const iv = setInterval(() => {
-      setElapsed(Math.floor((Date.now() - call.startedAt) / 1000));
-    }, 1000);
-    return () => clearInterval(iv);
-  }, [call?.status, call?.startedAt]);
 
   // Ringtones: "Calling…" loops for the caller until the other side joins
   // (status leaves 'outgoing'); the incoming ringtone loops for the callee
@@ -108,64 +93,5 @@ export default function CallBar({ call, onAccept, onDecline, onCancel, onHangUp,
     );
   }
 
-  // active
-  // Screen share and the camera share one local video slot (see
-  // handleToggleScreenShare in App.jsx) -- either one showing counts as
-  // "local video is up" for switching to the video layout.
-  const showVideo = cameraOn || screenSharing || remoteHasVideo;
-  return (
-    <div className="call-overlay-anchor">
-      {ringtones}
-      <div className={`call-overlay call-overlay-active ${showVideo ? 'call-overlay-video' : ''}`}>
-        {showVideo && (
-          <div className="call-video-stage">
-            {remoteHasVideo ? (
-              <video ref={remoteVideoRef} autoPlay playsInline className="call-video-remote" />
-            ) : (
-              <div className="call-video-remote call-video-remote-placeholder">
-                <Avatar username={call.friend.displayName || call.friend.username} avatarColor={call.friend.avatarColor} avatarUrl={call.friend.avatarUrl} size={72} />
-              </div>
-            )}
-            {(cameraOn || screenSharing) && (
-              <video ref={localVideoRef} autoPlay playsInline muted className={`call-video-local ${screenSharing ? 'call-video-local-screen' : ''}`} />
-            )}
-          </div>
-        )}
-        {!showVideo && (
-          <div className="call-overlay-avatar-wrap">
-            <Avatar username={call.friend.displayName || call.friend.username} avatarColor={call.friend.avatarColor} avatarUrl={call.friend.avatarUrl} size={72} />
-            <span className="call-overlay-live-dot" />
-          </div>
-        )}
-        <div className="call-overlay-name">{call.friend.displayName || call.friend.username}</div>
-        <div className="call-overlay-sub">{formatDuration(elapsed)}</div>
-        <div className="call-overlay-actions">
-          <button
-            className={`call-overlay-btn ${muted ? 'call-overlay-btn-muted-on' : 'call-overlay-btn-muted-off'}`}
-            onClick={onToggleMute}
-            title={muted ? 'Unmute' : 'Mute'}
-          >
-            {muted ? <MicMutedIcon size={20} /> : <MicIcon size={20} />}
-          </button>
-          <button
-            className={`call-overlay-btn ${cameraOn ? 'call-overlay-btn-muted-off' : 'call-overlay-btn-muted-on'}`}
-            onClick={onToggleCamera}
-            title={cameraOn ? 'Turn off camera' : screenSharing ? 'Switch to camera' : 'Turn on camera'}
-          >
-            {cameraOn ? <CameraIcon size={20} /> : <CameraOffIcon size={20} />}
-          </button>
-          <button
-            className={`call-overlay-btn ${screenSharing ? 'call-overlay-btn-screen-on' : 'call-overlay-btn-muted-off'}`}
-            onClick={onToggleScreenShare}
-            title={screenSharing ? 'Stop sharing your screen' : 'Share your screen'}
-          >
-            {screenSharing ? <ScreenShareOffIcon size={20} /> : <ScreenShareIcon size={20} />}
-          </button>
-          <button className="call-overlay-btn call-overlay-btn-decline" onClick={onHangUp} title="Hang up">
-            <PhoneHangupIcon size={20} />
-          </button>
-        </div>
-      </div>
-    </div>
-  );
+  return null;
 }

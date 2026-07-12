@@ -4,6 +4,7 @@ import FriendsSidebar from './components/FriendsSidebar.jsx';
 import TopBar from './components/TopBar.jsx';
 import ChatArea from './components/ChatArea.jsx';
 import CallBar from './components/CallBar.jsx';
+import ActiveCallView from './components/ActiveCallView.jsx';
 import ServerRail from './components/ServerRail.jsx';
 import MegaChatView from './components/MegaChatView.jsx';
 import MiniChatView from './components/MiniChatView.jsx';
@@ -890,13 +891,36 @@ export default function App() {
   // anything, so no chat/socket state is lost when switching back and
   // forth. "A chat is open" means any of the three mutually-exclusive
   // selections is set.
-  const mobileChatOpen = activeServerId !== null || activeGroupId !== null || activeFriendId !== null;
+  const mobileChatOpen = activeServerId !== null || activeGroupId !== null || activeFriendId !== null || call?.status === 'active';
 
   function handleMobileBack() {
     if (activeServerId !== null) setActiveServerId(null);
     else if (activeGroupId !== null) setActiveGroupId(null);
     else if (activeFriendId !== null) setActiveFriendId(null);
   }
+
+  // Discord-style "full takeover": while a call is active, this replaces
+  // whatever the chat pane would normally show (ChatArea/MiniChatView/
+  // MegaChatView) below, in both the friends-view and server-view branches
+  // -- the server rail and friends/channel list stay visible on the left,
+  // only the content pane itself becomes the call screen. Built once here
+  // (rather than inline in each branch) since it's the same element either
+  // way.
+  const activeCallView = call?.status === 'active' ? (
+    <ActiveCallView
+      call={call}
+      muted={muted}
+      cameraOn={cameraOn}
+      screenSharing={screenSharing}
+      remoteHasVideo={remoteHasVideo}
+      localVideoRef={localVideoRef}
+      remoteVideoRef={remoteVideoRef}
+      onHangUp={handleEndOrCancelCall}
+      onToggleMute={handleToggleMute}
+      onToggleCamera={handleToggleCamera}
+      onToggleScreenShare={handleToggleScreenShare}
+    />
+  ) : null;
 
   return (
     <div className="app-root">
@@ -930,22 +954,12 @@ export default function App() {
         onAdminDeleteUser={(userId) => api.adminDeleteUser(token, userId)}
         t={t}
       />
-      {call && (
+      {call && call.status !== 'active' && (
         <CallBar
           call={call}
-          muted={muted}
-          cameraOn={cameraOn}
-          screenSharing={screenSharing}
-          remoteHasVideo={remoteHasVideo}
-          localVideoRef={localVideoRef}
-          remoteVideoRef={remoteVideoRef}
           onAccept={handleAcceptCall}
           onDecline={handleDeclineCall}
           onCancel={handleEndOrCancelCall}
-          onHangUp={handleEndOrCancelCall}
-          onToggleMute={handleToggleMute}
-          onToggleCamera={handleToggleCamera}
-          onToggleScreenShare={handleToggleScreenShare}
           ringtoneOutgoingUrl={user.ringtoneOutgoingUrl}
           ringtoneIncomingUrl={user.ringtoneIncomingUrl}
         />
@@ -982,7 +996,7 @@ export default function App() {
               onCreateGroup={handleCreateGroup}
               createGroupTrigger={miniChatCreateTrigger}
             />
-            {activeGroupId !== null ? (
+            {activeCallView ? activeCallView : activeGroupId !== null ? (
               (() => {
                 const activeGroup = groups.find((g) => g.id === activeGroupId) || null;
                 return activeGroup ? (
@@ -1011,7 +1025,7 @@ export default function App() {
               />
             )}
           </>
-        ) : (
+        ) : activeCallView ? activeCallView : (
           (() => {
             const activeServer = servers.find((s) => s.id === activeServerId) || null;
             return activeServer ? (
