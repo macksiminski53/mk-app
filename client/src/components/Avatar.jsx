@@ -18,7 +18,7 @@ export default function Avatar({ username, avatarColor, avatarUrl, size = 40, cl
   }
 
   return (
-    <div className={cls} style={{ ...style, background: avatarColor || '#8B0000' }}>
+    <div className={cls} style={{ ...style, background: avatarColor || '#4e5058' }}>
       {username?.slice(0, 2).toUpperCase()}
     </div>
   );

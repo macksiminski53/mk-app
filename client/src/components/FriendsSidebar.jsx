@@ -121,7 +121,7 @@ export default function FriendsSidebar({
             className={`friend-row ${activeGroupId === g.id ? 'active' : ''}`}
             onClick={() => onSelectGroup(g.id)}
           >
-            <Avatar username={groupDisplayName(g, currentUser.id)} avatarColor="#6e1f22" avatarUrl={g.avatarUrl} size={40} />
+            <Avatar username={groupDisplayName(g, currentUser.id)} avatarColor="#4e5058" avatarUrl={g.avatarUrl} size={40} />
             <div className="friend-info">
               <span className="friend-name">{groupDisplayName(g, currentUser.id)}</span>
               <span className="friend-status">{(g.members || []).length}/{(g.members || []).find((m) => m.id === g.createdBy)?.isUltra ? 30 : 15} members</span>

@@ -40,7 +40,7 @@ async function ensureAccountToken(userId, existingToken) {
   return token;
 }
 
-const COLORS = ['#8B0000', '#B22222', '#DC143C', '#A52A2A', '#FF6347', '#CD5C5C'];
+const COLORS = ['#4e5058', '#6d6f78', '#5c5e66', '#404249', '#7a7f87', '#3f4147'];
 function randomColor() {
   return COLORS[Math.floor(Math.random() * COLORS.length)];
 }

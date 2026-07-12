@@ -33,7 +33,7 @@ function createWindow() {
     minWidth: 720,
     minHeight: 480,
     title: 'MK',
-    backgroundColor: '#1a0d0d',
+    backgroundColor: '#1e1f22',
     autoHideMenuBar: true,
     icon: path.join(__dirname, 'build', 'icon.png'),
     webPreferences: {

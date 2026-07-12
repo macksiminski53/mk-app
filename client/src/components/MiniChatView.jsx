@@ -268,7 +268,7 @@ export default function MiniChatView({ group, token, currentUser, onLeft, onBack
           onClick={() => isCreator && avatarInputRef.current?.click()}
           title={isCreator ? 'Change group picture' : undefined}
         >
-          <Avatar username={displayName} avatarColor="#6e1f22" avatarUrl={group.avatarUrl} size={32} />
+          <Avatar username={displayName} avatarColor="#4e5058" avatarUrl={group.avatarUrl} size={32} />
           {isCreator && <div className="pfp-overlay">{uploadingAvatar ? '…' : 'Edit'}</div>}
         </div>
         {isCreator && (
