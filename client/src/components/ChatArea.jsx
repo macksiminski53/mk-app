@@ -19,7 +19,15 @@ function formatTime(createdAt) {
   const iso = createdAt.includes('T') ? createdAt : createdAt.replace(' ', 'T') + 'Z';
   const d = new Date(iso);
   if (isNaN(d.getTime())) return '';
-  return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  const time = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  // Once a message is 12+ hours old, the time alone gets ambiguous (was
+  // that 3:45 today or yesterday?) -- tack the date on from that point.
+  const hoursAgo = (Date.now() - d.getTime()) / (1000 * 60 * 60);
+  if (hoursAgo >= 12) {
+    const date = d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+    return `${date} ${time}`;
+  }
+  return time;
 }
 
 function truncate(text, max = 80) {
