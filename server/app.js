@@ -701,8 +701,44 @@ async function sweepAutoResetGroups() {
   }
 }
 
+// Mega Chats are a paid, one-time purchase, so by default they're
+// permanent -- but a small server (under MEGA_AUTO_RESET_MEMBER_CAP
+// members) gets a mandatory 7-day wipe just like free DMs/Mini Chats get a
+// 24h one, so an abandoned or tiny server doesn't just accumulate history
+// forever with nobody around to prune it. Crossing the member threshold
+// (even briefly, at sweep time) is what matters -- there's no tier
+// exemption here since the whole server was already paid for.
+const MEGA_AUTO_RESET_WINDOW = "7 days";
+const MEGA_AUTO_RESET_MEMBER_CAP = 10;
+
+async function sweepAutoResetServers() {
+  try {
+    const due = await db.prepare(`
+      SELECT s.id FROM servers s
+      WHERE (SELECT COUNT(*) FROM server_members sm WHERE sm.server_id = s.id) < ${MEGA_AUTO_RESET_MEMBER_CAP}
+      AND (
+        s.last_reset_at IS NULL
+        OR datetime(s.last_reset_at, '+${MEGA_AUTO_RESET_WINDOW}') <= datetime('now')
+      )
+    `).all();
+    for (const { id: serverId } of due) {
+      const channels = await db.prepare('SELECT id FROM server_channels WHERE server_id = ?').all(serverId);
+      for (const { id: channelId } of channels) {
+        await db.prepare(
+          "DELETE FROM server_messages WHERE channel_id = ? AND id NOT IN (SELECT message_id FROM pinned_messages WHERE message_type = 'mega')"
+        ).run(channelId);
+        io.to(`channel:${channelId}`).emit('channel-message:cleared', { channelId: Number(channelId) });
+      }
+      await db.prepare("UPDATE servers SET last_reset_at = datetime('now') WHERE id = ?").run(serverId);
+    }
+  } catch (err) {
+    console.error('sweepAutoResetServers error', err);
+  }
+}
+
 setInterval(() => sweepAutoResetThreads(), AUTO_RESET_SWEEP_MS);
 setInterval(() => sweepAutoResetGroups(), AUTO_RESET_SWEEP_MS);
+setInterval(() => sweepAutoResetServers(), AUTO_RESET_SWEEP_MS);
 
 const PORT = process.env.PORT || 4000;
 
@@ -714,6 +750,7 @@ initSchema()
     server.listen(PORT, () => console.log(`Server listening on port ${PORT}`));
     sweepAutoResetThreads();
     sweepAutoResetGroups();
+    sweepAutoResetServers();
   })
   .catch((err) => {
     const msg = `[boot] app.js: Failed to initialize database schema: ${err && err.stack ? err.stack : err}\n`;

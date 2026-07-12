@@ -293,6 +293,16 @@ CREATE TABLE IF NOT EXISTS servers (
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 )`);
 
+  // A small Mega Chat (under 10 members) gets a 7-day auto-delete sweep,
+  // same last_reset_at mechanism as dm_threads/group_chats -- see
+  // sweepAutoResetServers in app.js. Added after servers already existed in
+  // production, so ALTER TABLE (not CREATE TABLE IF NOT EXISTS) is needed.
+  try {
+    await client.execute('ALTER TABLE servers ADD COLUMN last_reset_at TEXT');
+  } catch (e) {
+    if (!/duplicate column/i.test(e.message || '')) throw e;
+  }
+
   await client.execute(`
 CREATE TABLE IF NOT EXISTS server_members (
   server_id INTEGER NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
@@ -333,6 +343,26 @@ CREATE TABLE IF NOT EXISTS mega_chat_purchases (
   await client.execute('CREATE INDEX IF NOT EXISTS idx_server_members_user ON server_members(user_id)');
   await client.execute('CREATE INDEX IF NOT EXISTS idx_server_channels_server ON server_channels(server_id)');
   await client.execute('CREATE INDEX IF NOT EXISTS idx_server_messages_channel ON server_messages(channel_id)');
+
+  // Same backfill reasoning as the dm_threads one above: a server that's
+  // never had last_reset_at set reads as "due immediately" in the sweep
+  // query, which would wipe every small pre-existing Mega Chat on the next
+  // sweep after this migration runs. Start the 7-day clock from now
+  // instead. Only matters for servers currently under the 10-member
+  // threshold; safe to run on every boot since it's a no-op once set.
+  try {
+    await client.execute(`
+      UPDATE servers
+      SET last_reset_at = datetime('now')
+      WHERE last_reset_at IS NULL
+        AND id IN (
+          SELECT s.id FROM servers s
+          WHERE (SELECT COUNT(*) FROM server_members sm WHERE sm.server_id = s.id) < 10
+        )
+    `);
+  } catch (e) {
+    console.error('Failed to backfill last_reset_at for Mega Chat auto-delete:', e.message);
+  }
 
   // ---- Mini Chats -- free group chats, capped at 15 members ----
   // No channels, no owner/roles: any member can add another member (up to

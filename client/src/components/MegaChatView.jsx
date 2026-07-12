@@ -90,6 +90,9 @@ export default function MegaChatView({ server, token, currentUser, onLeftOrDelet
         setMessages((prev) => [...prev, message]);
       }
     }
+    function onCleared({ channelId }) {
+      if (channelId === activeChannelIdRef.current) setMessages([]);
+    }
     function onLikeUpdate({ messageType, messageId, likeCount }) {
       if (messageType !== 'mega') return;
       setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, likeCount } : m)));
@@ -113,6 +116,7 @@ export default function MegaChatView({ server, token, currentUser, onLeftOrDelet
       setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, content, editedAt } : m)));
     }
     socket.on('channel-message:new', onNew);
+    socket.on('channel-message:cleared', onCleared);
     socket.on('message:like-update', onLikeUpdate);
     socket.on('message:pin-update', onPinUpdate);
     socket.on('message:reactions-update', onReactionsUpdate);
@@ -122,6 +126,7 @@ export default function MegaChatView({ server, token, currentUser, onLeftOrDelet
       cancelled = true;
       socket.emit('channel:leave', activeChannelId);
       socket.off('channel-message:new', onNew);
+      socket.off('channel-message:cleared', onCleared);
       socket.off('message:like-update', onLikeUpdate);
       socket.off('message:pin-update', onPinUpdate);
       socket.off('message:reactions-update', onReactionsUpdate);
