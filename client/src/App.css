@@ -2098,6 +2098,17 @@ body {
   outline: none;
 }
 
+/* Longstanding layout bug: this container wraps .megachat-channels (the
+   sidebar) and .megachat-main (the chat pane) side by side, but only ever
+   had display:flex defined inside the mobile media query further down --
+   never as a desktop base rule. Without it, the two children stack
+   vertically as plain block elements on desktop widths. */
+.megachat-view {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+}
+
 .megachat-channels {
   width: 220px;
   background: #150808;
