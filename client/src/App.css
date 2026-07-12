@@ -488,6 +488,9 @@ body {
 .call-overlay-btn-muted-on { background: #ffffff; color: #1a0d0d; }
 .call-overlay-btn-muted-on:hover { background: #e6e6e6; }
 
+.call-overlay-btn-screen-on { background: #23a55a; color: #ffffff; }
+.call-overlay-btn-screen-on:hover { background: #1e9750; }
+
 .message-list {
   flex: 1;
   overflow-y: auto;
@@ -2319,6 +2322,12 @@ body {
   border: 2px solid #150808;
   box-shadow: 0 4px 12px rgba(0,0,0,0.5);
   transform: scaleX(-1); /* mirror the self-view, matches every other camera app */
+}
+
+/* Screen-share preview shouldn't be mirrored -- flipped text/UI in your own
+   "you're sharing this" preview would just be confusing, unlike a selfie. */
+.call-video-local-screen {
+  transform: none;
 }
 
 @media (max-width: 640px) {

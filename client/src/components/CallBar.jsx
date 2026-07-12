@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import Avatar from './Avatar.jsx';
-import { PhoneIcon, PhoneHangupIcon, MicIcon, MicMutedIcon, CameraIcon, CameraOffIcon, CallCloseIcon } from './CallIcons.jsx';
+import { PhoneIcon, PhoneHangupIcon, MicIcon, MicMutedIcon, CameraIcon, CameraOffIcon, ScreenShareIcon, ScreenShareOffIcon, CallCloseIcon } from './CallIcons.jsx';
 
 function formatDuration(seconds) {
   const m = Math.floor(seconds / 60);
@@ -14,7 +14,7 @@ function formatDuration(seconds) {
 // closer to a phone call screen than Discord's compact bar. Renders
 // nothing if call.status is null -- App.jsx only mounts this when there's
 // a call.
-export default function CallBar({ call, onAccept, onDecline, onCancel, onHangUp, onToggleMute, muted, cameraOn, remoteHasVideo, localVideoRef, remoteVideoRef, onToggleCamera, ringtoneOutgoingUrl, ringtoneIncomingUrl }) {
+export default function CallBar({ call, onAccept, onDecline, onCancel, onHangUp, onToggleMute, muted, cameraOn, screenSharing, remoteHasVideo, localVideoRef, remoteVideoRef, onToggleCamera, onToggleScreenShare, ringtoneOutgoingUrl, ringtoneIncomingUrl }) {
   const [elapsed, setElapsed] = useState(0);
   const outgoingAudioRef = useRef(null);
   const incomingAudioRef = useRef(null);
@@ -109,7 +109,10 @@ export default function CallBar({ call, onAccept, onDecline, onCancel, onHangUp,
   }
 
   // active
-  const showVideo = cameraOn || remoteHasVideo;
+  // Screen share and the camera share one local video slot (see
+  // handleToggleScreenShare in App.jsx) -- either one showing counts as
+  // "local video is up" for switching to the video layout.
+  const showVideo = cameraOn || screenSharing || remoteHasVideo;
   return (
     <div className="call-overlay-anchor">
       {ringtones}
@@ -123,8 +126,8 @@ export default function CallBar({ call, onAccept, onDecline, onCancel, onHangUp,
                 <Avatar username={call.friend.displayName || call.friend.username} avatarColor={call.friend.avatarColor} avatarUrl={call.friend.avatarUrl} size={72} />
               </div>
             )}
-            {cameraOn && (
-              <video ref={localVideoRef} autoPlay playsInline muted className="call-video-local" />
+            {(cameraOn || screenSharing) && (
+              <video ref={localVideoRef} autoPlay playsInline muted className={`call-video-local ${screenSharing ? 'call-video-local-screen' : ''}`} />
             )}
           </div>
         )}
@@ -147,9 +150,16 @@ export default function CallBar({ call, onAccept, onDecline, onCancel, onHangUp,
           <button
             className={`call-overlay-btn ${cameraOn ? 'call-overlay-btn-muted-off' : 'call-overlay-btn-muted-on'}`}
             onClick={onToggleCamera}
-            title={cameraOn ? 'Turn off camera' : 'Turn on camera'}
+            title={cameraOn ? 'Turn off camera' : screenSharing ? 'Switch to camera' : 'Turn on camera'}
           >
             {cameraOn ? <CameraIcon size={20} /> : <CameraOffIcon size={20} />}
+          </button>
+          <button
+            className={`call-overlay-btn ${screenSharing ? 'call-overlay-btn-screen-on' : 'call-overlay-btn-muted-off'}`}
+            onClick={onToggleScreenShare}
+            title={screenSharing ? 'Stop sharing your screen' : 'Share your screen'}
+          >
+            {screenSharing ? <ScreenShareOffIcon size={20} /> : <ScreenShareIcon size={20} />}
           </button>
           <button className="call-overlay-btn call-overlay-btn-decline" onClick={onHangUp} title="Hang up">
             <PhoneHangupIcon size={20} />

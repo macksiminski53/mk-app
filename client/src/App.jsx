@@ -10,7 +10,7 @@ import MiniChatView from './components/MiniChatView.jsx';
 import { api } from './api.js';
 import { connectSocket, disconnectSocket, getSocket } from './socket.js';
 import { getTranslator } from './i18n.js';
-import { createPeerConnection, getMicStream, getCamStream, stopStream } from './webrtc.js';
+import { createPeerConnection, getMicStream, getCamStream, getScreenStream, stopStream } from './webrtc.js';
 import { playMessageChime } from './notifySound.js';
 import './App.css';
 
@@ -52,6 +52,7 @@ export default function App() {
   const [call, setCall] = useState(null);
   const [muted, setMuted] = useState(false);
   const [cameraOn, setCameraOn] = useState(false);
+  const [screenSharing, setScreenSharing] = useState(false);
   const [remoteHasVideo, setRemoteHasVideo] = useState(false);
   const pcRef = useRef(null);
   const localStreamRef = useRef(null);
@@ -65,6 +66,11 @@ export default function App() {
   // and re-acquired fresh next time), and the two <video> elements.
   const camSenderRef = useRef(null);
   const camStreamRef = useRef(null);
+  // Screen share reuses camSenderRef/its m-line (see handleToggleScreenShare)
+  // since camera and screen share are just two possible sources for the
+  // same "local video" slot -- only ever one active at a time -- so it only
+  // needs its own stream ref, not a separate sender.
+  const screenStreamRef = useRef(null);
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
   const remoteVideoStreamRef = useRef(null);
@@ -107,12 +113,15 @@ export default function App() {
     localStreamRef.current = null;
     stopStream(camStreamRef.current);
     camStreamRef.current = null;
+    stopStream(screenStreamRef.current);
+    screenStreamRef.current = null;
     camSenderRef.current = null;
     remoteVideoStreamRef.current = null;
     remoteUserIdRef.current = null;
     iceQueueRef.current = [];
     setMuted(false);
     setCameraOn(false);
+    setScreenSharing(false);
     setRemoteHasVideo(false);
     if (remoteAudioRef.current) remoteAudioRef.current.srcObject = null;
     if (localVideoRef.current) localVideoRef.current.srcObject = null;
@@ -732,6 +741,17 @@ export default function App() {
     const pc = pcRef.current;
     if (!pc || !call || call.status !== 'active') return;
 
+    // Camera and screen share are two possible sources for the same local
+    // video slot (see handleToggleScreenShare) -- turning the camera on
+    // while screen sharing is active stops the share first, then falls
+    // through to the normal camSenderRef.replaceTrack() path below, same as
+    // if the camera had been toggled off and back on mid-call.
+    if (!cameraOn && screenSharing) {
+      stopStream(screenStreamRef.current);
+      screenStreamRef.current = null;
+      setScreenSharing(false);
+    }
+
     if (cameraOn) {
       stopStream(camStreamRef.current);
       camStreamRef.current = null;
@@ -779,6 +799,84 @@ export default function App() {
 
     if (localVideoRef.current) localVideoRef.current.srcObject = camStream;
     setCameraOn(true);
+  }
+
+  // Free for everyone -- no isPlus/isPremium/isUltra gate, same as the
+  // camera toggle. Shares the camera's video m-line/sender via
+  // replaceTrack() rather than adding a second one, so the remote side
+  // needs zero code changes: whatever arrives on that track (camera frames
+  // or screen frames) just renders as their existing "remoteHasVideo" feed.
+  async function handleToggleScreenShare() {
+    const pc = pcRef.current;
+    if (!pc || !call || call.status !== 'active') return;
+
+    if (screenSharing) {
+      stopStream(screenStreamRef.current);
+      screenStreamRef.current = null;
+      if (camSenderRef.current) {
+        try { await camSenderRef.current.replaceTrack(null); } catch (err) { console.error('replaceTrack(null) failed:', err.message); }
+      }
+      if (localVideoRef.current) localVideoRef.current.srcObject = null;
+      setScreenSharing(false);
+      return;
+    }
+
+    // Only one local video source at a time -- stop the camera first if
+    // it's on, the same way handleToggleCamera stops an active screen share.
+    if (cameraOn) {
+      stopStream(camStreamRef.current);
+      camStreamRef.current = null;
+      setCameraOn(false);
+    }
+
+    let screenStream;
+    try {
+      screenStream = await getScreenStream();
+    } catch (err) {
+      // User cancelled the browser's own screen picker or denied
+      // permission -- not a real error, just leave everything as-is.
+      return;
+    }
+    screenStreamRef.current = screenStream;
+    const videoTrack = screenStream.getVideoTracks()[0];
+
+    // The browser's own "Stop sharing" control (a bar/indicator outside our
+    // UI, shown on the shared tab/window/OS chrome) ends the track
+    // directly -- this is the only way to hear about that and revert our
+    // button/preview state to match what the browser just did.
+    videoTrack.onended = () => {
+      screenStreamRef.current = null;
+      if (camSenderRef.current) camSenderRef.current.replaceTrack(null).catch(() => {});
+      if (localVideoRef.current) localVideoRef.current.srcObject = null;
+      setScreenSharing(false);
+    };
+
+    if (camSenderRef.current) {
+      // Camera (or an earlier share) already added the m-line this call --
+      // just swap the track in, no renegotiation needed.
+      try {
+        await camSenderRef.current.replaceTrack(videoTrack);
+      } catch (err) {
+        console.error('replaceTrack failed:', err.message);
+        stopStream(screenStream);
+        screenStreamRef.current = null;
+        return;
+      }
+    } else {
+      // First video source this call -- adds a new m-line, so the other
+      // side needs a fresh offer describing it.
+      camSenderRef.current = pc.addTrack(videoTrack, screenStream);
+      try {
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        getSocket().emit('call:signal', { toUserId: remoteUserIdRef.current, data: { type: 'offer', sdp: offer } });
+      } catch (err) {
+        console.error('Screen share renegotiation failed:', err.message);
+      }
+    }
+
+    if (localVideoRef.current) localVideoRef.current.srcObject = screenStream;
+    setScreenSharing(true);
   }
 
   if (!token || !user) {
@@ -837,6 +935,7 @@ export default function App() {
           call={call}
           muted={muted}
           cameraOn={cameraOn}
+          screenSharing={screenSharing}
           remoteHasVideo={remoteHasVideo}
           localVideoRef={localVideoRef}
           remoteVideoRef={remoteVideoRef}
@@ -846,6 +945,7 @@ export default function App() {
           onHangUp={handleEndOrCancelCall}
           onToggleMute={handleToggleMute}
           onToggleCamera={handleToggleCamera}
+          onToggleScreenShare={handleToggleScreenShare}
           ringtoneOutgoingUrl={user.ringtoneOutgoingUrl}
           ringtoneIncomingUrl={user.ringtoneIncomingUrl}
         />

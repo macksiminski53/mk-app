@@ -73,6 +73,30 @@ export function CameraOffIcon({ size = 18 }) {
   );
 }
 
+// A monitor with an upward arrow -- reads as "share this screen" the same
+// way it does in Zoom/Discord/Meet, distinct enough from CameraIcon's
+// handheld-camera shape not to be confused with it in the call controls.
+export function ScreenShareIcon({ size = 18 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="2.5" y="4.5" width="19" height="13" rx="2" stroke="currentColor" strokeWidth="1.7" />
+      <path d="M8.5 21h7M12 17.5V21" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      <path d="M12 14.5V8M9 11l3-3 3 3" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function ScreenShareOffIcon({ size = 18 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="2.5" y="4.5" width="19" height="13" rx="2" stroke="currentColor" strokeWidth="1.7" />
+      <path d="M8.5 21h7M12 17.5V21" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      <path d="M12 14.5V8M9 11l3-3 3 3" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M3.5 3.5l17 17" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export function CallCloseIcon({ size = 16 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">

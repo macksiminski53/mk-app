@@ -46,6 +46,17 @@ export async function getCamStream(deviceId) {
   });
 }
 
+// Screen (or single-window/tab) capture for the free screen-share toggle
+// mid-call -- same on-demand pattern as getCamStream (video is added to an
+// already-running call, not requested upfront). No audio track: capturing
+// tab/system audio varies wildly by browser and OS, so this stays
+// video-only to keep behavior predictable everywhere. Rejects (e.g. the
+// user hits "Cancel" on the browser's picker) the same way getCamStream
+// does when camera permission is denied -- the caller already handles that.
+export async function getScreenStream() {
+  return navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+}
+
 // Lists available audio input (mic) and output (speaker) devices for the
 // Voice Chat settings tab. Labels are only populated once the browser has
 // been granted mic permission at least once (otherwise they come back
