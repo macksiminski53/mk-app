@@ -31,7 +31,8 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "installerSidebar": "build/installSidebar.bmp",
-      "uninstallerSidebar": "build/installerSidebar.bmp"
+      "uninstallerSidebar": "build/installerSidebar.bmp",
+      "artifactName": "${productName}.exe"
     },
     "mac": {
       "target": "dmg",
