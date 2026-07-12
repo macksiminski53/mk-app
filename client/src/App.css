@@ -1114,6 +1114,17 @@ body {
   font-size: 14px;
 }
 
+.auth-session-expired {
+  background: #2b2d31;
+  border: 1px solid #4e5058;
+  color: #f2f3f5;
+  font-size: 13px;
+  text-align: center;
+  padding: 8px 12px;
+  border-radius: 6px;
+  margin: 0 0 14px;
+}
+
 .auth-card label {
   font-size: 12px;
   font-weight: 700;

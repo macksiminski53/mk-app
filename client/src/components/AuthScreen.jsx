@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { api } from '../api.js';
 
-export default function AuthScreen({ onAuthed }) {
+export default function AuthScreen({ onAuthed, sessionExpired = false }) {
   const [mode, setMode] = useState('login'); // 'login' | 'register' | 'token'
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -33,6 +33,9 @@ export default function AuthScreen({ onAuthed }) {
     <div className="auth-screen">
       <form className="auth-card" onSubmit={handleSubmit}>
         <h1>MK</h1>
+        {sessionExpired && (
+          <div className="auth-session-expired">Your session expired -- please log back in.</div>
+        )}
         <p className="auth-sub">
           {mode === 'login' && "We're so excited to see you again!"}
           {mode === 'register' && 'Join the conversation.'}

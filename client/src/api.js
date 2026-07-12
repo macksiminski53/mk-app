@@ -1,5 +1,17 @@
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
+// App.jsx registers a callback here on mount (see setUnauthorizedHandler)
+// so that request() can bounce the user back to the login screen the
+// moment any authenticated call comes back 401 -- e.g. the server was
+// restarted without a persistent JWT_SECRET set, silently invalidating
+// every previously-issued token. Without this, the app just keeps showing
+// whatever was last cached in localStorage forever, with no visible sign
+// anything's wrong (the actual bug that prompted adding this).
+let unauthorizedHandler = null;
+export function setUnauthorizedHandler(fn) {
+  unauthorizedHandler = fn;
+}
+
 async function request(path, { method = 'GET', body, token, isForm } = {}) {
   const res = await fetch(`${API_BASE}/api${path}`, {
     method,
@@ -10,7 +22,16 @@ async function request(path, { method = 'GET', body, token, isForm } = {}) {
     body: isForm ? body : body ? JSON.stringify(body) : undefined,
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || 'Request failed');
+  if (!res.ok) {
+    // Only treat this as "your session died" when a token was actually
+    // sent and rejected -- a 401 from /auth/login itself just means wrong
+    // password, which shouldn't force a logout of an already-logged-out
+    // screen.
+    if (res.status === 401 && token) unauthorizedHandler?.();
+    const err = new Error(data.error || 'Request failed');
+    err.status = res.status;
+    throw err;
+  }
   return data;
 }
 

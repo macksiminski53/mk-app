@@ -8,7 +8,7 @@ import ActiveCallView from './components/ActiveCallView.jsx';
 import ServerRail from './components/ServerRail.jsx';
 import MegaChatView from './components/MegaChatView.jsx';
 import MiniChatView from './components/MiniChatView.jsx';
-import { api } from './api.js';
+import { api, setUnauthorizedHandler } from './api.js';
 import { connectSocket, disconnectSocket, getSocket } from './socket.js';
 import { getTranslator } from './i18n.js';
 import { createPeerConnection, getMicStream, getCamStream, getScreenStream, stopStream } from './webrtc.js';
@@ -29,6 +29,10 @@ function loadSettings() {
 
 export default function App() {
   const [token, setToken] = useState(() => localStorage.getItem('token'));
+  // Set by the 401 handler registered below -- shows a "please log back
+  // in" banner on the next AuthScreen render instead of the user just
+  // silently landing back on the login form with no explanation.
+  const [sessionExpired, setSessionExpired] = useState(false);
   const [user, setUser] = useState(() => {
     const raw = localStorage.getItem('user');
     return raw ? JSON.parse(raw) : null;
@@ -425,6 +429,7 @@ export default function App() {
     localStorage.setItem('user', JSON.stringify(usr));
     setToken(tok);
     setUser(usr);
+    setSessionExpired(false);
   }, []);
 
   const handleLogout = useCallback(() => {
@@ -437,6 +442,20 @@ export default function App() {
     setRequests([]);
     setActiveFriendId(null);
   }, []);
+
+  // Bounces the user back to the login screen the instant any authenticated
+  // API call comes back 401, instead of silently leaving stale cached data
+  // on screen forever (see api.js's setUnauthorizedHandler for why this
+  // exists -- a restarted server with no persistent JWT_SECRET invalidates
+  // every existing token, and that used to fail invisibly). Registered
+  // once; api.js calls it from wherever a 401 with a token happens to
+  // surface, so it can't miss one.
+  useEffect(() => {
+    setUnauthorizedHandler(() => {
+      setSessionExpired(true);
+      handleLogout();
+    });
+  }, [handleLogout]);
 
   async function handleSendFriendRequest(username) {
     const res = await api.sendFriendRequest(token, username);
@@ -883,7 +902,7 @@ export default function App() {
   }
 
   if (!token || !user) {
-    return <AuthScreen onAuthed={handleAuthed} />;
+    return <AuthScreen onAuthed={handleAuthed} sessionExpired={sessionExpired} />;
   }
 
   const activeFriend = friends.find((f) => f.id === activeFriendId) || null;
