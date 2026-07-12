@@ -332,8 +332,8 @@ export default function MegaChatView({ server, token, currentUser, onLeftOrDelet
             <form className="megachat-input-row" onSubmit={handleSend}>
               {currentUser?.isPremium && (
                 <EmojiPicker onSelect={(emoji) => setInput((prev) => prev + emoji)} customEmojiUrl={currentUser?.customEmojiUrl} />
-                <GifPicker token={token} onSend={sendGif} />
               )}
+              <GifPicker token={token} onSend={sendGif} />
               <input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}

@@ -282,8 +282,8 @@ export default function MiniChatView({ group, token, currentUser, onLeft, onBack
           <form className="megachat-input-row" onSubmit={handleSend}>
             {currentUser?.isPremium && (
               <EmojiPicker onSelect={(emoji) => setInput((prev) => prev + emoji)} customEmojiUrl={currentUser?.customEmojiUrl} />
-              <GifPicker token={token} onSend={sendGif} />
             )}
+            <GifPicker token={token} onSend={sendGif} />
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
