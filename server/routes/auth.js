@@ -49,7 +49,7 @@ function randomColor() {
 // client/src/components/ObjectAvatars.jsx's OBJECT_AVATARS keys exactly
 // (and db.js's initSchema() backfill CASE for pre-existing accounts), since
 // only this id string is ever stored/sent, never image data.
-const OBJECT_AVATARS = ['coffee', 'plant', 'book', 'camera', 'headphones', 'bulb', 'rocket', 'cactus', 'umbrella', 'vinyl'];
+const OBJECT_AVATARS = ['usb-a', 'usb-c', 'firewire', 'lightning', 'micro-usb', 'hdmi', 'ethernet', 'displayport', 'aux', 'vga'];
 function randomObjectAvatar() {
   return OBJECT_AVATARS[Math.floor(Math.random() * OBJECT_AVATARS.length)];
 }

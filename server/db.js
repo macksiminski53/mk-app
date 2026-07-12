@@ -497,13 +497,17 @@ CREATE TABLE IF NOT EXISTS message_reactions (
   }
 
   // Default profile picture: instead of a colored circle + initials, every
-  // account gets a random everyday-object illustration (see
+  // account gets a random cable/connector illustration (see
   // client/src/components/ObjectAvatars.jsx -- the ids below must match its
   // OBJECT_AVATARS keys exactly, since only the id string is ever stored/
   // sent here, not image data). Added after the fact via ALTER TABLE like
   // the other post-hoc columns above, so every existing row starts out
-  // NULL -- the UPDATE right after backfills those in one pass, and is
-  // cheap to re-run on every boot since it only ever touches NULL rows.
+  // NULL -- the UPDATE right after backfills those in one pass. The "OR
+  // avatar_icon NOT IN (...)" half makes this self-healing: if the id list
+  // ever changes again (like it already did once, from an earlier
+  // everyday-object set to this cable set), any row still holding a
+  // now-unrecognized id gets swept up and reassigned too, not just NULLs --
+  // still cheap to re-run every boot since a matching row is a no-op.
   try {
     await client.execute('ALTER TABLE users ADD COLUMN avatar_icon TEXT');
   } catch (e) {
@@ -511,18 +515,19 @@ CREATE TABLE IF NOT EXISTS message_reactions (
   }
   await client.execute(`
 UPDATE users SET avatar_icon = CASE ABS(RANDOM()) % 10
-  WHEN 0 THEN 'coffee'
-  WHEN 1 THEN 'plant'
-  WHEN 2 THEN 'book'
-  WHEN 3 THEN 'camera'
-  WHEN 4 THEN 'headphones'
-  WHEN 5 THEN 'bulb'
-  WHEN 6 THEN 'rocket'
-  WHEN 7 THEN 'cactus'
-  WHEN 8 THEN 'umbrella'
-  ELSE 'vinyl'
+  WHEN 0 THEN 'usb-a'
+  WHEN 1 THEN 'usb-c'
+  WHEN 2 THEN 'firewire'
+  WHEN 3 THEN 'lightning'
+  WHEN 4 THEN 'micro-usb'
+  WHEN 5 THEN 'hdmi'
+  WHEN 6 THEN 'ethernet'
+  WHEN 7 THEN 'displayport'
+  WHEN 8 THEN 'aux'
+  ELSE 'vga'
 END
-WHERE avatar_icon IS NULL`);
+WHERE avatar_icon IS NULL
+   OR avatar_icon NOT IN ('usb-a', 'usb-c', 'firewire', 'lightning', 'micro-usb', 'hdmi', 'ethernet', 'displayport', 'aux', 'vga')`);
 }
 
 export default db;
