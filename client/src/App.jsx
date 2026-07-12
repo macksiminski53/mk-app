@@ -787,6 +787,19 @@ export default function App() {
 
   const activeFriend = friends.find((f) => f.id === activeFriendId) || null;
 
+  // Mobile layout: only one pane (the list, or the active chat) is shown at
+  // a time -- this flag drives that via a CSS class rather than unmounting
+  // anything, so no chat/socket state is lost when switching back and
+  // forth. "A chat is open" means any of the three mutually-exclusive
+  // selections is set.
+  const mobileChatOpen = activeServerId !== null || activeGroupId !== null || activeFriendId !== null;
+
+  function handleMobileBack() {
+    if (activeServerId !== null) setActiveServerId(null);
+    else if (activeGroupId !== null) setActiveGroupId(null);
+    else if (activeFriendId !== null) setActiveFriendId(null);
+  }
+
   return (
     <div className="app-root">
       <TopBar
@@ -834,7 +847,7 @@ export default function App() {
         />
       )}
       <audio ref={remoteAudioRef} autoPlay />
-      <div className="app-shell">
+      <div className={`app-shell ${mobileChatOpen ? 'mobile-chat-open' : ''}`}>
         <ServerRail
           servers={servers}
           activeServerId={activeServerId}
@@ -875,6 +888,7 @@ export default function App() {
                     token={token}
                     currentUser={user}
                     onLeft={handleGroupLeft}
+                    onBack={handleMobileBack}
                   />
                 ) : null;
               })()
@@ -888,6 +902,7 @@ export default function App() {
                 callActive={!!call}
                 chatLayout={settings.chatLayout}
                 openSettingsTrigger={chatSettingsTrigger}
+                onBack={handleMobileBack}
                 t={t}
               />
             )}
@@ -902,6 +917,7 @@ export default function App() {
                 token={token}
                 currentUser={user}
                 onLeftOrDeleted={handleServerLeftOrDeleted}
+                onBack={handleMobileBack}
               />
             ) : null;
           })()

@@ -3,15 +3,22 @@ import { api, resolveAvatarUrl } from '../api.js';
 import { getSocket } from '../socket.js';
 import Avatar from './Avatar.jsx';
 import { PhoneIcon } from './CallIcons.jsx';
+import { BackIcon, PinIcon } from './Icons.jsx';
 import CassettePlayer from './CassettePlayer.jsx';
 import EmojiPicker, { renderWithCustomEmoji } from './EmojiPicker.jsx';
 import LikeButton from './LikeButton.jsx';
 import PinButton from './PinButton.jsx';
-import { PinIcon } from './Icons.jsx';
 import PinnedPanel from './PinnedPanel.jsx';
 
-function formatTime(iso) {
-  const d = new Date(iso + 'Z');
+function formatTime(createdAt) {
+  if (!createdAt) return '';
+  // Server stores "YYYY-MM-DD HH:MM:SS" (SQLite datetime('now')) with no
+  // "T" separator -- Safari/iOS rejects that shape outright (Invalid Date)
+  // even though Chrome tolerates it, so normalize it first like the other
+  // chat views already do.
+  const iso = createdAt.includes('T') ? createdAt : createdAt.replace(' ', 'T') + 'Z';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
   return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 }
 
@@ -40,7 +47,7 @@ function fileExtLabel(url) {
   return m ? m[1].toUpperCase() : 'FILE';
 }
 
-export default function ChatArea({ token, friend, currentUser, onRemoveFriend, onStartCall, callActive, chatLayout = 'bubble', openSettingsTrigger, t }) {
+export default function ChatArea({ token, friend, currentUser, onRemoveFriend, onStartCall, callActive, chatLayout = 'bubble', openSettingsTrigger, onBack, t }) {
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState('');
   const [typing, setTyping] = useState(false);
@@ -266,6 +273,11 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
   return (
     <div className={`chat-area layout-${isBubble ? 'bubble' : 'flat'}`}>
       <div className="chat-header">
+        {onBack && (
+          <button type="button" className="mobile-back-btn" onClick={onBack} title="Back">
+            <BackIcon />
+          </button>
+        )}
         <span className="chat-header-name">
           {friend.displayName || friend.username}
           {friend.isUltra && <span className="ultra-badge" title="MK ULTRA">ULTRA</span>}

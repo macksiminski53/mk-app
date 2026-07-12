@@ -5,7 +5,7 @@ import { getSocket } from '../socket.js';
 import EmojiPicker, { renderWithCustomEmoji } from './EmojiPicker.jsx';
 import LikeButton from './LikeButton.jsx';
 import PinButton from './PinButton.jsx';
-import { PinIcon } from './Icons.jsx';
+import { BackIcon, PinIcon } from './Icons.jsx';
 import PinnedPanel from './PinnedPanel.jsx';
 
 function formatTime(createdAt) {
@@ -19,7 +19,7 @@ function formatTime(createdAt) {
 // Channel sidebar + message area for one Mega Chat (a paid, Discord-style
 // server). Mirrors ChatArea's basic message-list pattern but scoped to a
 // channel room over the socket instead of a DM thread.
-export default function MegaChatView({ server, token, currentUser, onLeftOrDeleted, onRename }) {
+export default function MegaChatView({ server, token, currentUser, onLeftOrDeleted, onRename, onBack }) {
   const [detail, setDetail] = useState(null);
   const [activeChannelId, setActiveChannelId] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -30,6 +30,10 @@ export default function MegaChatView({ server, token, currentUser, onLeftOrDelet
   const [addError, setAddError] = useState('');
   const [newChannelName, setNewChannelName] = useState('');
   const [showNewChannel, setShowNewChannel] = useState(false);
+  // Mobile only: which of the two panes (channel list, or the active
+  // channel's chat) is showing -- desktop CSS ignores these classes and
+  // always shows both side by side.
+  const [mobileShowChannels, setMobileShowChannels] = useState(true);
   const messagesEndRef = useRef(null);
   const activeChannelIdRef = useRef(null);
   const messagesRef = useRef([]);
@@ -180,9 +184,14 @@ export default function MegaChatView({ server, token, currentUser, onLeftOrDelet
   const activeChannel = detail?.channels.find((c) => c.id === activeChannelId) || null;
 
   return (
-    <>
+    <div className={`megachat-view ${mobileShowChannels ? 'mobile-show-channels' : 'mobile-show-chat'}`}>
       <div className="megachat-channels">
         <div className="megachat-server-header">
+          {onBack && (
+            <button type="button" className="mobile-back-btn" onClick={onBack} title="Back">
+              <BackIcon />
+            </button>
+          )}
           <span>{server.name}</span>
         </div>
         <div className="megachat-channel-list">
@@ -190,7 +199,7 @@ export default function MegaChatView({ server, token, currentUser, onLeftOrDelet
             <div
               key={c.id}
               className={`megachat-channel-row ${activeChannelId === c.id ? 'active' : ''}`}
-              onClick={() => setActiveChannelId(c.id)}
+              onClick={() => { setActiveChannelId(c.id); setMobileShowChannels(false); }}
             >
               <span className="megachat-channel-hash">#</span>
               <span className="megachat-channel-name">{c.name}</span>
@@ -241,6 +250,12 @@ export default function MegaChatView({ server, token, currentUser, onLeftOrDelet
       </div>
 
       <div className="megachat-main">
+        <div className="megachat-mobile-header">
+          <button type="button" className="mobile-back-btn" onClick={() => setMobileShowChannels(true)} title="Back to channels">
+            <BackIcon />
+          </button>
+          <span className="megachat-mobile-channel-name">{activeChannel ? `#${activeChannel.name}` : server.name}</span>
+        </div>
         {showMembers ? (
           <div className="megachat-members-panel">
             <form className="megachat-add-member-form" onSubmit={handleAddMember}>
@@ -321,6 +336,6 @@ export default function MegaChatView({ server, token, currentUser, onLeftOrDelet
           onClose={() => setShowPinnedPanel(false)}
         />
       )}
-    </>
+    </div>
   );
 }

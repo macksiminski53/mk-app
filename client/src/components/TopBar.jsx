@@ -305,14 +305,14 @@ export default function TopBar({ requests, onRefreshRequests, onRespond, onSendR
       </div>
       <div className="top-bar-right">
         <button
-          className="top-bar-btn"
+          className="top-bar-btn top-bar-btn-secondary"
           onClick={() => window.location.reload()}
           title="Reload MK to pick up the latest version"
         >
           Refresh
         </button>
         <button className="top-bar-btn" onClick={() => setShowSettings(true)}>{t('settings')}</button>
-        <button className="top-bar-btn" onClick={() => setShowLog(true)}>{t('updateLog')}</button>
+        <button className="top-bar-btn top-bar-btn-secondary" onClick={() => setShowLog(true)}>{t('updateLog')}</button>
         <button
           className="top-bar-btn"
           onClick={() => {

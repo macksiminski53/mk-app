@@ -6,7 +6,7 @@ import { getSocket } from '../socket.js';
 import EmojiPicker, { renderWithCustomEmoji } from './EmojiPicker.jsx';
 import LikeButton from './LikeButton.jsx';
 import PinButton from './PinButton.jsx';
-import { PinIcon } from './Icons.jsx';
+import { BackIcon, PinIcon } from './Icons.jsx';
 import PinnedPanel from './PinnedPanel.jsx';
 
 function formatTime(createdAt) {
@@ -27,7 +27,7 @@ export function groupDisplayName(group, currentUserId) {
 // MegaChatView's message-list pattern but with a single implicit "channel"
 // (the group itself) and a simpler members panel -- any member can add
 // another member or leave; there's no owner/kick action.
-export default function MiniChatView({ group, token, currentUser, onLeft }) {
+export default function MiniChatView({ group, token, currentUser, onLeft, onBack }) {
   const [members, setMembers] = useState(group.members || []);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
@@ -170,6 +170,11 @@ export default function MiniChatView({ group, token, currentUser, onLeft }) {
   return (
     <div className="megachat-main minichat-main">
       <div className="chat-header minichat-header">
+        {onBack && (
+          <button type="button" className="mobile-back-btn" onClick={onBack} title="Back">
+            <BackIcon />
+          </button>
+        )}
         <div
           className={`minichat-header-avatar ${isCreator ? 'minichat-header-avatar-editable' : ''}`}
           onClick={() => isCreator && avatarInputRef.current?.click()}
