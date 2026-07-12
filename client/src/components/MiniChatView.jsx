@@ -320,6 +320,7 @@ export default function MiniChatView({ group, token, currentUser, onLeft, onBack
                   {m.isUltra && <span className="ultra-badge" title="MK ULTRA">ULTRA</span>}
                   {!m.isUltra && m.isPremium && <span className="premium-badge" title="MK PREMIUM">PREMIUM</span>}
                   {!m.isUltra && !m.isPremium && m.isPlus && <span className="plus-badge" title="MK PLUS">PLUS</span>}
+                  {m.isAdmin && <span className="admin-badge" title="MK Admin">ADMIN</span>}
                 </span>
               </div>
             ))}

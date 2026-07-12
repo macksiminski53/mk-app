@@ -1887,6 +1887,21 @@ body {
   vertical-align: middle;
 }
 
+.admin-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: linear-gradient(135deg, #ff3b3b, #7a0d0d);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
 .ultra-panel { padding: 4px 0; }
 .ultra-panel-title { font-size: 14px; font-weight: 700; color: #f2f3f5; margin-bottom: 6px; }
 .ultra-panel-desc { font-size: 12px; color: #b5bac1; line-height: 1.5; margin-bottom: 10px; }

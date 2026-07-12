@@ -380,6 +380,7 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
           {friend.isUltra && <span className="ultra-badge" title="MK ULTRA">ULTRA</span>}
           {!friend.isUltra && friend.isPremium && <span className="premium-badge" title="MK PREMIUM">PREMIUM</span>}
           {!friend.isUltra && !friend.isPremium && friend.isPlus && <span className="plus-badge" title="MK PLUS">PLUS</span>}
+          {friend.isAdmin && <span className="admin-badge" title="MK Admin">ADMIN</span>}
         </span>
         <div className="dropdown-wrap chat-settings-wrap">
           <span

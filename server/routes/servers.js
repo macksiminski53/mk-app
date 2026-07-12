@@ -52,7 +52,7 @@ router.get('/:id', asyncHandler(async (req, res) => {
     return res.status(403).json({ error: 'Not a member of this Mega Chat' });
   }
   const members = await db.prepare(`
-    SELECT u.id, u.username, u.display_name as displayName, u.avatar_color as avatarColor, u.avatar_url as avatarUrl, u.is_plus as isPlus, u.is_premium as isPremium, u.is_ultra as isUltra, u.name_color as nameColor
+    SELECT u.id, u.username, u.display_name as displayName, u.avatar_color as avatarColor, u.avatar_url as avatarUrl, u.is_plus as isPlus, u.is_premium as isPremium, u.is_ultra as isUltra, u.is_admin as isAdmin, u.name_color as nameColor
     FROM server_members sm
     JOIN users u ON u.id = sm.user_id
     WHERE sm.server_id = ?
@@ -114,7 +114,7 @@ router.post('/:id/members', asyncHandler(async (req, res) => {
   const clean = typeof username === 'string' ? username.trim() : '';
   if (!clean) return res.status(400).json({ error: 'Username is required' });
 
-  const target = await db.prepare('SELECT id, username, display_name as displayName, avatar_color as avatarColor, avatar_url as avatarUrl, is_plus as isPlus, is_premium as isPremium, is_ultra as isUltra, name_color as nameColor FROM users WHERE username = ?').get(clean);
+  const target = await db.prepare('SELECT id, username, display_name as displayName, avatar_color as avatarColor, avatar_url as avatarUrl, is_plus as isPlus, is_premium as isPremium, is_ultra as isUltra, is_admin as isAdmin, name_color as nameColor FROM users WHERE username = ?').get(clean);
   if (!target) return res.status(404).json({ error: `No user named "${clean}" found` });
 
   if (await isMember(server.id, target.id)) {
@@ -122,7 +122,7 @@ router.post('/:id/members', asyncHandler(async (req, res) => {
   }
 
   await db.prepare('INSERT INTO server_members (server_id, user_id) VALUES (?, ?)').run(server.id, target.id);
-  res.json({ id: target.id, username: target.username, displayName: target.displayName, avatarColor: target.avatarColor, avatarUrl: target.avatarUrl, isPlus: !!(target.isPlus || target.isPremium || target.isUltra), isPremium: !!(target.isPremium || target.isUltra), isUltra: !!target.isUltra, nameColor: target.isUltra ? target.nameColor : null });
+  res.json({ id: target.id, username: target.username, displayName: target.displayName, avatarColor: target.avatarColor, avatarUrl: target.avatarUrl, isPlus: !!(target.isPlus || target.isPremium || target.isUltra), isPremium: !!(target.isPremium || target.isUltra), isUltra: !!target.isUltra, isAdmin: !!target.isAdmin, nameColor: target.isUltra ? target.nameColor : null });
 }));
 
 // Remove a member. The owner can remove anyone; anyone can remove themself

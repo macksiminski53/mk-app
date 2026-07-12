@@ -97,6 +97,7 @@ export default function FriendsSidebar({
               {currentUser.isUltra && <span className="ultra-badge" title="MK ULTRA">ULTRA</span>}
               {!currentUser.isUltra && currentUser.isPremium && <span className="premium-badge" title="MK PREMIUM">PREMIUM</span>}
               {!currentUser.isUltra && !currentUser.isPremium && currentUser.isPlus && <span className="plus-badge" title="MK PLUS">PLUS</span>}
+              {currentUser.isAdmin && <span className="admin-badge" title="MK Admin">ADMIN</span>}
             </div>
             <div
               className={`activity-status ${currentUser.statusSource !== 'music' ? 'activity-status-hint' : ''}`}
@@ -180,6 +181,7 @@ export default function FriendsSidebar({
                 {f.isUltra && <span className="ultra-badge" title="MK ULTRA">ULTRA</span>}
                 {!f.isUltra && f.isPremium && <span className="premium-badge" title="MK PREMIUM">PREMIUM</span>}
                 {!f.isUltra && !f.isPremium && f.isPlus && <span className="plus-badge" title="MK PLUS">PLUS</span>}
+                {f.isAdmin && <span className="admin-badge" title="MK Admin">ADMIN</span>}
               </span>
               {f.statusSource === 'music' && f.statusText && <span className="friend-status">{f.statusText}</span>}
             </div>

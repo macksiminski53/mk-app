@@ -32,13 +32,13 @@ async function isMember(groupId, userId) {
 
 async function loadMembers(groupId) {
   const rows = await db.prepare(`
-    SELECT u.id, u.username, u.display_name as displayName, u.avatar_color as avatarColor, u.avatar_url as avatarUrl, u.is_plus as isPlus, u.is_premium as isPremium, u.is_ultra as isUltra, u.name_color as nameColor
+    SELECT u.id, u.username, u.display_name as displayName, u.avatar_color as avatarColor, u.avatar_url as avatarUrl, u.is_plus as isPlus, u.is_premium as isPremium, u.is_ultra as isUltra, u.is_admin as isAdmin, u.name_color as nameColor
     FROM group_chat_members gm
     JOIN users u ON u.id = gm.user_id
     WHERE gm.group_chat_id = ?
     ORDER BY u.username COLLATE NOCASE ASC
   `).all(groupId);
-  return rows.map((r) => ({ ...r, isPlus: !!(r.isPlus || r.isPremium || r.isUltra), isPremium: !!(r.isPremium || r.isUltra), isUltra: !!r.isUltra, nameColor: r.isUltra ? r.nameColor : null }));
+  return rows.map((r) => ({ ...r, isPlus: !!(r.isPlus || r.isPremium || r.isUltra), isPremium: !!(r.isPremium || r.isUltra), isUltra: !!r.isUltra, isAdmin: !!r.isAdmin, nameColor: r.isUltra ? r.nameColor : null }));
 }
 
 // Every Mini Chat the current user is in, each with its full member list so
