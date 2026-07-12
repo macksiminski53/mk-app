@@ -1,6 +1,18 @@
 const { app, BrowserWindow, Tray, Menu, session, nativeImage, Notification } = require('electron');
 const path = require('path');
 
+// Without these, Windows (and notification/taskbar grouping in general)
+// falls back to the generic "Electron" identity instead of "MK" -- most
+// noticeable in native notification popups, which is exactly what shows
+// "Electron"/".electron" instead of the app name. appUserModelId matches
+// the "appId" already set in package.json's build config. Both must be set
+// before app.whenReady(); setName() works in dev too, setAppUserModelId()
+// is what actually controls the Windows notification/taskbar identity.
+app.setName('MK');
+if (process.platform === 'win32') {
+  app.setAppUserModelId('com.mk.desktop');
+}
+
 // Points at the deployed frontend, not a bundled copy -- so the desktop
 // app always shows the same accounts/friends/messages as the web version,
 // with zero duplicate deployment/update logic to maintain here.
