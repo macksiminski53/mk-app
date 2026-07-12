@@ -2958,3 +2958,26 @@ body {
   gap: 4px;
   padding: 4px;
 }
+
+/* ---- Hide the inline reply/edit/like/pin row and "add reaction" button
+   until you hover the message -- right-click now covers the same actions
+   (see MessageContextMenu.jsx), so they no longer need to sit visible
+   under every single message. Existing reaction pills stay visible
+   always (they're content, not just controls). Scoped to devices that
+   support real hover so touch/mobile users -- who can't hover -- keep the
+   buttons always tappable. ---- */
+@media (hover: hover) {
+  .message-actions-row,
+  .reaction-add-btn {
+    opacity: 0;
+    transition: opacity 0.12s ease;
+    pointer-events: none;
+  }
+  .message-row:hover .message-actions-row,
+  .message-row:hover .reaction-add-btn,
+  .megachat-message-row:hover .message-actions-row,
+  .megachat-message-row:hover .reaction-add-btn {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
