@@ -23,3 +23,10 @@ export function emitMegaChatReady(userId, server) {
 export function emitGroupAvatarChanged(memberIds, groupId, avatarUrl) {
   events.emit('group:avatar-changed', { memberIds, groupId, avatarUrl });
 }
+
+// An admin deleted a message via the REST API -- lets every client
+// currently viewing that thread/channel/group remove it in real time via
+// the same socket room the normal message:new broadcasts already use.
+export function emitAdminMessageDeleted(messageType, messageId, roomId) {
+  events.emit('admin:message-deleted', { messageType, messageId, roomId });
+}

@@ -455,6 +455,18 @@ CREATE TABLE IF NOT EXISTS dm_read_state (
   PRIMARY KEY (thread_id, user_id)
 )`);
 
+  // Admin role: a small set of trusted operator accounts (granted manually,
+  // e.g. via scripts/grant-admin.js) with full moderation access -- listing
+  // every user, granting/revoking tiers without needing Turso env vars in a
+  // terminal, removing accounts, and deleting any message in any DM/Mega
+  // Chat/Mini Chat. Gated server-side on every admin route (see
+  // requireAdmin in auth.js), never trusted from the client alone.
+  try {
+    await client.execute('ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0');
+  } catch (e) {
+    if (!/duplicate column/i.test(e.message || '')) throw e;
+  }
+
   // Free perk: emoji reactions on any message. Same message_type +
   // message_id disambiguation pattern as message_likes/pinned_messages
   // (the three message tables don't share an id space). Unlike the single

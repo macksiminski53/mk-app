@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
+import { db } from './db.js';
 
 // SECURITY: this used to fall back to a hardcoded string
 // ('dev-secret-change-me') when JWT_SECRET wasn't set in the environment.
@@ -42,6 +43,21 @@ export function verifySocketToken(token) {
     return jwt.verify(token, JWT_SECRET);
   } catch (e) {
     return null;
+  }
+}
+
+// Must run after requireAuth (needs req.user.id). The JWT itself only ever
+// carries id/username -- admin status is looked up fresh from the DB on
+// every request, the same pattern used elsewhere for tier checks (e.g.
+// message:like's MK PREMIUM check), so a revoked admin loses access
+// immediately rather than whenever their 30-day token happens to expire.
+export async function requireAdmin(req, res, next) {
+  try {
+    const row = await db.prepare('SELECT is_admin FROM users WHERE id = ?').get(req.user.id);
+    if (!row?.is_admin) return res.status(403).json({ error: 'Admin access required' });
+    next();
+  } catch (e) {
+    res.status(500).json({ error: 'Server error' });
   }
 }
 

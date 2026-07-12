@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { LANGUAGES } from '../i18n.js';
 import { listAudioDevices } from '../webrtc.js';
+import AdminPanel from './AdminPanel.jsx';
 
 const CHANGELOG = [
   { version: '0.18.0', notes: 'MK PREMIUM/ULTRA split rework: MK PREMIUM takes over free Mega Chats, permanent Mini Chats/DMs, the emoji picker, and message likes. MK ULTRA adds a name color, avatar border, profile banner, read receipts, a raised Mini Chat cap, and a personal custom emoji. Message pinning (up to 10 per chat, never auto-deletes) is now free for everyone.' },
@@ -22,10 +23,11 @@ const CHANGELOG = [
   { version: '0.1.0', notes: 'Initial release: register/login, real-time messaging.' },
 ];
 
-export default function TopBar({ requests, onRefreshRequests, onRespond, onSendRequest, settings, onUpdateSettings, onLogout, currentUser, onUploadRingtone, onResetRingtone, onBuyPlus, onBuyPremium, onBuyUltra, onSetUltraColor, onSetNameColor, onUploadCustomEmoji, onRemoveCustomEmoji, onRevealToken, onRegenerateToken, billingConfigured, onCreateMegaChat, onCreateMiniChat, onFetchStats, t }) {
+export default function TopBar({ requests, onRefreshRequests, onRespond, onSendRequest, settings, onUpdateSettings, onLogout, currentUser, onUploadRingtone, onResetRingtone, onBuyPlus, onBuyPremium, onBuyUltra, onSetUltraColor, onSetNameColor, onUploadCustomEmoji, onRemoveCustomEmoji, onRevealToken, onRegenerateToken, billingConfigured, onCreateMegaChat, onCreateMiniChat, onFetchStats, onAdminListUsers, onAdminSetTier, onAdminSetAdmin, onAdminDeleteUser, t }) {
   const [showExtra, setShowExtra] = useState(false);
   const [showLog, setShowLog] = useState(false);
   const [showStats, setShowStats] = useState(false);
+  const [showAdmin, setShowAdmin] = useState(false);
   const [stats, setStats] = useState(null);
   const [statsLoading, setStatsLoading] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -306,6 +308,11 @@ export default function TopBar({ requests, onRefreshRequests, onRespond, onSendR
               >
                 Download for Windows
               </a>
+              {currentUser?.isAdmin && (
+                <div className="dropdown-item" onClick={() => { setShowAdmin(true); setShowExtra(false); }}>
+                  Admin Panel
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -856,6 +863,17 @@ export default function TopBar({ requests, onRefreshRequests, onRespond, onSendR
             </div>
           </div>
         </div>
+      )}
+
+      {showAdmin && (
+        <AdminPanel
+          currentUser={currentUser}
+          onListUsers={onAdminListUsers}
+          onSetTier={onAdminSetTier}
+          onSetAdmin={onAdminSetAdmin}
+          onDeleteUser={onAdminDeleteUser}
+          onClose={() => setShowAdmin(false)}
+        />
       )}
 
       {showRequests && (

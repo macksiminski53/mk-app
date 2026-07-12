@@ -16,6 +16,7 @@ import billingRoutes, { handleStripeWebhook } from './routes/billing.js';
 import serverRoutes, { isMember } from './routes/servers.js';
 import groupRoutes, { isMember as isGroupMember } from './routes/groups.js';
 import gifRoutes from './routes/gifs.js';
+import adminRoutes from './routes/admin.js';
 import { getReactionsFor, getReactionsForMany } from './reactions.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -51,6 +52,7 @@ app.use('/api/billing', billingRoutes);
 app.use('/api/servers', serverRoutes);
 app.use('/api/groups', groupRoutes);
 app.use('/api/gifs', gifRoutes);
+app.use('/api/admin', adminRoutes);
 
 io.use((socket, next) => {
   const token = socket.handshake.auth?.token;
@@ -163,6 +165,16 @@ const LIKE_TABLES = {
 // lookup only, no roomCol) -- reused as-is rather than duplicating the
 // object under a new name.
 const MESSAGE_TABLES = LIKE_TABLES;
+
+// An admin deleted a message via the REST API (server/routes/admin.js) --
+// broadcast it to the same room message:new/like/pin updates already go
+// to, so anyone currently viewing that thread/channel/group sees it
+// disappear immediately instead of on next refresh.
+events.on('admin:message-deleted', ({ messageType, messageId, roomId }) => {
+  const cfg = MESSAGE_TABLES[messageType];
+  if (!cfg) return;
+  io.to(cfg.room(roomId)).emit('message:deleted', { messageType, messageId: Number(messageId) });
+});
 
 // Detects `$username` mentions in a just-sent message's content. Matching is
 // case-insensitive; `$` is used instead of the conventional `@` throughout

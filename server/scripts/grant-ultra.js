@@ -1,14 +1,19 @@
-// One-off admin tool: grant (or revoke) MK PLUS, MK PREMIUM, or MK ULTRA for
-// specific usernames without needing a Stripe purchase. Useful for comping
-// the app owner, testers, etc.
+// One-off admin tool: grant (or revoke) MK PLUS, MK PREMIUM, MK ULTRA, or the
+// full-moderation admin role for specific usernames without needing a
+// Stripe purchase or direct DB access. Useful for comping the app owner,
+// testers, etc., and for bootstrapping the very first admin account (the
+// admin panel itself is only reachable by someone who already has
+// is_admin = 1, so this script is how that first grant happens).
 //
 // Usage (run from server/):
 //   node scripts/grant-ultra.js alice bob                (grants MK ULTRA)
 //   node scripts/grant-ultra.js --plus alice              (grants MK PLUS instead)
 //   node scripts/grant-ultra.js --premium alice bob       (grants MK PREMIUM instead)
+//   node scripts/grant-ultra.js --admin alice             (grants the admin role instead of a tier)
 //   node scripts/grant-ultra.js --revoke alice            (revokes whichever tier(s) they have)
 //   node scripts/grant-ultra.js --revoke --plus alice     (revokes MK PLUS specifically)
 //   node scripts/grant-ultra.js --revoke --premium alice  (revokes MK PREMIUM specifically)
+//   node scripts/grant-ultra.js --revoke --admin alice    (revokes the admin role)
 //
 // Connects to whatever database db.js normally connects to -- set
 // TURSO_DATABASE_URL / TURSO_AUTH_TOKEN in the environment first if you want
@@ -25,7 +30,12 @@ const TIERS = {
 async function main() {
   const args = process.argv.slice(2);
   const revoke = args.includes('--revoke');
+  const adminMode = args.includes('--admin');
   const tierFlags = ['plus', 'premium', 'ultra'].filter((t) => args.includes(`--${t}`));
+  if (adminMode && tierFlags.length > 0) {
+    console.error(`--admin can't be combined with --${tierFlags[0]} -- run them as separate commands.`);
+    process.exit(1);
+  }
   if (tierFlags.length > 1) {
     console.error(`Only one of --plus/--premium/--ultra can be given at a time (got: ${tierFlags.join(', ')})`);
     process.exit(1);
@@ -34,11 +44,25 @@ async function main() {
   const usernames = args.filter((a) => !a.startsWith('--'));
 
   if (usernames.length === 0) {
-    console.error('Usage: node scripts/grant-ultra.js [--revoke] [--plus|--premium|--ultra] <username> [username2 ...]');
+    console.error('Usage: node scripts/grant-ultra.js [--revoke] [--plus|--premium|--ultra|--admin] <username> [username2 ...]');
     process.exit(1);
   }
 
   await initSchema();
+
+  if (adminMode) {
+    for (const username of usernames) {
+      const row = await db.prepare('SELECT id, username, is_admin FROM users WHERE username = ?').get(username);
+      if (!row) {
+        console.error(`✗ No user named "${username}" found`);
+        continue;
+      }
+      await db.prepare('UPDATE users SET is_admin = ? WHERE id = ?').run(revoke ? 0 : 1, row.id);
+      console.log(`${revoke ? '✗ revoked' : '✓ granted'} admin access for "${row.username}" (id ${row.id})`);
+    }
+    process.exit(0);
+    return;
+  }
 
   const { column, name: tierName } = TIERS[tierKey];
 

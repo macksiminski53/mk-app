@@ -180,6 +180,13 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
       setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, content, editedAt } : m)));
     }
 
+    // An admin deleted this message via the admin panel/context menu --
+    // remove it from local state for everyone currently viewing the thread.
+    function onMessageDeleted({ messageType, messageId }) {
+      if (messageType !== 'dm') return;
+      setMessages((prev) => prev.filter((m) => m.id !== messageId));
+    }
+
     socket.on('message:new', onNewMessage);
     socket.on('typing', onTyping);
     socket.on('chat:delete-vote-update', onDeleteVoteUpdate);
@@ -189,6 +196,7 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
     socket.on('thread:read-update', onReadUpdate);
     socket.on('message:reactions-update', onReactionsUpdate);
     socket.on('message:edit-update', onEditUpdate);
+    socket.on('message:deleted', onMessageDeleted);
 
     return () => {
       cancelled = true;
@@ -202,6 +210,7 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
       socket.off('thread:read-update', onReadUpdate);
       socket.off('message:reactions-update', onReactionsUpdate);
       socket.off('message:edit-update', onEditUpdate);
+      socket.off('message:deleted', onMessageDeleted);
     };
   }, [threadId]);
 
@@ -246,6 +255,13 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
       if (res?.error) return console.error(res.error);
       cancelEdit();
     });
+  }
+
+  // Admin-only: deletes any message regardless of author, via the REST API
+  // (server/routes/admin.js) rather than the normal socket path -- the
+  // resulting broadcast still arrives over the socket as 'message:deleted'.
+  function adminDeleteMessage(messageId) {
+    api.adminDeleteMessage(token, 'dm', messageId, threadId).catch((err) => console.error(err.message));
   }
 
   function pickMention(username) {
@@ -586,6 +602,7 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
           onEdit={() => startEdit(contextMenu.message)}
           onReact={(emoji) => toggleReaction(contextMenu.message.id, emoji)}
           onPin={() => togglePin(contextMenu.message.id)}
+          onAdminDelete={currentUser?.isAdmin ? () => adminDeleteMessage(contextMenu.message.id) : null}
           onClose={() => setContextMenu(null)}
         />
       )}

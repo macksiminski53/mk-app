@@ -826,6 +826,10 @@ export default function App() {
         onCreateMegaChat={handleTriggerCreateMegaChat}
         onCreateMiniChat={handleTriggerCreateMiniChat}
         onFetchStats={() => api.getMyStats(token)}
+        onAdminListUsers={() => api.adminListUsers(token)}
+        onAdminSetTier={(userId, tier, value) => api.adminSetTier(token, userId, tier, value)}
+        onAdminSetAdmin={(userId, value) => api.adminSetAdmin(token, userId, value)}
+        onAdminDeleteUser={(userId) => api.adminDeleteUser(token, userId)}
         t={t}
       />
       {call && (

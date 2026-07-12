@@ -40,6 +40,12 @@ export const api = {
   removeCustomEmoji: (token) => request('/auth/custom-emoji', { method: 'DELETE', token }),
   searchGifs: (token, q) => request(`/gifs/search?q=${encodeURIComponent(q)}`, { token }),
   trendingGifs: (token) => request('/gifs/trending', { token }),
+
+  adminListUsers: (token) => request('/admin/users', { token }),
+  adminSetTier: (token, userId, tier, value) => request(`/admin/users/${userId}/tier`, { method: 'PATCH', body: { tier, value }, token }),
+  adminSetAdmin: (token, userId, value) => request(`/admin/users/${userId}/admin`, { method: 'PATCH', body: { value }, token }),
+  adminDeleteUser: (token, userId) => request(`/admin/users/${userId}`, { method: 'DELETE', token }),
+  adminDeleteMessage: (token, messageType, messageId, roomId) => request(`/admin/messages/${messageType}/${messageId}?roomId=${roomId}`, { method: 'DELETE', token }),
   setStatus: (token, statusText) => request('/auth/status', { method: 'PATCH', body: { statusText }, token }),
   setBio: (token, bio) => request('/auth/bio', { method: 'PATCH', body: { bio }, token }),
   setDisplayName: (token, displayName) => request('/auth/display-name', { method: 'PATCH', body: { displayName }, token }),
