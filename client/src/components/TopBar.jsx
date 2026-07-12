@@ -299,6 +299,13 @@ export default function TopBar({ requests, onRefreshRequests, onRespond, onSendR
               <div className="dropdown-item" onClick={handleOpenStats}>
                 My Stats
               </div>
+              <a
+                className="dropdown-item"
+                href="https://github.com/macksiminski53/mk-app/releases/latest/download/MK.exe"
+                onClick={() => setShowExtra(false)}
+              >
+                Download for Windows
+              </a>
             </div>
           )}
         </div>
