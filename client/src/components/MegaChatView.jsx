@@ -3,6 +3,7 @@ import Avatar from './Avatar.jsx';
 import { api } from '../api.js';
 import { getSocket } from '../socket.js';
 import EmojiPicker, { renderWithCustomEmoji } from './EmojiPicker.jsx';
+import GifPicker from './GifPicker.jsx';
 import LikeButton from './LikeButton.jsx';
 import PinButton from './PinButton.jsx';
 import { BackIcon, PinIcon } from './Icons.jsx';
@@ -134,6 +135,13 @@ export default function MegaChatView({ server, token, currentUser, onLeftOrDelet
     getSocket().emit('channel-message:send', { channelId: activeChannelId, content: trimmed }, (ack) => {
       setSending(false);
       if (ack?.ok) setInput('');
+    });
+  }
+
+  function sendGif(url) {
+    if (!activeChannelId) return;
+    getSocket().emit('channel-message:send', { channelId: activeChannelId, content: '', imageUrl: url }, (ack) => {
+      if (ack?.error) console.error(ack.error);
     });
   }
 
@@ -324,6 +332,7 @@ export default function MegaChatView({ server, token, currentUser, onLeftOrDelet
             <form className="megachat-input-row" onSubmit={handleSend}>
               {currentUser?.isPremium && (
                 <EmojiPicker onSelect={(emoji) => setInput((prev) => prev + emoji)} customEmojiUrl={currentUser?.customEmojiUrl} />
+                <GifPicker token={token} onSend={sendGif} />
               )}
               <input
                 value={input}

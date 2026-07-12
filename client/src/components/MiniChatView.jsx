@@ -4,6 +4,7 @@ import AvatarCropper from './AvatarCropper.jsx';
 import { api } from '../api.js';
 import { getSocket } from '../socket.js';
 import EmojiPicker, { renderWithCustomEmoji } from './EmojiPicker.jsx';
+import GifPicker from './GifPicker.jsx';
 import LikeButton from './LikeButton.jsx';
 import PinButton from './PinButton.jsx';
 import { BackIcon, PinIcon } from './Icons.jsx';
@@ -128,6 +129,12 @@ export default function MiniChatView({ group, token, currentUser, onLeft, onBack
     getSocket().emit('group-message:send', { groupId: group.id, content: trimmed }, (ack) => {
       setSending(false);
       if (ack?.ok) setInput('');
+    });
+  }
+
+  function sendGif(url) {
+    getSocket().emit('group-message:send', { groupId: group.id, content: '', imageUrl: url }, (ack) => {
+      if (ack?.error) console.error(ack.error);
     });
   }
 
@@ -275,6 +282,7 @@ export default function MiniChatView({ group, token, currentUser, onLeft, onBack
           <form className="megachat-input-row" onSubmit={handleSend}>
             {currentUser?.isPremium && (
               <EmojiPicker onSelect={(emoji) => setInput((prev) => prev + emoji)} customEmojiUrl={currentUser?.customEmojiUrl} />
+              <GifPicker token={token} onSend={sendGif} />
             )}
             <input
               value={input}

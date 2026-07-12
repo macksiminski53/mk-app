@@ -15,6 +15,7 @@ import threadRoutes from './routes/threads.js';
 import billingRoutes, { handleStripeWebhook } from './routes/billing.js';
 import serverRoutes, { isMember } from './routes/servers.js';
 import groupRoutes, { isMember as isGroupMember } from './routes/groups.js';
+import gifRoutes from './routes/gifs.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const uploadsDir = path.join(__dirname, 'uploads');
@@ -48,6 +49,7 @@ app.use('/api/threads', threadRoutes);
 app.use('/api/billing', billingRoutes);
 app.use('/api/servers', serverRoutes);
 app.use('/api/groups', groupRoutes);
+app.use('/api/gifs', gifRoutes);
 
 io.use((socket, next) => {
   const token = socket.handshake.auth?.token;

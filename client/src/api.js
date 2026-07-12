@@ -38,6 +38,8 @@ export const api = {
     return request('/auth/custom-emoji', { method: 'POST', body: form, token, isForm: true });
   },
   removeCustomEmoji: (token) => request('/auth/custom-emoji', { method: 'DELETE', token }),
+  searchGifs: (token, q) => request(`/gifs/search?q=${encodeURIComponent(q)}`, { token }),
+  trendingGifs: (token) => request('/gifs/trending', { token }),
   setStatus: (token, statusText) => request('/auth/status', { method: 'PATCH', body: { statusText }, token }),
   setBio: (token, bio) => request('/auth/bio', { method: 'PATCH', body: { bio }, token }),
   setDisplayName: (token, displayName) => request('/auth/display-name', { method: 'PATCH', body: { displayName }, token }),

@@ -6,6 +6,7 @@ import { PhoneIcon } from './CallIcons.jsx';
 import { BackIcon, PinIcon } from './Icons.jsx';
 import CassettePlayer from './CassettePlayer.jsx';
 import EmojiPicker, { renderWithCustomEmoji } from './EmojiPicker.jsx';
+import GifPicker from './GifPicker.jsx';
 import LikeButton from './LikeButton.jsx';
 import PinButton from './PinButton.jsx';
 import PinnedPanel from './PinnedPanel.jsx';
@@ -274,6 +275,17 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
     sendTyping(false);
   }
 
+  function sendGif(url) {
+    getSocket().emit(
+      'message:send',
+      { threadId, content: '', replyToId: replyTo?.id || null, imageUrl: url },
+      (res) => {
+        if (res?.error) console.error(res.error);
+      }
+    );
+    setReplyTo(null);
+  }
+
   if (!friend) {
     return <div className="chat-area empty">{t('selectFriend')}</div>;
   }
@@ -495,6 +507,7 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
         {currentUser?.isPremium && (
           <EmojiPicker onSelect={(emoji) => setDraft((prev) => prev + emoji)} customEmojiUrl={currentUser?.customEmojiUrl} />
         )}
+        <GifPicker token={token} onSend={sendGif} />
         <input
           value={draft}
           onChange={handleChange}

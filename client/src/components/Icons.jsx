@@ -48,6 +48,19 @@ export function BackIcon({ size = 20 }) {
   );
 }
 
+export function GifIcon({ size = 18 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="2.5" y="5" width="19" height="14" rx="2.5" stroke="currentColor" strokeWidth="1.7" />
+      <path d="M7 9.2v5.6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      <path d="M14.2 14.8a2.4 2.4 0 1 1 0-4.8c.9 0 1.7.4 2.1 1.1" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M14 12.4h1.8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      <path d="M19 9.2v5.6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      <path d="M19 9.2h1.6M19 12h1.4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export function SmileIcon({ size = 18 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
