@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 import { db } from '../db.js';
+import { getReactionsForMany } from '../reactions.js';
 import { requireAuth } from '../auth.js';
 import { emitGroupAvatarChanged } from '../events.js';
 
@@ -162,7 +163,7 @@ router.get('/:id/messages', asyncHandler(async (req, res) => {
   }
   const limit = Math.min(parseInt(req.query.limit) || 50, 200);
   const rows = await db.prepare(`
-    SELECT msg.id, msg.content, msg.image_url as imageUrl, msg.created_at as createdAt,
+    SELECT msg.id, msg.content, msg.image_url as imageUrl, msg.created_at as createdAt, msg.edited_at as editedAt,
            u.id as userId, u.username, u.display_name as displayName, u.avatar_color as avatarColor, u.avatar_url as avatarUrl,
            u.is_ultra as isUltra, u.name_color as nameColor, u.custom_emoji_url as customEmojiUrl,
            (SELECT COUNT(*) FROM message_likes ml WHERE ml.message_type = 'mini' AND ml.message_id = msg.id) as likeCount,
@@ -176,7 +177,17 @@ router.get('/:id/messages', asyncHandler(async (req, res) => {
     ORDER BY msg.id DESC
     LIMIT ?
   `).all(req.user.id, groupId, limit);
-  res.json(rows.reverse().map((r) => ({ ...r, isUltra: !!r.isUltra, nameColor: r.isUltra ? r.nameColor : null, customEmojiUrl: r.isUltra ? r.customEmojiUrl : null, likedByMe: !!r.likedByMe, pinned: !!r.pinnedBy })));
+  const ordered = rows.reverse();
+  const reactionsByMsg = await getReactionsForMany('mini', ordered.map((r) => r.id));
+  res.json(ordered.map((r) => ({
+    ...r,
+    isUltra: !!r.isUltra,
+    nameColor: r.isUltra ? r.nameColor : null,
+    customEmojiUrl: r.isUltra ? r.customEmojiUrl : null,
+    likedByMe: !!r.likedByMe,
+    pinned: !!r.pinnedBy,
+    reactions: reactionsByMsg.get(r.id) || [],
+  })));
 }));
 
 // Free perk: up to 10 pinned messages per Mini Chat.

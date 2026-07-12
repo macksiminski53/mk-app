@@ -424,6 +424,35 @@ CREATE TABLE IF NOT EXISTS dm_read_state (
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),
   PRIMARY KEY (thread_id, user_id)
 )`);
+
+  // Free perk: emoji reactions on any message. Same message_type +
+  // message_id disambiguation pattern as message_likes/pinned_messages
+  // (the three message tables don't share an id space). Unlike the single
+  // heart-shaped message_likes table, a user can react with several
+  // different emoji on the same message, just not the same emoji twice.
+  await client.execute(`
+CREATE TABLE IF NOT EXISTS message_reactions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  message_type TEXT NOT NULL,
+  message_id INTEGER NOT NULL,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  emoji TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(message_type, message_id, user_id, emoji)
+)`);
+  await client.execute('CREATE INDEX IF NOT EXISTS idx_message_reactions_msg ON message_reactions(message_type, message_id)');
+
+  // Message editing: one nullable timestamp per message table, added after
+  // the fact via ALTER TABLE (same idempotent try/catch pattern as the
+  // other post-hoc columns above) since CREATE TABLE IF NOT EXISTS won't
+  // touch tables that already exist in production.
+  for (const table of ['messages', 'server_messages', 'group_messages']) {
+    try {
+      await client.execute(`ALTER TABLE ${table} ADD COLUMN edited_at TEXT`);
+    } catch (e) {
+      if (!/duplicate column/i.test(e.message || '')) throw e;
+    }
+  }
 }
 
 export default db;

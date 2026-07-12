@@ -3,12 +3,15 @@ import Avatar from './Avatar.jsx';
 import AvatarCropper from './AvatarCropper.jsx';
 import { api } from '../api.js';
 import { getSocket } from '../socket.js';
-import EmojiPicker, { renderWithCustomEmoji } from './EmojiPicker.jsx';
+import EmojiPicker from './EmojiPicker.jsx';
 import GifPicker from './GifPicker.jsx';
 import LikeButton from './LikeButton.jsx';
 import PinButton from './PinButton.jsx';
 import { BackIcon, PinIcon } from './Icons.jsx';
 import PinnedPanel from './PinnedPanel.jsx';
+import ReactionPicker from './ReactionPicker.jsx';
+import MentionAutocomplete from './MentionAutocomplete.jsx';
+import { renderMessageContent, getMentionQuery, applyMentionPick } from './MessageContent.jsx';
 
 function formatTime(createdAt) {
   if (!createdAt) return '';
@@ -52,6 +55,8 @@ export default function MiniChatView({ group, token, currentUser, onLeft, onBack
   useEffect(() => { messagesRef.current = messages; }, [messages]);
   const [pinnedMessages, setPinnedMessages] = useState([]);
   const [showPinnedPanel, setShowPinnedPanel] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [editDraft, setEditDraft] = useState('');
 
   useEffect(() => {
     setMembers(group.members || []);
@@ -89,10 +94,20 @@ export default function MiniChatView({ group, token, currentUser, onLeft, onBack
         return source ? [...prev, source] : prev;
       });
     }
+    function onReactionsUpdate({ messageType, messageId, reactions }) {
+      if (messageType !== 'mini') return;
+      setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, reactions } : m)));
+    }
+    function onEditUpdate({ messageType, messageId, content, editedAt }) {
+      if (messageType !== 'mini') return;
+      setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, content, editedAt } : m)));
+    }
     socket.on('group-message:new', onNew);
     socket.on('group-chat:cleared', onCleared);
     socket.on('message:like-update', onLikeUpdate);
     socket.on('message:pin-update', onPinUpdate);
+    socket.on('message:reactions-update', onReactionsUpdate);
+    socket.on('message:edit-update', onEditUpdate);
 
     return () => {
       cancelled = true;
@@ -101,6 +116,8 @@ export default function MiniChatView({ group, token, currentUser, onLeft, onBack
       socket.off('group-chat:cleared', onCleared);
       socket.off('message:like-update', onLikeUpdate);
       socket.off('message:pin-update', onPinUpdate);
+      socket.off('message:reactions-update', onReactionsUpdate);
+      socket.off('message:edit-update', onEditUpdate);
     };
   }, [group.id, token]);
 
@@ -115,6 +132,36 @@ export default function MiniChatView({ group, token, currentUser, onLeft, onBack
     getSocket().emit('message:pin', { messageType: 'mini', messageId, roomId: group.id }, (res) => {
       if (res?.error) return console.error(res.error);
     });
+  }
+
+  function toggleReaction(messageId, emoji) {
+    getSocket().emit('message:react', { messageType: 'mini', messageId, roomId: group.id, emoji }, (res) => {
+      if (res?.error) return console.error(res.error);
+      setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, reactions: res.reactions } : m)));
+    });
+  }
+
+  function startEdit(m) {
+    setEditingId(m.id);
+    setEditDraft(m.content || '');
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setEditDraft('');
+  }
+
+  function saveEdit(messageId) {
+    const trimmed = editDraft.trim();
+    if (!trimmed) return;
+    getSocket().emit('message:edit', { messageType: 'mini', messageId, roomId: group.id, content: trimmed }, (res) => {
+      if (res?.error) return console.error(res.error);
+      cancelEdit();
+    });
+  }
+
+  function pickMention(username) {
+    setInput((prev) => applyMentionPick(prev, username));
   }
 
   useEffect(() => {
@@ -181,6 +228,8 @@ export default function MiniChatView({ group, token, currentUser, onLeft, onBack
   const maxMembers = creatorMember?.isUltra ? 30 : 15;
   const atCap = members.length >= maxMembers;
   const isCreator = group.createdBy === currentUser.id;
+  const mentionQuery = getMentionQuery(input);
+  const mentionCandidates = members;
 
   return (
     <div className="megachat-main minichat-main">
@@ -264,8 +313,27 @@ export default function MiniChatView({ group, token, currentUser, onLeft, onBack
                     <span className="megachat-message-time">{formatTime(m.createdAt)}</span>
                     {m.pinned && <span className="pinned-tag" title={m.pinnedByUsername ? `Pinned by ${m.pinnedByUsername}` : 'Pinned'}><PinIcon size={10} /> Pinned</span>}
                   </div>
-                  <div className="megachat-message-content">{renderWithCustomEmoji(m.content, m.customEmojiUrl)}</div>
+                  {editingId === m.id ? (
+                    <form
+                      className="message-edit-form"
+                      onSubmit={(e) => { e.preventDefault(); saveEdit(m.id); }}
+                    >
+                      <input value={editDraft} onChange={(e) => setEditDraft(e.target.value)} autoFocus />
+                      <button type="submit">Save</button>
+                      <button type="button" onClick={cancelEdit}>Cancel</button>
+                    </form>
+                  ) : (
+                    <div className="megachat-message-content">
+                      {renderMessageContent(m.content, m.customEmojiUrl, currentUser?.username)}
+                      {m.editedAt && <span className="edited-tag">(edited)</span>}
+                    </div>
+                  )}
                   <div className="message-actions-row">
+                    {m.userId === currentUser.id && m.content && (
+                      <button className="reply-btn" onClick={() => startEdit(m)} title="Edit">
+                        Edit
+                      </button>
+                    )}
                     <LikeButton
                       likeCount={m.likeCount}
                       likedByMe={m.likedByMe}
@@ -274,6 +342,11 @@ export default function MiniChatView({ group, token, currentUser, onLeft, onBack
                     />
                     <PinButton pinned={!!m.pinned} onToggle={() => togglePin(m.id)} />
                   </div>
+                  <ReactionPicker
+                    reactions={m.reactions || []}
+                    currentUserId={currentUser?.id}
+                    onToggle={(emoji) => toggleReaction(m.id, emoji)}
+                  />
                 </div>
               </div>
             ))}
@@ -284,11 +357,16 @@ export default function MiniChatView({ group, token, currentUser, onLeft, onBack
               <EmojiPicker onSelect={(emoji) => setInput((prev) => prev + emoji)} customEmojiUrl={currentUser?.customEmojiUrl} />
             )}
             <GifPicker token={token} onSend={sendGif} />
-            <input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder={`Message ${displayName}`}
-            />
+            <div className="mention-input-wrap">
+              {mentionQuery !== null && (
+                <MentionAutocomplete query={mentionQuery} candidates={mentionCandidates} onPick={pickMention} />
+              )}
+              <input
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder={`Message ${displayName}`}
+              />
+            </div>
             <button type="submit" disabled={!input.trim() || sending}>Send</button>
           </form>
         </>

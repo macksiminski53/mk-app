@@ -5,11 +5,14 @@ import Avatar from './Avatar.jsx';
 import { PhoneIcon } from './CallIcons.jsx';
 import { BackIcon, PinIcon } from './Icons.jsx';
 import CassettePlayer from './CassettePlayer.jsx';
-import EmojiPicker, { renderWithCustomEmoji } from './EmojiPicker.jsx';
+import EmojiPicker from './EmojiPicker.jsx';
 import GifPicker from './GifPicker.jsx';
 import LikeButton from './LikeButton.jsx';
 import PinButton from './PinButton.jsx';
 import PinnedPanel from './PinnedPanel.jsx';
+import ReactionPicker from './ReactionPicker.jsx';
+import MentionAutocomplete from './MentionAutocomplete.jsx';
+import { renderMessageContent, getMentionQuery, applyMentionPick } from './MessageContent.jsx';
 
 function formatTime(createdAt) {
   if (!createdAt) return '';
@@ -70,6 +73,8 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
   const [pinnedMessages, setPinnedMessages] = useState([]);
   const [showPinnedPanel, setShowPinnedPanel] = useState(false);
   const [theirLastRead, setTheirLastRead] = useState(0);
+  const [editingId, setEditingId] = useState(null);
+  const [editDraft, setEditDraft] = useState('');
   const bottomRef = useRef(null);
   const typingTimeout = useRef(null);
   const fileInputRef = useRef(null);
@@ -163,6 +168,16 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
       setTheirLastRead((prev) => Math.max(prev, lastReadMessageId));
     }
 
+    function onReactionsUpdate({ messageType, messageId, reactions }) {
+      if (messageType !== 'dm') return;
+      setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, reactions } : m)));
+    }
+
+    function onEditUpdate({ messageType, messageId, content, editedAt }) {
+      if (messageType !== 'dm') return;
+      setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, content, editedAt } : m)));
+    }
+
     socket.on('message:new', onNewMessage);
     socket.on('typing', onTyping);
     socket.on('chat:delete-vote-update', onDeleteVoteUpdate);
@@ -170,6 +185,8 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
     socket.on('message:like-update', onLikeUpdate);
     socket.on('message:pin-update', onPinUpdate);
     socket.on('thread:read-update', onReadUpdate);
+    socket.on('message:reactions-update', onReactionsUpdate);
+    socket.on('message:edit-update', onEditUpdate);
 
     return () => {
       cancelled = true;
@@ -181,6 +198,8 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
       socket.off('message:like-update', onLikeUpdate);
       socket.off('message:pin-update', onPinUpdate);
       socket.off('thread:read-update', onReadUpdate);
+      socket.off('message:reactions-update', onReactionsUpdate);
+      socket.off('message:edit-update', onEditUpdate);
     };
   }, [threadId]);
 
@@ -199,6 +218,36 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
 
   function unpinFromPanel(messageId) {
     togglePin(messageId);
+  }
+
+  function toggleReaction(messageId, emoji) {
+    getSocket().emit('message:react', { messageType: 'dm', messageId, roomId: threadId, emoji }, (res) => {
+      if (res?.error) return console.error(res.error);
+      setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, reactions: res.reactions } : m)));
+    });
+  }
+
+  function startEdit(m) {
+    setEditingId(m.id);
+    setEditDraft(m.content || '');
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setEditDraft('');
+  }
+
+  function saveEdit(messageId) {
+    const trimmed = editDraft.trim();
+    if (!trimmed) return;
+    getSocket().emit('message:edit', { messageType: 'dm', messageId, roomId: threadId, content: trimmed }, (res) => {
+      if (res?.error) return console.error(res.error);
+      cancelEdit();
+    });
+  }
+
+  function pickMention(username) {
+    setDraft((prev) => applyMentionPick(prev, username));
   }
 
   function castDeleteVote(vote) {
@@ -289,6 +338,9 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
   if (!friend) {
     return <div className="chat-area empty">{t('selectFriend')}</div>;
   }
+
+  const mentionQuery = getMentionQuery(draft);
+  const mentionCandidates = [{ username: friend.username, displayName: friend.displayName }];
 
   return (
     <div className={`chat-area layout-${isBubble ? 'bubble' : 'flat'}`}>
@@ -397,7 +449,23 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
                   </div>
                 )}
 
-                {m.content && <div className="message-content">{renderWithCustomEmoji(m.content, m.customEmojiUrl)}</div>}
+                {editingId === m.id ? (
+                  <form
+                    className="message-edit-form"
+                    onSubmit={(e) => { e.preventDefault(); saveEdit(m.id); }}
+                  >
+                    <input value={editDraft} onChange={(e) => setEditDraft(e.target.value)} autoFocus />
+                    <button type="submit">Save</button>
+                    <button type="button" onClick={cancelEdit}>Cancel</button>
+                  </form>
+                ) : (
+                  m.content && (
+                    <div className="message-content">
+                      {renderMessageContent(m.content, m.customEmojiUrl, currentUser?.username)}
+                      {m.editedAt && <span className="edited-tag">(edited)</span>}
+                    </div>
+                  )
+                )}
                 {m.imageUrl && (
                   isAudioUrl(m.imageUrl) ? (
                     <CassettePlayer src={resolveAvatarUrl(m.imageUrl)} />
@@ -435,6 +503,11 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
                   >
                     {t('reply')}
                   </button>
+                  {isOwn && m.content && (
+                    <button className="reply-btn" onClick={() => startEdit(m)} title="Edit">
+                      Edit
+                    </button>
+                  )}
                   <LikeButton
                     likeCount={m.likeCount}
                     likedByMe={m.likedByMe}
@@ -443,6 +516,11 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
                   />
                   <PinButton pinned={!!m.pinned} onToggle={() => togglePin(m.id)} />
                 </div>
+                <ReactionPicker
+                  reactions={m.reactions || []}
+                  currentUserId={currentUser?.id}
+                  onToggle={(emoji) => toggleReaction(m.id, emoji)}
+                />
                 {showSeen && <div className="seen-indicator">Seen</div>}
               </div>
             </div>
@@ -508,11 +586,16 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
           <EmojiPicker onSelect={(emoji) => setDraft((prev) => prev + emoji)} customEmojiUrl={currentUser?.customEmojiUrl} />
         )}
         <GifPicker token={token} onSend={sendGif} />
-        <input
-          value={draft}
-          onChange={handleChange}
-          placeholder={t('messagePlaceholder', friend.displayName || friend.username)}
-        />
+        <div className="mention-input-wrap">
+          {mentionQuery !== null && (
+            <MentionAutocomplete query={mentionQuery} candidates={mentionCandidates} onPick={pickMention} />
+          )}
+          <input
+            value={draft}
+            onChange={handleChange}
+            placeholder={t('messagePlaceholder', friend.displayName || friend.username)}
+          />
+        </div>
         <button type="submit" disabled={uploading}>{uploading ? t('sending') : t('send')}</button>
       </form>
     </div>

@@ -2,12 +2,15 @@ import { useEffect, useRef, useState } from 'react';
 import Avatar from './Avatar.jsx';
 import { api } from '../api.js';
 import { getSocket } from '../socket.js';
-import EmojiPicker, { renderWithCustomEmoji } from './EmojiPicker.jsx';
+import EmojiPicker from './EmojiPicker.jsx';
 import GifPicker from './GifPicker.jsx';
 import LikeButton from './LikeButton.jsx';
 import PinButton from './PinButton.jsx';
 import { BackIcon, PinIcon } from './Icons.jsx';
 import PinnedPanel from './PinnedPanel.jsx';
+import ReactionPicker from './ReactionPicker.jsx';
+import MentionAutocomplete from './MentionAutocomplete.jsx';
+import { renderMessageContent, getMentionQuery, applyMentionPick } from './MessageContent.jsx';
 
 function formatTime(createdAt) {
   if (!createdAt) return '';
@@ -49,6 +52,8 @@ export default function MegaChatView({ server, token, currentUser, onLeftOrDelet
   useEffect(() => { messagesRef.current = messages; }, [messages]);
   const [pinnedMessages, setPinnedMessages] = useState([]);
   const [showPinnedPanel, setShowPinnedPanel] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [editDraft, setEditDraft] = useState('');
 
   const isOwner = detail?.ownerId === currentUser.id;
 
@@ -97,9 +102,19 @@ export default function MegaChatView({ server, token, currentUser, onLeftOrDelet
         return source ? [...prev, source] : prev;
       });
     }
+    function onReactionsUpdate({ messageType, messageId, reactions }) {
+      if (messageType !== 'mega') return;
+      setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, reactions } : m)));
+    }
+    function onEditUpdate({ messageType, messageId, content, editedAt }) {
+      if (messageType !== 'mega') return;
+      setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, content, editedAt } : m)));
+    }
     socket.on('channel-message:new', onNew);
     socket.on('message:like-update', onLikeUpdate);
     socket.on('message:pin-update', onPinUpdate);
+    socket.on('message:reactions-update', onReactionsUpdate);
+    socket.on('message:edit-update', onEditUpdate);
 
     return () => {
       cancelled = true;
@@ -107,6 +122,8 @@ export default function MegaChatView({ server, token, currentUser, onLeftOrDelet
       socket.off('channel-message:new', onNew);
       socket.off('message:like-update', onLikeUpdate);
       socket.off('message:pin-update', onPinUpdate);
+      socket.off('message:reactions-update', onReactionsUpdate);
+      socket.off('message:edit-update', onEditUpdate);
     };
   }, [activeChannelId, server.id, token]);
 
@@ -121,6 +138,36 @@ export default function MegaChatView({ server, token, currentUser, onLeftOrDelet
     getSocket().emit('message:pin', { messageType: 'mega', messageId, roomId: activeChannelId }, (res) => {
       if (res?.error) return console.error(res.error);
     });
+  }
+
+  function toggleReaction(messageId, emoji) {
+    getSocket().emit('message:react', { messageType: 'mega', messageId, roomId: activeChannelId, emoji }, (res) => {
+      if (res?.error) return console.error(res.error);
+      setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, reactions: res.reactions } : m)));
+    });
+  }
+
+  function startEdit(m) {
+    setEditingId(m.id);
+    setEditDraft(m.content || '');
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setEditDraft('');
+  }
+
+  function saveEdit(messageId) {
+    const trimmed = editDraft.trim();
+    if (!trimmed) return;
+    getSocket().emit('message:edit', { messageType: 'mega', messageId, roomId: activeChannelId, content: trimmed }, (res) => {
+      if (res?.error) return console.error(res.error);
+      cancelEdit();
+    });
+  }
+
+  function pickMention(username) {
+    setInput((prev) => applyMentionPick(prev, username));
   }
 
   useEffect(() => {
@@ -198,6 +245,8 @@ export default function MegaChatView({ server, token, currentUser, onLeftOrDelet
   }
 
   const activeChannel = detail?.channels.find((c) => c.id === activeChannelId) || null;
+  const mentionQuery = getMentionQuery(input);
+  const mentionCandidates = detail?.members || [];
 
   return (
     <div className={`megachat-view ${mobileShowChannels ? 'mobile-show-channels' : 'mobile-show-chat'}`}>
@@ -314,8 +363,27 @@ export default function MegaChatView({ server, token, currentUser, onLeftOrDelet
                       <span className="megachat-message-time">{formatTime(m.createdAt)}</span>
                       {m.pinned && <span className="pinned-tag" title={m.pinnedByUsername ? `Pinned by ${m.pinnedByUsername}` : 'Pinned'}><PinIcon size={10} /> Pinned</span>}
                     </div>
-                    <div className="megachat-message-content">{renderWithCustomEmoji(m.content, m.customEmojiUrl)}</div>
+                    {editingId === m.id ? (
+                      <form
+                        className="message-edit-form"
+                        onSubmit={(e) => { e.preventDefault(); saveEdit(m.id); }}
+                      >
+                        <input value={editDraft} onChange={(e) => setEditDraft(e.target.value)} autoFocus />
+                        <button type="submit">Save</button>
+                        <button type="button" onClick={cancelEdit}>Cancel</button>
+                      </form>
+                    ) : (
+                      <div className="megachat-message-content">
+                        {renderMessageContent(m.content, m.customEmojiUrl, currentUser?.username)}
+                        {m.editedAt && <span className="edited-tag">(edited)</span>}
+                      </div>
+                    )}
                     <div className="message-actions-row">
+                      {m.userId === currentUser.id && m.content && (
+                        <button className="reply-btn" onClick={() => startEdit(m)} title="Edit">
+                          Edit
+                        </button>
+                      )}
                       <LikeButton
                         likeCount={m.likeCount}
                         likedByMe={m.likedByMe}
@@ -324,6 +392,11 @@ export default function MegaChatView({ server, token, currentUser, onLeftOrDelet
                       />
                       <PinButton pinned={!!m.pinned} onToggle={() => togglePin(m.id)} />
                     </div>
+                    <ReactionPicker
+                      reactions={m.reactions || []}
+                      currentUserId={currentUser?.id}
+                      onToggle={(emoji) => toggleReaction(m.id, emoji)}
+                    />
                   </div>
                 </div>
               ))}
@@ -334,12 +407,17 @@ export default function MegaChatView({ server, token, currentUser, onLeftOrDelet
                 <EmojiPicker onSelect={(emoji) => setInput((prev) => prev + emoji)} customEmojiUrl={currentUser?.customEmojiUrl} />
               )}
               <GifPicker token={token} onSend={sendGif} />
-              <input
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder={activeChannel ? `Message #${activeChannel.name}` : 'Select a channel'}
-                disabled={!activeChannelId}
-              />
+              <div className="mention-input-wrap">
+                {mentionQuery !== null && (
+                  <MentionAutocomplete query={mentionQuery} candidates={mentionCandidates} onPick={pickMention} />
+                )}
+                <input
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  placeholder={activeChannel ? `Message #${activeChannel.name}` : 'Select a channel'}
+                  disabled={!activeChannelId}
+                />
+              </div>
               <button type="submit" disabled={!input.trim() || !activeChannelId || sending}>Send</button>
             </form>
           </>

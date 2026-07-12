@@ -16,6 +16,7 @@ import billingRoutes, { handleStripeWebhook } from './routes/billing.js';
 import serverRoutes, { isMember } from './routes/servers.js';
 import groupRoutes, { isMember as isGroupMember } from './routes/groups.js';
 import gifRoutes from './routes/gifs.js';
+import { getReactionsFor, getReactionsForMany } from './reactions.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const uploadsDir = path.join(__dirname, 'uploads');
@@ -108,7 +109,7 @@ events.on('group:avatar-changed', ({ memberIds, groupId, avatarUrl }) => {
 
 async function loadMessageRow(id) {
   const row = await db.prepare(`
-    SELECT msg.id, msg.content, msg.image_url as imageUrl, msg.created_at as createdAt,
+    SELECT msg.id, msg.content, msg.image_url as imageUrl, msg.created_at as createdAt, msg.edited_at as editedAt,
            u.id as userId, u.username, u.display_name as displayName, u.avatar_color as avatarColor, u.avatar_url as avatarUrl,
            u.is_ultra as isUltra, u.name_color as nameColor, u.custom_emoji_url as customEmojiUrl,
            msg.reply_to_id as replyToId,
@@ -119,12 +120,12 @@ async function loadMessageRow(id) {
     LEFT JOIN users ru ON ru.id = rm.user_id
     WHERE msg.id = ?
   `).get(id);
-  return row ? { ...row, isUltra: !!row.isUltra, nameColor: row.isUltra ? row.nameColor : null, customEmojiUrl: row.isUltra ? row.customEmojiUrl : null, likeCount: 0, likedByMe: false, pinned: false, pinnedBy: null, pinnedByUsername: null } : row;
+  return row ? { ...row, isUltra: !!row.isUltra, nameColor: row.isUltra ? row.nameColor : null, customEmojiUrl: row.isUltra ? row.customEmojiUrl : null, likeCount: 0, likedByMe: false, pinned: false, pinnedBy: null, pinnedByUsername: null, reactions: [] } : row;
 }
 
 async function loadServerMessageRow(id) {
   const row = await db.prepare(`
-    SELECT msg.id, msg.content, msg.image_url as imageUrl, msg.created_at as createdAt,
+    SELECT msg.id, msg.content, msg.image_url as imageUrl, msg.created_at as createdAt, msg.edited_at as editedAt,
            msg.channel_id as channelId,
            u.id as userId, u.username, u.display_name as displayName, u.avatar_color as avatarColor, u.avatar_url as avatarUrl,
            u.is_ultra as isUltra, u.name_color as nameColor, u.custom_emoji_url as customEmojiUrl
@@ -132,12 +133,12 @@ async function loadServerMessageRow(id) {
     JOIN users u ON u.id = msg.user_id
     WHERE msg.id = ?
   `).get(id);
-  return row ? { ...row, isUltra: !!row.isUltra, nameColor: row.isUltra ? row.nameColor : null, customEmojiUrl: row.isUltra ? row.customEmojiUrl : null, likeCount: 0, likedByMe: false, pinned: false, pinnedBy: null, pinnedByUsername: null } : row;
+  return row ? { ...row, isUltra: !!row.isUltra, nameColor: row.isUltra ? row.nameColor : null, customEmojiUrl: row.isUltra ? row.customEmojiUrl : null, likeCount: 0, likedByMe: false, pinned: false, pinnedBy: null, pinnedByUsername: null, reactions: [] } : row;
 }
 
 async function loadGroupMessageRow(id) {
   const row = await db.prepare(`
-    SELECT msg.id, msg.content, msg.image_url as imageUrl, msg.created_at as createdAt,
+    SELECT msg.id, msg.content, msg.image_url as imageUrl, msg.created_at as createdAt, msg.edited_at as editedAt,
            msg.group_chat_id as groupId,
            u.id as userId, u.username, u.display_name as displayName, u.avatar_color as avatarColor, u.avatar_url as avatarUrl,
            u.is_ultra as isUltra, u.name_color as nameColor, u.custom_emoji_url as customEmojiUrl
@@ -145,7 +146,7 @@ async function loadGroupMessageRow(id) {
     JOIN users u ON u.id = msg.user_id
     WHERE msg.id = ?
   `).get(id);
-  return row ? { ...row, isUltra: !!row.isUltra, nameColor: row.isUltra ? row.nameColor : null, customEmojiUrl: row.isUltra ? row.customEmojiUrl : null, likeCount: 0, likedByMe: false, pinned: false, pinnedBy: null, pinnedByUsername: null } : row;
+  return row ? { ...row, isUltra: !!row.isUltra, nameColor: row.isUltra ? row.nameColor : null, customEmojiUrl: row.isUltra ? row.customEmojiUrl : null, likeCount: 0, likedByMe: false, pinned: false, pinnedBy: null, pinnedByUsername: null, reactions: [] } : row;
 }
 
 // MK ULTRA perk: liking a message. `messageType` disambiguates ids across
@@ -158,6 +159,27 @@ const LIKE_TABLES = {
   mega: { table: 'server_messages', room: (id) => `channel:${id}` },
   mini: { table: 'group_messages', room: (id) => `group:${id}` },
 };
+// Reactions and edits key off messages the same way likes do (table + room
+// lookup only, no roomCol) -- reused as-is rather than duplicating the
+// object under a new name.
+const MESSAGE_TABLES = LIKE_TABLES;
+
+// Detects `$username` mentions in a just-sent message's content. Matching is
+// case-insensitive; `$` is used instead of the conventional `@` throughout
+// MK. Returns the lowercased usernames mentioned (deduped), for the caller
+// to resolve against whoever's actually allowed to be mentioned (thread
+// partner, channel members, etc).
+const MENTION_RE = /\$([a-zA-Z0-9_]{2,32})/g;
+function extractMentionedUsernames(content) {
+  if (!content) return [];
+  const found = new Set();
+  let m;
+  MENTION_RE.lastIndex = 0;
+  while ((m = MENTION_RE.exec(content))) {
+    found.add(m[1].toLowerCase());
+  }
+  return Array.from(found);
+}
 
 async function getMessageLikeCount(messageType, messageId) {
   const row = await db.prepare(
@@ -231,11 +253,14 @@ io.on('connection', (socket) => {
       // above only reaches clients that have joined this specific thread's
       // room via thread:join, i.e. only whoever is actively viewing it).
       const otherId = thread.user_a_id === userId ? thread.user_b_id : thread.user_a_id;
+      const otherUserRow = await db.prepare('SELECT username FROM users WHERE id = ?').get(otherId);
+      const mentioned = otherUserRow && extractMentionedUsernames(trimmed).includes(otherUserRow.username.toLowerCase());
       io.to(`user:${otherId}`).emit('notify:message', {
         threadId: Number(threadId),
         fromUserId: userId,
         fromUsername: socket.user.username,
         preview: trimmed ? trimmed.slice(0, 120) : (imageUrl ? 'Sent an attachment' : ''),
+        mentioned: !!mentioned,
       });
 
       ack?.({ ok: true, message: row });
@@ -417,6 +442,88 @@ io.on('connection', (socket) => {
       ack?.({ ok: true, pinned, pinnedBy, pinnedByUsername });
     } catch (err) {
       console.error('message:pin error', err);
+      ack?.({ error: 'Server error' });
+    }
+  });
+
+  // Free perk: emoji reactions. Toggle-per-emoji, so one user can stack
+  // several different reactions on the same message but not double-react
+  // with the same one. Returns/broadcasts the full grouped reaction list
+  // for the message rather than a delta -- simpler for the client to just
+  // replace its local copy wholesale.
+  socket.on('message:react', async ({ messageType, messageId, roomId, emoji }, ack) => {
+    try {
+      const cfg = MESSAGE_TABLES[messageType];
+      if (!cfg) return ack?.({ error: 'Invalid message type' });
+      if (typeof emoji !== 'string' || !emoji || emoji.length > 8) {
+        return ack?.({ error: 'Invalid emoji' });
+      }
+
+      const msgRow = await db.prepare(`SELECT id FROM ${cfg.table} WHERE id = ?`).get(messageId);
+      if (!msgRow) return ack?.({ error: 'Message not found' });
+
+      const existing = await db.prepare(
+        'SELECT id FROM message_reactions WHERE message_type = ? AND message_id = ? AND user_id = ? AND emoji = ?'
+      ).get(messageType, messageId, userId, emoji);
+
+      if (existing) {
+        await db.prepare('DELETE FROM message_reactions WHERE id = ?').run(existing.id);
+      } else {
+        await db.prepare(
+          'INSERT INTO message_reactions (message_type, message_id, user_id, emoji) VALUES (?, ?, ?, ?)'
+        ).run(messageType, messageId, userId, emoji);
+      }
+
+      const reactions = await getReactionsFor(messageType, messageId);
+      if (roomId) {
+        io.to(cfg.room(roomId)).emit('message:reactions-update', {
+          messageType,
+          messageId: Number(messageId),
+          reactions,
+        });
+      }
+      ack?.({ ok: true, reactions });
+    } catch (err) {
+      console.error('message:react error', err);
+      ack?.({ error: 'Server error' });
+    }
+  });
+
+  // Editing your own message. Ownership is checked server-side (not just
+  // hidden client-side) so it can't be spoofed from a modified client.
+  // edited_at is set to the current time and surfaced to the client as an
+  // "(edited)" tag -- the exact timestamp isn't shown anywhere yet, it's
+  // just used as a truthy flag.
+  socket.on('message:edit', async ({ messageType, messageId, roomId, content }, ack) => {
+    try {
+      const cfg = MESSAGE_TABLES[messageType];
+      if (!cfg) return ack?.({ error: 'Invalid message type' });
+
+      const trimmed = (content || '').trim();
+      if (!trimmed) return ack?.({ error: 'Message cannot be empty' });
+      if (trimmed.length > 4000) return ack?.({ error: 'Message is too long' });
+
+      const msgRow = await db.prepare(`SELECT id, user_id FROM ${cfg.table} WHERE id = ?`).get(messageId);
+      if (!msgRow) return ack?.({ error: 'Message not found' });
+      if (msgRow.user_id !== userId) return ack?.({ error: 'You can only edit your own messages' });
+
+      await db.prepare(
+        `UPDATE ${cfg.table} SET content = ?, edited_at = datetime('now') WHERE id = ?`
+      ).run(trimmed, messageId);
+
+      const editedRow = await db.prepare(`SELECT edited_at as editedAt FROM ${cfg.table} WHERE id = ?`).get(messageId);
+
+      if (roomId) {
+        io.to(cfg.room(roomId)).emit('message:edit-update', {
+          messageType,
+          messageId: Number(messageId),
+          content: trimmed,
+          editedAt: editedRow?.editedAt || null,
+        });
+      }
+      ack?.({ ok: true, content: trimmed, editedAt: editedRow?.editedAt || null });
+    } catch (err) {
+      console.error('message:edit error', err);
       ack?.({ error: 'Server error' });
     }
   });
