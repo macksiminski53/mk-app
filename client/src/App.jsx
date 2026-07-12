@@ -805,7 +805,6 @@ export default function App() {
         onBuyUltra={handleBuyUltra}
         onSetUltraColor={handleSetUltraColor}
         onSetNameColor={handleSetNameColor}
-        onSetDisplayName={handleSetDisplayName}
         onUploadCustomEmoji={handleUploadCustomEmoji}
         onRemoveCustomEmoji={handleRemoveCustomEmoji}
         onRevealToken={handleRevealToken}
@@ -857,6 +856,7 @@ export default function App() {
               onChangeAvatar={handleChangeAvatar}
               onUploadBanner={handleUploadBanner}
               onSetBio={handleSetBio}
+              onSetDisplayName={handleSetDisplayName}
               onOpenChatSettings={handleOpenChatSettings}
               onRemoveFriend={handleRemoveFriend}
               groups={groups}

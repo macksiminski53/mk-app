@@ -22,7 +22,7 @@ const CHANGELOG = [
   { version: '0.1.0', notes: 'Initial release: register/login, real-time messaging.' },
 ];
 
-export default function TopBar({ requests, onRefreshRequests, onRespond, onSendRequest, settings, onUpdateSettings, onLogout, currentUser, onUploadRingtone, onResetRingtone, onBuyPlus, onBuyPremium, onBuyUltra, onSetUltraColor, onSetNameColor, onSetDisplayName, onUploadCustomEmoji, onRemoveCustomEmoji, onRevealToken, onRegenerateToken, billingConfigured, onCreateMegaChat, onCreateMiniChat, onFetchStats, t }) {
+export default function TopBar({ requests, onRefreshRequests, onRespond, onSendRequest, settings, onUpdateSettings, onLogout, currentUser, onUploadRingtone, onResetRingtone, onBuyPlus, onBuyPremium, onBuyUltra, onSetUltraColor, onSetNameColor, onUploadCustomEmoji, onRemoveCustomEmoji, onRevealToken, onRegenerateToken, billingConfigured, onCreateMegaChat, onCreateMiniChat, onFetchStats, t }) {
   const [showExtra, setShowExtra] = useState(false);
   const [showLog, setShowLog] = useState(false);
   const [showStats, setShowStats] = useState(false);
@@ -37,12 +37,6 @@ export default function TopBar({ requests, onRefreshRequests, onRespond, onSendR
   const [addSuccess, setAddSuccess] = useState('');
   const [ringtoneBusy, setRingtoneBusy] = useState(null); // 'outgoing' | 'incoming' | null
   const [customEmojiBusy, setCustomEmojiBusy] = useState(false);
-  const [displayNameInput, setDisplayNameInput] = useState(currentUser?.displayName || '');
-  const [displayNameBusy, setDisplayNameBusy] = useState(false);
-
-  useEffect(() => {
-    setDisplayNameInput(currentUser?.displayName || '');
-  }, [currentUser?.displayName]);
   const [plusBusy, setPlusBusy] = useState(false);
   const [plusError, setPlusError] = useState('');
   const [premiumBusy, setPremiumBusy] = useState(false);
@@ -197,29 +191,6 @@ export default function TopBar({ requests, onRefreshRequests, onRespond, onSendR
       console.error('Custom emoji removal failed:', err.message);
     } finally {
       setCustomEmojiBusy(false);
-    }
-  }
-
-  async function handleDisplayNameSubmit(e) {
-    e.preventDefault();
-    setDisplayNameBusy(true);
-    try {
-      await onSetDisplayName(displayNameInput);
-    } catch (err) {
-      console.error('Display name update failed:', err.message);
-    } finally {
-      setDisplayNameBusy(false);
-    }
-  }
-
-  async function handleResetDisplayName() {
-    setDisplayNameBusy(true);
-    try {
-      await onSetDisplayName('');
-    } catch (err) {
-      console.error('Display name reset failed:', err.message);
-    } finally {
-      setDisplayNameBusy(false);
     }
   }
 
@@ -432,32 +403,6 @@ export default function TopBar({ requests, onRefreshRequests, onRespond, onSendR
                       <div className="layout-option-desc">{t('layoutFlatDesc')}</div>
                     </div>
                   </label>
-                </div>
-
-                <div className="settings-section">
-                  <div className="settings-label">Display name</div>
-                  <form className="ringtone-row" onSubmit={handleDisplayNameSubmit} style={{ flexWrap: 'wrap' }}>
-                    <input
-                      value={displayNameInput}
-                      onChange={(e) => setDisplayNameInput(e.target.value)}
-                      placeholder={currentUser?.username}
-                      maxLength={32}
-                    />
-                    <div className="ringtone-row-actions">
-                      <button type="submit" disabled={displayNameBusy || displayNameInput.trim() === (currentUser?.displayName || '')}>
-                        {displayNameBusy ? '…' : 'Save'}
-                      </button>
-                      {currentUser?.displayName && (
-                        <button type="button" className="secondary" disabled={displayNameBusy} onClick={handleResetDisplayName}>
-                          Reset
-                        </button>
-                      )}
-                    </div>
-                  </form>
-                  <div className="ringtone-row-desc" style={{ marginTop: 6 }}>
-                    Shown in chats instead of your username ({currentUser?.username}). Your username stays the
-                    same for logging in and for friends to add you.
-                  </div>
                 </div>
 
                 <div className="settings-section">

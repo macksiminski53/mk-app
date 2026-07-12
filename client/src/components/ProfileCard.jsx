@@ -33,9 +33,11 @@ function formatMemberSince(createdAt) {
 // "Friend Settings" panel (Remove Friend + mutual-consent Delete Chat) so
 // the profile and the settings for that relationship live in the same
 // place instead of requiring a separate navigation step.
-export default function ProfileCard({ user, isOwn, token, viewerIsPlus, onClose, onEditProfile, onLogout, onSetBio, onRemoveFriend, onUploadBanner }) {
+export default function ProfileCard({ user, isOwn, token, viewerIsPlus, onClose, onEditProfile, onLogout, onSetBio, onSetDisplayName, onRemoveFriend, onUploadBanner }) {
   const [editingBio, setEditingBio] = useState(false);
   const [bioDraft, setBioDraft] = useState(user.bio || '');
+  const [editingName, setEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState(user.displayName || '');
   const [showFriendSettings, setShowFriendSettings] = useState(false);
   const [deleteVotes, setDeleteVotes] = useState({ myVote: false, otherVote: false, autoReset: false });
   const [bannerBusy, setBannerBusy] = useState(false);
@@ -69,6 +71,12 @@ export default function ProfileCard({ user, isOwn, token, viewerIsPlus, onClose,
     e.preventDefault();
     await onSetBio(bioDraft);
     setEditingBio(false);
+  }
+
+  async function handleNameSubmit(e) {
+    e.preventDefault();
+    if (onSetDisplayName) await onSetDisplayName(nameDraft);
+    setEditingName(false);
   }
 
   useEffect(() => {
@@ -130,12 +138,30 @@ export default function ProfileCard({ user, isOwn, token, viewerIsPlus, onClose,
             <span className="profile-card-status-dot" style={{ background: isOwn || user.online ? '#3ba55d' : '#747f8d' }} />
           </div>
 
-          <div className="profile-card-name" style={user.nameColor ? { color: user.nameColor } : undefined}>
-            {user.displayName || user.username}
-            {user.isUltra && <span className="ultra-badge" title="MK ULTRA">ULTRA</span>}
-            {!user.isUltra && user.isPremium && <span className="premium-badge" title="MK PREMIUM">PREMIUM</span>}
-            {!user.isUltra && !user.isPremium && user.isPlus && <span className="plus-badge" title="MK PLUS">PLUS</span>}
-          </div>
+          {isOwn && editingName ? (
+            <form onSubmit={handleNameSubmit} className="profile-card-name-form">
+              <input
+                autoFocus
+                value={nameDraft}
+                onChange={(e) => setNameDraft(e.target.value)}
+                onBlur={handleNameSubmit}
+                placeholder={user.username}
+                maxLength={32}
+              />
+            </form>
+          ) : (
+            <div
+              className={`profile-card-name ${isOwn ? 'profile-card-name-editable' : ''}`}
+              style={user.nameColor ? { color: user.nameColor } : undefined}
+              onClick={isOwn ? () => { setNameDraft(user.displayName || ''); setEditingName(true); } : undefined}
+              title={isOwn ? 'Click to change your display name' : undefined}
+            >
+              {user.displayName || user.username}
+              {user.isUltra && <span className="ultra-badge" title="MK ULTRA">ULTRA</span>}
+              {!user.isUltra && user.isPremium && <span className="premium-badge" title="MK PREMIUM">PREMIUM</span>}
+              {!user.isUltra && !user.isPremium && user.isPlus && <span className="plus-badge" title="MK PLUS">PLUS</span>}
+            </div>
+          )}
           <div className="profile-card-sub">
             <span>{user.username.toLowerCase()}</span>
                         <span className="profile-card-sub-badge">MK</span>

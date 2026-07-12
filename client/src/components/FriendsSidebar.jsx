@@ -5,7 +5,7 @@ import AvatarCropper from './AvatarCropper.jsx';
 import { groupDisplayName } from './MiniChatView.jsx';
 
 export default function FriendsSidebar({
-  friends, activeFriendId, onSelect, currentUser, token, onLogout, onChangeAvatar, onSetBio,
+  friends, activeFriendId, onSelect, currentUser, token, onLogout, onChangeAvatar, onSetBio, onSetDisplayName,
   onOpenChatSettings, onRemoveFriend, groups, activeGroupId, onSelectGroup, onCreateGroup, createGroupTrigger, onUploadBanner,
 }) {
   const fileInputRef = useRef(null);
@@ -194,6 +194,7 @@ export default function FriendsSidebar({
           onClose={() => setShowProfileCard(false)}
           onLogout={onLogout}
           onSetBio={onSetBio}
+          onSetDisplayName={onSetDisplayName}
           onUploadBanner={onUploadBanner}
           onEditProfile={() => {
             setShowProfileCard(false);
