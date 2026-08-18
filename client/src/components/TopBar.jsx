@@ -308,13 +308,6 @@ export default function TopBar({ requests, onRefreshRequests, onRespond, onSendR
               </button>
               <button
                 type="button"
-                className={`settings-tab-btn ${settingsTab === 'membership' ? 'active' : ''}`}
-                onClick={() => setSettingsTab('membership')}
-              >
-                MK PLUS/ULTRA
-              </button>
-              <button
-                type="button"
                 className={`settings-tab-btn ${settingsTab === 'voice' ? 'active' : ''}`}
                 onClick={() => setSettingsTab('voice')}
               >
@@ -375,130 +368,73 @@ export default function TopBar({ requests, onRefreshRequests, onRespond, onSendR
                 </div>
 
                 <div className="settings-section">
+                  <div className="settings-label">Accent color</div>
+                  <div className="ultra-color-row">
+                    <span className="ringtone-row-title">UI accent color</span>
+                    <input
+                      type="color"
+                      value={currentUser?.ultraColor || '#3fa9f5'}
+                      onChange={handleUltraColorChange}
+                    />
+                  </div>
+                </div>
+
+                <div className="settings-section">
+                  <div className="settings-label">Name color</div>
+                  <div className="ultra-color-row">
+                    <span className="ringtone-row-title">Your name color in chat</span>
+                    <input
+                      type="color"
+                      value={currentUser?.nameColor || '#ffffff'}
+                      onChange={handleNameColorChange}
+                    />
+                  </div>
+                </div>
+
+                <div className="settings-section">
+                  <div className="settings-label">Custom emoji</div>
+                  <div className="ringtone-row">
+                    <div className="ringtone-row-info">
+                      <div className="ringtone-row-desc">
+                        {currentUser?.customEmojiUrl ? 'Insert it from the emoji picker in any chat' : 'Upload an image to use as your personal emoji'}
+                      </div>
+                    </div>
+                    <div className="ringtone-row-actions">
+                      {currentUser?.customEmojiUrl && (
+                        <img src={currentUser.customEmojiUrl} alt="your custom emoji" className="inline-custom-emoji" style={{ marginRight: 6 }} />
+                      )}
+                      <button
+                        type="button"
+                        className="secondary"
+                        disabled={customEmojiBusy}
+                        onClick={() => customEmojiFileRef.current?.click()}
+                      >
+                        {customEmojiBusy ? '…' : 'Upload'}
+                      </button>
+                      {currentUser?.customEmojiUrl && (
+                        <button
+                          type="button"
+                          className="secondary"
+                          disabled={customEmojiBusy}
+                          onClick={handleRemoveCustomEmoji}
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
+                    <input
+                      ref={customEmojiFileRef}
+                      type="file"
+                      accept="image/*"
+                      style={{ display: 'none' }}
+                      onChange={handleCustomEmojiFile}
+                    />
+                  </div>
+                </div>
+
+                <div className="settings-section">
                   <div className="settings-label">Account</div>
                   <button className="settings-logout-btn" onClick={onLogout}>{t('logout') || 'Log Out'}</button>
-                </div>
-              </>
-            )}
-
-            {settingsTab === 'membership' && (
-              <>
-                <div className="settings-section">
-                  <div className="settings-label">MK PLUS</div>
-                  {currentUser?.isPlus ? (
-                    <div className="ultra-panel">
-                      <div className="ultra-panel-title">
-                        <span className="plus-badge" title="MK PLUS">PLUS</span> You're an MK PLUS member
-                      </div>
-                      <div className="ultra-panel-desc">
-                        Permanent chats, GIF avatars, and a custom accent color are unlocked.
-                      </div>
-                      <div className="ultra-color-row">
-                        <span className="ringtone-row-title">Accent color</span>
-                        <input
-                          type="color"
-                          value={currentUser.ultraColor || '#ffffff'}
-                          onChange={handleUltraColorChange}
-                        />
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="ultra-panel">
-                      <div className="ultra-panel-desc">
-                        Permanent chats, animated GIF profile pictures, a custom UI accent color, and a badge next to your name — free for every account.
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div className="settings-section">
-                  <div className="settings-label">MK PREMIUM</div>
-                  {currentUser?.isPremium ? (
-                    <div className="ultra-panel">
-                      <div className="ultra-panel-title">
-                        <span className="premium-badge" title="MK PREMIUM">PREMIUM</span> You're an MK PREMIUM member
-                      </div>
-                      <div className="ultra-panel-desc">
-                        Everything in MK PLUS, plus free Mega Chat creation, permanent Mini Chats/DMs whenever
-                        you're a member, an emoji picker, and the ability to like messages.
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="ultra-panel">
-                      <div className="ultra-panel-desc">
-                        Free Mega Chat creation, permanent Mini Chats/DMs, an emoji picker in the message box, and the ability to like messages — free for every account.
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div className="settings-section">
-                  <div className="settings-label">MK ULTRA</div>
-                  {currentUser?.isUltra ? (
-                    <div className="ultra-panel">
-                      <div className="ultra-panel-title">
-                        <span className="ultra-badge" title="MK ULTRA">ULTRA</span> You're an MK ULTRA member
-                      </div>
-                      <div className="ultra-panel-desc">
-                        Everything in MK PREMIUM, plus a custom name color, an avatar border, a profile banner,
-                        read receipts, a raised Mini Chat member cap, and a personal custom emoji. (Message pinning is free for everyone.)
-                      </div>
-                      <div className="ultra-color-row">
-                        <span className="ringtone-row-title">Name color</span>
-                        <input
-                          type="color"
-                          value={currentUser.nameColor || '#ffffff'}
-                          onChange={handleNameColorChange}
-                        />
-                      </div>
-                      <div className="ringtone-row">
-                        <div className="ringtone-row-info">
-                          <div className="ringtone-row-title">Custom emoji</div>
-                          <div className="ringtone-row-desc">
-                            {currentUser?.customEmojiUrl ? 'Insert it from the emoji picker in any chat' : 'Upload an image to use as your personal emoji'}
-                          </div>
-                        </div>
-                        <div className="ringtone-row-actions">
-                          {currentUser?.customEmojiUrl && (
-                            <img src={currentUser.customEmojiUrl} alt="your custom emoji" className="inline-custom-emoji" style={{ marginRight: 6 }} />
-                          )}
-                          <button
-                            type="button"
-                            className="secondary"
-                            disabled={customEmojiBusy}
-                            onClick={() => customEmojiFileRef.current?.click()}
-                          >
-                            {customEmojiBusy ? '…' : 'Upload'}
-                          </button>
-                          {currentUser?.customEmojiUrl && (
-                            <button
-                              type="button"
-                              className="secondary"
-                              disabled={customEmojiBusy}
-                              onClick={handleRemoveCustomEmoji}
-                            >
-                              Remove
-                            </button>
-                          )}
-                        </div>
-                        <input
-                          ref={customEmojiFileRef}
-                          type="file"
-                          accept="image/*"
-                          style={{ display: 'none' }}
-                          onChange={handleCustomEmojiFile}
-                        />
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="ultra-panel">
-                      <div className="ultra-panel-desc">
-                        A custom name color, an avatar border, a profile banner, read receipts, a raised Mini Chat
-                        member cap, and a personal custom emoji — free for every account. (Message pinning is free
-                        for everyone too.)
-                      </div>
-                    </div>
-                  )}
                 </div>
               </>
             )}

@@ -62,6 +62,7 @@ function fileExtLabel(url) {
 
 export default function ChatArea({ token, friend, currentUser, onRemoveFriend, onStartCall, callActive, chatLayout = 'bubble', openSettingsTrigger, onBack, t }) {
   const [messages, setMessages] = useState([]);
+  const [messagesLoading, setMessagesLoading] = useState(false);
   const [draft, setDraft] = useState('');
   const [typing, setTyping] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -110,12 +111,15 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
     if (!threadId) return;
     let cancelled = false;
     setMessages([]);
+    setMessagesLoading(true);
     setReplyTo(null);
     setPendingImage(null);
     setShowDeletePanel(false);
     setDeleteVotes({ myVote: false, otherVote: false, autoReset: false });
     api.listMessages(token, threadId).then((msgs) => {
       if (!cancelled) setMessages(msgs);
+    }).finally(() => {
+      if (!cancelled) setMessagesLoading(false);
     });
     api.getDeleteVotes(token, threadId).then((votes) => {
       if (!cancelled) setDeleteVotes(votes);
@@ -377,9 +381,6 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
         )}
         <span className="chat-header-name">
           {friend.displayName || friend.username}
-          {friend.isUltra && <span className="ultra-badge" title="MK ULTRA">ULTRA</span>}
-          {!friend.isUltra && friend.isPremium && <span className="premium-badge" title="MK PREMIUM">PREMIUM</span>}
-          {!friend.isUltra && !friend.isPremium && friend.isPlus && <span className="plus-badge" title="MK PLUS">PLUS</span>}
           {friend.isAdmin && <span className="admin-badge" title="MK Admin">ADMIN</span>}
         </span>
         <div className="dropdown-wrap chat-settings-wrap">
@@ -449,7 +450,12 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
       </div>
 
       <div className="message-list">
-        {(() => {
+        {messagesLoading && (
+          <div className="message-list-loading">
+            <div className="app-loading-spinner" />
+          </div>
+        )}
+        {!messagesLoading && (() => {
           const lastOwnMessageId = [...messages].reverse().find((m) => m.username === currentUser.username)?.id;
           return messages.map((m) => {
           const isOwn = m.username === currentUser.username;

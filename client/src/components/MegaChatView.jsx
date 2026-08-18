@@ -369,9 +369,6 @@ export default function MegaChatView({ server, token, currentUser, onLeftOrDelet
                   <span className="megachat-member-name">
                     {m.displayName || m.username}
                     {m.id === detail.ownerId && <span className="ultra-badge" title="Owner">OWNER</span>}
-                    {m.isUltra && <span className="ultra-badge" title="MK ULTRA">ULTRA</span>}
-                    {!m.isUltra && m.isPremium && <span className="premium-badge" title="MK PREMIUM">PREMIUM</span>}
-                    {!m.isUltra && !m.isPremium && m.isPlus && <span className="plus-badge" title="MK PLUS">PLUS</span>}
                     {m.isAdmin && <span className="admin-badge" title="MK Admin">ADMIN</span>}
                   </span>
                   {isOwner && m.id !== detail.ownerId && (

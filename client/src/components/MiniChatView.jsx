@@ -317,9 +317,6 @@ export default function MiniChatView({ group, token, currentUser, onLeft, onBack
                 <Avatar username={m.displayName || m.username} avatarColor={m.avatarColor} avatarIcon={m.avatarIcon} avatarUrl={m.avatarUrl} size={32} ultraBorder={m.isUltra} />
                 <span className="megachat-member-name">
                   {m.displayName || m.username}
-                  {m.isUltra && <span className="ultra-badge" title="MK ULTRA">ULTRA</span>}
-                  {!m.isUltra && m.isPremium && <span className="premium-badge" title="MK PREMIUM">PREMIUM</span>}
-                  {!m.isUltra && !m.isPremium && m.isPlus && <span className="plus-badge" title="MK PLUS">PLUS</span>}
                   {m.isAdmin && <span className="admin-badge" title="MK Admin">ADMIN</span>}
                 </span>
               </div>

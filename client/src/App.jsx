@@ -37,6 +37,11 @@ export default function App() {
     const raw = localStorage.getItem('user');
     return raw ? JSON.parse(raw) : null;
   });
+  // Covers the window between "we have a token" and "friends/requests/
+  // servers/groups have all come back from the DB" -- without this the
+  // sidebar renders empty for however long that round trip takes, which
+  // reads as a broken/half-loaded app rather than a loading one.
+  const [initialLoadDone, setInitialLoadDone] = useState(false);
   const [friends, setFriends] = useState([]);
   const [requests, setRequests] = useState([]);
   const [activeFriendId, setActiveFriendId] = useState(null);
@@ -135,28 +140,28 @@ export default function App() {
   useEffect(() => { cleanupCallRef.current = cleanupCall; }, [cleanupCall]);
 
   const refreshFriends = useCallback(() => {
-    if (!token) return;
-    api.listFriends(token).then(setFriends).catch(() => {});
+    if (!token) return Promise.resolve();
+    return api.listFriends(token).then(setFriends).catch(() => {});
   }, [token]);
 
   const refreshRequests = useCallback(() => {
-    if (!token) return;
-    api.listRequests(token).then(setRequests).catch(() => {});
+    if (!token) return Promise.resolve();
+    return api.listRequests(token).then(setRequests).catch(() => {});
   }, [token]);
 
   const refreshServers = useCallback(() => {
-    if (!token) return;
-    api.listServers(token).then(setServers).catch(() => {});
+    if (!token) return Promise.resolve();
+    return api.listServers(token).then(setServers).catch(() => {});
   }, [token]);
 
   const refreshGroups = useCallback(() => {
-    if (!token) return;
-    api.listGroups(token).then(setGroups).catch(() => {});
+    if (!token) return Promise.resolve();
+    return api.listGroups(token).then(setGroups).catch(() => {});
   }, [token]);
 
   const refreshSelf = useCallback(() => {
-    if (!token) return;
-    api.getMe(token).then((fresh) => {
+    if (!token) return Promise.resolve();
+    return api.getMe(token).then((fresh) => {
       setUser((prev) => {
         const updated = { ...prev, ...fresh };
         localStorage.setItem('user', JSON.stringify(updated));
@@ -255,11 +260,13 @@ export default function App() {
     // via an admin script rather than through the app) would only ever show
     // up after a Stripe-redirect or a lucky live socket event, never on a
     // normal reload.
-    refreshSelf();
-    refreshFriends();
-    refreshRequests();
-    refreshServers();
-    refreshGroups();
+    Promise.allSettled([
+      refreshSelf(),
+      refreshFriends(),
+      refreshRequests(),
+      refreshServers(),
+      refreshGroups(),
+    ]).then(() => setInitialLoadDone(true));
 
     const socket = getSocket();
     function onPresence({ userId, online }) {
@@ -877,6 +884,15 @@ export default function App() {
 
   if (!token || !user) {
     return <AuthScreen onAuthed={handleAuthed} sessionExpired={sessionExpired} />;
+  }
+
+  if (!initialLoadDone) {
+    return (
+      <div className="app-loading-screen">
+        <div className="app-loading-brand">MK</div>
+        <div className="app-loading-spinner" />
+      </div>
+    );
   }
 
   const activeFriend = friends.find((f) => f.id === activeFriendId) || null;

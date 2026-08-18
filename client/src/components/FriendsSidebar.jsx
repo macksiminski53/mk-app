@@ -94,9 +94,6 @@ export default function FriendsSidebar({
           <div className="activity-info">
             <div className="activity-username" onClick={() => setShowProfileCard(true)} title="View profile">
               {currentUser.displayName || currentUser.username}
-              {currentUser.isUltra && <span className="ultra-badge" title="MK ULTRA">ULTRA</span>}
-              {!currentUser.isUltra && currentUser.isPremium && <span className="premium-badge" title="MK PREMIUM">PREMIUM</span>}
-              {!currentUser.isUltra && !currentUser.isPremium && currentUser.isPlus && <span className="plus-badge" title="MK PLUS">PLUS</span>}
               {currentUser.isAdmin && <span className="admin-badge" title="MK Admin">ADMIN</span>}
             </div>
             <div
@@ -178,9 +175,6 @@ export default function FriendsSidebar({
             <div className="friend-info">
               <span className="friend-name" style={f.nameColor ? { color: f.nameColor } : undefined}>
                 {f.displayName || f.username}
-                {f.isUltra && <span className="ultra-badge" title="MK ULTRA">ULTRA</span>}
-                {!f.isUltra && f.isPremium && <span className="premium-badge" title="MK PREMIUM">PREMIUM</span>}
-                {!f.isUltra && !f.isPremium && f.isPlus && <span className="plus-badge" title="MK PLUS">PLUS</span>}
                 {f.isAdmin && <span className="admin-badge" title="MK Admin">ADMIN</span>}
               </span>
               {f.statusSource === 'music' && f.statusText && <span className="friend-status">{f.statusText}</span>}

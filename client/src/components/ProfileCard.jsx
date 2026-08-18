@@ -157,9 +157,6 @@ export default function ProfileCard({ user, isOwn, token, viewerIsPlus, onClose,
               title={isOwn ? 'Click to change your display name' : undefined}
             >
               {user.displayName || user.username}
-              {user.isUltra && <span className="ultra-badge" title="MK ULTRA">ULTRA</span>}
-              {!user.isUltra && user.isPremium && <span className="premium-badge" title="MK PREMIUM">PREMIUM</span>}
-              {!user.isUltra && !user.isPremium && user.isPlus && <span className="plus-badge" title="MK PLUS">PLUS</span>}
               {user.isAdmin && <span className="admin-badge" title="MK Admin">ADMIN</span>}
             </div>
           )}

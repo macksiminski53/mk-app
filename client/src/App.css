@@ -3325,3 +3325,45 @@ h1, h2, h3, .app-brand, .auth-card h1 {
 }
 .admin-delete-btn:hover { background: rgba(255, 255, 255, 0.1); }
 .admin-delete-btn:disabled { opacity: 0.5; cursor: default; }
+
+/* --- Initial load screen: covers the window between having a token and
+   friends/requests/servers/groups all coming back from the DB, so the app
+   never renders a half-empty sidebar. --- */
+.app-loading-screen {
+  height: 100vh;
+  width: 100vw;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  background: var(--bg-deepest);
+}
+
+.app-loading-brand {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 28px;
+  letter-spacing: 1px;
+  color: var(--text-primary);
+}
+
+.app-loading-spinner {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  animation: app-loading-spin 0.7s linear infinite;
+}
+
+@keyframes app-loading-spin {
+  to { transform: rotate(360deg); }
+}
+
+.message-list-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 0;
+}
