@@ -3352,6 +3352,23 @@ h1, h2, h3, .app-brand, .auth-card h1 {
   line-height: 1;
   letter-spacing: 2px;
   color: #ffffff;
+  animation: app-loading-bass 2.4s infinite;
+}
+
+/* Punches the whole wordmark on a beat -- a quick snap out and a slightly
+   slower settle back, like it's reacting to a kick drum rather than just
+   drifting. Timed to land on the same beats as the red/blue glitch below
+   (20%/40%/60%/80%) so the color-split and the shake read as one hit. */
+@keyframes app-loading-bass {
+  0%, 12% { transform: scale(1) translateY(0); }
+  20% { transform: scale(1.05) translateY(-3px); }
+  28% { transform: scale(0.99) translateY(1px); }
+  40% { transform: scale(1.04) translateY(-2px); }
+  48% { transform: scale(1) translateY(0); }
+  60% { transform: scale(1.03) translateY(-2px); }
+  68% { transform: scale(0.99) translateY(1px); }
+  80% { transform: scale(1.05) translateY(-3px); }
+  90%, 100% { transform: scale(1) translateY(0); }
 }
 
 .app-loading-brand::before,
