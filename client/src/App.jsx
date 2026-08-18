@@ -889,7 +889,7 @@ export default function App() {
   if (!initialLoadDone) {
     return (
       <div className="app-loading-screen">
-        <div className="app-loading-brand">MK</div>
+        <div className="app-loading-brand" data-text="MK">MK</div>
         <div className="app-loading-spinner" />
       </div>
     );

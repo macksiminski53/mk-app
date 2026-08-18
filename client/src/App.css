@@ -3336,21 +3336,63 @@ h1, h2, h3, .app-brand, .auth-card h1 {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 18px;
+  gap: 40px;
   background: var(--bg-deepest);
 }
 
+/* RGB-split "glitch" wordmark: the real white text sits on top, with a
+   red-shifted and blue-shifted copy peeking out from behind it via
+   ::before/::after using the same content (set from the `data-text`
+   attribute so it's one source of truth, no duplicated markup). */
 .app-loading-brand {
+  position: relative;
   font-family: var(--font-display);
   font-weight: 800;
-  font-size: 28px;
-  letter-spacing: 1px;
-  color: var(--text-primary);
+  font-size: 96px;
+  line-height: 1;
+  letter-spacing: 2px;
+  color: #ffffff;
+}
+
+.app-loading-brand::before,
+.app-loading-brand::after {
+  content: attr(data-text);
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  color: #ffffff;
+}
+
+.app-loading-brand::before {
+  color: #ff3b3b;
+  animation: app-loading-glitch-red 2.4s infinite steps(2, jump-none);
+}
+
+.app-loading-brand::after {
+  color: #3fa9f5;
+  animation: app-loading-glitch-blue 2.4s infinite steps(2, jump-none);
+}
+
+@keyframes app-loading-glitch-red {
+  0%, 100% { transform: translate(0, 0); opacity: 0.8; }
+  20% { transform: translate(-4px, 1px); opacity: 0.6; }
+  40% { transform: translate(2px, -1px); opacity: 0.8; }
+  60% { transform: translate(-2px, 0); opacity: 0.5; }
+  80% { transform: translate(3px, 1px); opacity: 0.7; }
+}
+
+@keyframes app-loading-glitch-blue {
+  0%, 100% { transform: translate(0, 0); opacity: 0.8; }
+  20% { transform: translate(4px, -1px); opacity: 0.6; }
+  40% { transform: translate(-2px, 1px); opacity: 0.8; }
+  60% { transform: translate(2px, 0); opacity: 0.5; }
+  80% { transform: translate(-3px, -1px); opacity: 0.7; }
 }
 
 .app-loading-spinner {
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   border: 3px solid var(--border);
   border-top-color: var(--accent);
@@ -3359,6 +3401,10 @@ h1, h2, h3, .app-brand, .auth-card h1 {
 
 @keyframes app-loading-spin {
   to { transform: rotate(360deg); }
+}
+
+@media (max-width: 480px) {
+  .app-loading-brand { font-size: 56px; }
 }
 
 .message-list-loading {
