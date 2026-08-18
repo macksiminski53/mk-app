@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { LANGUAGES } from '../i18n.js';
 import { listAudioDevices } from '../webrtc.js';
 import AdminPanel from './AdminPanel.jsx';
+import { RefreshIcon, GearIcon, ClockIcon, PersonAddIcon, PlusMenuIcon } from './Icons.jsx';
 
 const CHANGELOG = [
   { version: '0.18.0', notes: 'MK PREMIUM/ULTRA split rework: MK PREMIUM takes over free Mega Chats, permanent Mini Chats/DMs, the emoji picker, and message likes. MK ULTRA adds a name color, avatar border, profile banner, read receipts, a raised Mini Chat cap, and a personal custom emoji. Message pinning (up to 10 per chat, never auto-deletes) is now free for everyone.' },
@@ -229,7 +230,9 @@ export default function TopBar({ requests, onRefreshRequests, onRespond, onSendR
         <span className="app-brand">MK</span>
         <span className="app-version" title={`MK v${CHANGELOG[0].version}`}>v{CHANGELOG[0].version}</span>
         <div className="dropdown-wrap">
-          <button className="top-bar-btn" onClick={() => setShowExtra((v) => !v)}>{t('extra')} ▾</button>
+          <button className="top-bar-btn top-bar-btn-icon" onClick={() => setShowExtra((v) => !v)} title={t('extra')}>
+            <PlusMenuIcon size={18} />
+          </button>
           {showExtra && (
             <div className="dropdown-menu" onMouseLeave={() => setShowExtra(false)}>
               <div className="dropdown-item" onClick={() => { onCreateMegaChat(); setShowExtra(false); }}>
@@ -274,22 +277,28 @@ export default function TopBar({ requests, onRefreshRequests, onRespond, onSendR
       </div>
       <div className="top-bar-right">
         <button
-          className="top-bar-btn top-bar-btn-secondary"
+          className="top-bar-btn top-bar-btn-icon top-bar-btn-secondary"
           onClick={() => window.location.reload()}
           title="Reload MK to pick up the latest version"
         >
-          Refresh
+          <RefreshIcon size={18} />
         </button>
-        <button className="top-bar-btn" onClick={() => setShowSettings(true)}>{t('settings')}</button>
-        <button className="top-bar-btn top-bar-btn-secondary" onClick={() => setShowLog(true)}>{t('updateLog')}</button>
+        <button className="top-bar-btn top-bar-btn-icon" onClick={() => setShowSettings(true)} title={t('settings')}>
+          <GearIcon size={18} />
+        </button>
+        <button className="top-bar-btn top-bar-btn-icon top-bar-btn-secondary" onClick={() => setShowLog(true)} title={t('updateLog')}>
+          <ClockIcon size={18} />
+        </button>
         <button
-          className="top-bar-btn"
+          className="top-bar-btn top-bar-btn-icon"
           onClick={() => {
             onRefreshRequests();
             setShowRequests(true);
           }}
+          title={t('friendRequest')}
         >
-          {t('friendRequest')}{requests.length > 0 && <span className="badge">{requests.length}</span>}
+          <PersonAddIcon size={18} />
+          {requests.length > 0 && <span className="badge">{requests.length}</span>}
         </button>
       </div>
 

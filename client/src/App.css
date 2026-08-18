@@ -117,6 +117,22 @@ h1, h2, h3, .app-brand, .auth-card h1 {
 
 .top-bar-btn:hover { background: var(--border); color: white; }
 
+.top-bar-btn-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+}
+
+.top-bar-btn-icon .badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  margin-left: 0;
+}
+
 .badge {
   background: var(--accent-gradient);
   color: var(--on-accent);
@@ -1118,22 +1134,6 @@ h1, h2, h3, .app-brand, .auth-card h1 {
   box-shadow: 0 0 0 2.5px var(--success), 0 0 6px 1px rgba(35, 165, 90, 0.55);
 }
 
-/* MK ULTRA perk: an animated color-cycling ring around the avatar. Uses
-   `outline` rather than another box-shadow layer so it composes cleanly
-   with .avatar-online's presence ring instead of overwriting it. */
-.avatar-ultra-border {
-  outline: 2.5px solid #ffd76a;
-  outline-offset: 2px;
-  animation: mk-ultra-border-cycle 3s linear infinite;
-}
-
-@keyframes mk-ultra-border-cycle {
-  0% { outline-color: #ffd76a; }
-  33% { outline-color: #ff8a3d; }
-  66% { outline-color: #7b2ff7; }
-  100% { outline-color: #ffd76a; }
-}
-
 .status-dot {
   width: 10px;
   height: 10px;
@@ -2106,6 +2106,12 @@ h1, h2, h3, .app-brand, .auth-card h1 {
     font-size: 11px;
   }
 
+  .top-bar-btn-icon {
+    padding: 0;
+    width: 30px;
+    height: 30px;
+  }
+
   .top-bar-right {
     overflow-x: auto;
     scrollbar-width: none;
@@ -2145,6 +2151,12 @@ h1, h2, h3, .app-brand, .auth-card h1 {
   .top-bar-btn {
     padding: 5px 6px;
     font-size: 10px;
+  }
+
+  .top-bar-btn-icon {
+    padding: 0;
+    width: 28px;
+    height: 28px;
   }
 }
 
@@ -3352,23 +3364,30 @@ h1, h2, h3, .app-brand, .auth-card h1 {
   line-height: 1;
   letter-spacing: 2px;
   color: #ffffff;
-  animation: app-loading-bass 2.4s infinite;
+  animation: app-loading-bass 2.4s ease-in-out infinite;
+  will-change: transform;
 }
 
 /* Punches the whole wordmark on a beat -- a quick snap out and a slightly
    slower settle back, like it's reacting to a kick drum rather than just
    drifting. Timed to land on the same beats as the red/blue glitch below
-   (20%/40%/60%/80%) so the color-split and the shake read as one hit. */
+   (20%/40%/60%/80%) so the color-split and the shake read as one hit.
+   More keyframes + ease-in-out (rather than default/step timing) keeps
+   the motion smooth instead of choppy. */
 @keyframes app-loading-bass {
-  0%, 12% { transform: scale(1) translateY(0); }
-  20% { transform: scale(1.05) translateY(-3px); }
-  28% { transform: scale(0.99) translateY(1px); }
-  40% { transform: scale(1.04) translateY(-2px); }
-  48% { transform: scale(1) translateY(0); }
-  60% { transform: scale(1.03) translateY(-2px); }
-  68% { transform: scale(0.99) translateY(1px); }
-  80% { transform: scale(1.05) translateY(-3px); }
-  90%, 100% { transform: scale(1) translateY(0); }
+  0%, 10% { transform: scale(1) translateY(0); }
+  16% { transform: scale(1.05) translateY(-3px); }
+  24% { transform: scale(0.99) translateY(1px); }
+  30% { transform: scale(1.01) translateY(0); }
+  36% { transform: scale(1.04) translateY(-2px); }
+  44% { transform: scale(0.995) translateY(0.5px); }
+  50% { transform: scale(1) translateY(0); }
+  56% { transform: scale(1.03) translateY(-2px); }
+  64% { transform: scale(0.99) translateY(1px); }
+  70% { transform: scale(1.005) translateY(0); }
+  76% { transform: scale(1.05) translateY(-3px); }
+  86% { transform: scale(0.99) translateY(1px); }
+  94%, 100% { transform: scale(1) translateY(0); }
 }
 
 .app-loading-brand::before,
@@ -3379,16 +3398,17 @@ h1, h2, h3, .app-brand, .auth-card h1 {
   left: 0;
   width: 100%;
   color: #ffffff;
+  will-change: transform;
 }
 
 .app-loading-brand::before {
   color: #ff3b3b;
-  animation: app-loading-glitch-red 2.4s infinite steps(2, jump-none);
+  animation: app-loading-glitch-red 2.4s ease-in-out infinite;
 }
 
 .app-loading-brand::after {
   color: #3fa9f5;
-  animation: app-loading-glitch-blue 2.4s infinite steps(2, jump-none);
+  animation: app-loading-glitch-blue 2.4s ease-in-out infinite;
 }
 
 @keyframes app-loading-glitch-red {
