@@ -136,11 +136,12 @@ CREATE TABLE IF NOT EXISTS messages (
     if (!/duplicate column/i.test(e.message || '')) throw e;
   }
 
-  // MK ULTRA -- a one-time $1 purchase (Stripe) that permanently unlocks:
-  // chats exempt from the 24h auto-reset sweep, GIF avatars, a custom UI
-  // accent color, and a badge next to the username.
+  // Everything is free now -- every account is created with the PLUS/
+  // PREMIUM/ULTRA columns already set to 1, so every downstream perk check
+  // (is_plus/is_premium/is_ultra) just passes for everyone. Columns are
+  // kept (rather than deleted) since the rest of the app still reads them.
   try {
-    await client.execute('ALTER TABLE users ADD COLUMN is_ultra INTEGER NOT NULL DEFAULT 0');
+    await client.execute('ALTER TABLE users ADD COLUMN is_ultra INTEGER NOT NULL DEFAULT 1');
   } catch (e) {
     if (!/duplicate column/i.test(e.message || '')) throw e;
   }
@@ -158,7 +159,7 @@ CREATE TABLE IF NOT EXISTS messages (
   // is_plus=1 and are reset to is_ultra=0, since they bought what is now
   // called PLUS, not the new premium ULTRA tier.
   try {
-    await client.execute('ALTER TABLE users ADD COLUMN is_plus INTEGER NOT NULL DEFAULT 0');
+    await client.execute('ALTER TABLE users ADD COLUMN is_plus INTEGER NOT NULL DEFAULT 1');
     await client.execute("UPDATE users SET is_plus = 1, is_ultra = 0 WHERE is_ultra = 1");
   } catch (e) {
     if (!/duplicate column/i.test(e.message || '')) throw e;
@@ -178,10 +179,19 @@ CREATE TABLE IF NOT EXISTS messages (
   // superset of PREMIUM, which is a superset of PLUS -- perk checks
   // throughout the app treat is_ultra as implying is_premium and is_plus.
   try {
-    await client.execute('ALTER TABLE users ADD COLUMN is_premium INTEGER NOT NULL DEFAULT 0');
+    await client.execute('ALTER TABLE users ADD COLUMN is_premium INTEGER NOT NULL DEFAULT 1');
     await client.execute("UPDATE users SET is_premium = 1, is_ultra = 0 WHERE is_ultra = 1");
   } catch (e) {
     if (!/duplicate column/i.test(e.message || '')) throw e;
+  }
+
+  // Retroactively unlock every existing account too, one time -- this
+  // UPDATE is idempotent (no-op once everyone's already at 1) so it's safe
+  // to run on every server boot.
+  try {
+    await client.execute('UPDATE users SET is_plus = 1, is_premium = 1, is_ultra = 1 WHERE is_plus = 0 OR is_premium = 0 OR is_ultra = 0');
+  } catch (e) {
+    console.error('Failed to retroactively unlock all accounts:', e.message);
   }
 
   // MK ULTRA's new cosmetic/utility perks: a custom name color in chat

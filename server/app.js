@@ -12,7 +12,7 @@ import { events } from './events.js';
 import authRoutes from './routes/auth.js';
 import friendRoutes from './routes/friends.js';
 import threadRoutes from './routes/threads.js';
-import billingRoutes, { handleStripeWebhook } from './routes/billing.js';
+import billingRoutes from './routes/billing.js';
 import serverRoutes, { isMember } from './routes/servers.js';
 import groupRoutes, { isMember as isGroupMember } from './routes/groups.js';
 import gifRoutes from './routes/gifs.js';
@@ -30,16 +30,6 @@ const io = new Server(server, {
 });
 
 app.use(cors({ origin: process.env.CLIENT_ORIGIN || '*' }));
-
-// Stripe webhook needs the raw request body (for signature verification),
-// so it's registered before express.json() and only that one route is
-// exempt from JSON body-parsing.
-app.post('/api/billing/webhook', express.raw({ type: 'application/json' }), (req, res) => {
-  handleStripeWebhook(req, res).catch((err) => {
-    console.error('Stripe webhook handler error:', err);
-    res.status(500).end();
-  });
-});
 
 app.use(express.json());
 app.use('/uploads', express.static(uploadsDir));
