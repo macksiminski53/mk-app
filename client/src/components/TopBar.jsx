@@ -23,7 +23,7 @@ const CHANGELOG = [
   { version: '0.1.0', notes: 'Initial release: register/login, real-time messaging.' },
 ];
 
-export default function TopBar({ requests, onRefreshRequests, onRespond, onSendRequest, settings, onUpdateSettings, onLogout, currentUser, onUploadRingtone, onResetRingtone, onBuyPlus, onBuyPremium, onBuyUltra, onSetUltraColor, onSetNameColor, onUploadCustomEmoji, onRemoveCustomEmoji, onRevealToken, onRegenerateToken, billingConfigured, onCreateMegaChat, onCreateMiniChat, onFetchStats, onAdminListUsers, onAdminSetTier, onAdminSetAdmin, onAdminDeleteUser, t }) {
+export default function TopBar({ requests, onRefreshRequests, onRespond, onSendRequest, settings, onUpdateSettings, onLogout, currentUser, onUploadRingtone, onResetRingtone, onSetUltraColor, onSetNameColor, onUploadCustomEmoji, onRemoveCustomEmoji, onRevealToken, onRegenerateToken, onCreateMegaChat, onCreateMiniChat, onFetchStats, onAdminListUsers, onAdminSetTier, onAdminSetAdmin, onAdminDeleteUser, t }) {
   const [showExtra, setShowExtra] = useState(false);
   const [showLog, setShowLog] = useState(false);
   const [showStats, setShowStats] = useState(false);
@@ -39,12 +39,6 @@ export default function TopBar({ requests, onRefreshRequests, onRespond, onSendR
   const [addSuccess, setAddSuccess] = useState('');
   const [ringtoneBusy, setRingtoneBusy] = useState(null); // 'outgoing' | 'incoming' | null
   const [customEmojiBusy, setCustomEmojiBusy] = useState(false);
-  const [plusBusy, setPlusBusy] = useState(false);
-  const [plusError, setPlusError] = useState('');
-  const [premiumBusy, setPremiumBusy] = useState(false);
-  const [premiumError, setPremiumError] = useState('');
-  const [ultraBusy, setUltraBusy] = useState(false);
-  const [ultraError, setUltraError] = useState('');
   const outgoingFileRef = useRef(null);
   const customEmojiFileRef = useRef(null);
   const incomingFileRef = useRef(null);
@@ -71,45 +65,6 @@ export default function TopBar({ requests, onRefreshRequests, onRespond, onSendR
       .then(setAudioDevices)
       .catch((err) => console.error('Failed to list audio devices:', err.message));
   }, [showSettings]);
-
-  async function handleBuyPlus() {
-    setPlusBusy(true);
-    setPlusError('');
-    try {
-      await onBuyPlus();
-    } catch (err) {
-      console.error('MK PLUS checkout failed:', err.message);
-      setPlusError(err.message || 'Something went wrong starting checkout.');
-      setPlusBusy(false);
-    }
-    // On success this navigates away to Stripe, so no need to clear busy.
-  }
-
-  async function handleBuyPremium() {
-    setPremiumBusy(true);
-    setPremiumError('');
-    try {
-      await onBuyPremium();
-    } catch (err) {
-      console.error('MK PREMIUM checkout failed:', err.message);
-      setPremiumError(err.message || 'Something went wrong starting checkout.');
-      setPremiumBusy(false);
-    }
-    // On success this navigates away to Stripe, so no need to clear busy.
-  }
-
-  async function handleBuyUltra() {
-    setUltraBusy(true);
-    setUltraError('');
-    try {
-      await onBuyUltra();
-    } catch (err) {
-      console.error('MK ULTRA checkout failed:', err.message);
-      setUltraError(err.message || 'Something went wrong starting checkout.');
-      setUltraBusy(false);
-    }
-    // On success this navigates away to Stripe, so no need to clear busy.
-  }
 
   async function handleUltraColorChange(e) {
     try {
@@ -450,26 +405,8 @@ export default function TopBar({ requests, onRefreshRequests, onRespond, onSendR
                   ) : (
                     <div className="ultra-panel">
                       <div className="ultra-panel-desc">
-                        One-time $1 purchase: permanent chats (never auto-delete), animated GIF profile pictures,
-                        a custom UI accent color, and a badge next to your name.
+                        Permanent chats, animated GIF profile pictures, a custom UI accent color, and a badge next to your name — free for every account.
                       </div>
-                      {billingConfigured === false ? (
-                        <div className="ultra-panel-notice">
-                          Payments aren't set up yet — check back soon.
-                        </div>
-                      ) : (
-                        <>
-                          <button
-                            type="button"
-                            className="plus-buy-btn"
-                            disabled={plusBusy}
-                            onClick={handleBuyPlus}
-                          >
-                            {plusBusy ? '…' : 'Get MK PLUS — $1'}
-                          </button>
-                          {plusError && <div className="ultra-panel-error">{plusError}</div>}
-                        </>
-                      )}
                     </div>
                   )}
                 </div>
@@ -489,26 +426,8 @@ export default function TopBar({ requests, onRefreshRequests, onRespond, onSendR
                   ) : (
                     <div className="ultra-panel">
                       <div className="ultra-panel-desc">
-                        One-time $2.50 purchase, on top of everything MK PLUS gives you: free Mega Chat creation,
-                        permanent Mini Chats/DMs, an emoji picker in the message box, and the ability to like messages.
+                        Free Mega Chat creation, permanent Mini Chats/DMs, an emoji picker in the message box, and the ability to like messages — free for every account.
                       </div>
-                      {billingConfigured === false ? (
-                        <div className="ultra-panel-notice">
-                          Payments aren't set up yet — check back soon.
-                        </div>
-                      ) : (
-                        <>
-                          <button
-                            type="button"
-                            className="premium-buy-btn"
-                            disabled={premiumBusy}
-                            onClick={handleBuyPremium}
-                          >
-                            {premiumBusy ? '…' : 'Get MK PREMIUM — $2.50'}
-                          </button>
-                          {premiumError && <div className="ultra-panel-error">{premiumError}</div>}
-                        </>
-                      )}
                     </div>
                   )}
                 </div>
@@ -574,27 +493,10 @@ export default function TopBar({ requests, onRefreshRequests, onRespond, onSendR
                   ) : (
                     <div className="ultra-panel">
                       <div className="ultra-panel-desc">
-                        One-time $5 purchase, on top of everything MK PREMIUM gives you: a custom name color,
-                        an avatar border, a profile banner, read receipts, a raised Mini Chat member cap, and a
-                        personal custom emoji. (Message pinning is free for everyone, no purchase needed.)
+                        A custom name color, an avatar border, a profile banner, read receipts, a raised Mini Chat
+                        member cap, and a personal custom emoji — free for every account. (Message pinning is free
+                        for everyone too.)
                       </div>
-                      {billingConfigured === false ? (
-                        <div className="ultra-panel-notice">
-                          Payments aren't set up yet — check back soon.
-                        </div>
-                      ) : (
-                        <>
-                          <button
-                            type="button"
-                            className="ultra-buy-btn"
-                            disabled={ultraBusy}
-                            onClick={handleBuyUltra}
-                          >
-                            {ultraBusy ? '…' : 'Get MK ULTRA — $5'}
-                          </button>
-                          {ultraError && <div className="ultra-panel-error">{ultraError}</div>}
-                        </>
-                      )}
                     </div>
                   )}
                 </div>

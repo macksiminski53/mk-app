@@ -20,8 +20,8 @@ export default function ServerRail({ servers, activeServerId, onSelectHome, onSe
     }
   }, [createTrigger]);
 
-  const isFree = isPremium;
-  const price = isFree ? 'Free' : '$1';
+  const isFree = true;
+  const price = 'Free';
 
   async function handleCreate(e) {
     e.preventDefault();
@@ -73,10 +73,7 @@ export default function ServerRail({ servers, activeServerId, onSelectHome, onSe
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <h2>Create a Mega Chat</h2>
             <p className="server-rail-create-hint">
-              A Mega Chat is a server with unlimited members and its own text channels.
-              {isFree
-                ? ' Free for MK PREMIUM/ULTRA members.'
-                : ' Costs $1, one time, via Stripe.'}
+              A Mega Chat is a server with unlimited members and its own text channels. Free for every account.
             </p>
             <form onSubmit={handleCreate}>
               <div className="settings-section">

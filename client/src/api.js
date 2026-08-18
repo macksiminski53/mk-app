@@ -80,9 +80,6 @@ export const api = {
 
   getBillingStatus: (token) => request('/billing/status', { token }),
   getMyStats: (token) => request('/auth/stats', { token }),
-  createPlusCheckout: (token) => request('/billing/checkout', { method: 'POST', token }),
-  createPremiumCheckout: (token) => request('/billing/premium-checkout', { method: 'POST', token }),
-  createUltraCheckout: (token) => request('/billing/ultra-checkout', { method: 'POST', token }),
   setUltraColor: (token, color) => request('/billing/ultra-color', { method: 'PATCH', body: { color }, token }),
   setNameColor: (token, color) => request('/billing/name-color', { method: 'PATCH', body: { color }, token }),
 

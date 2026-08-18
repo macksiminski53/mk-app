@@ -48,7 +48,6 @@ export default function App() {
   const [chatSettingsTrigger, setChatSettingsTrigger] = useState(0);
   const [megaChatCreateTrigger, setMegaChatCreateTrigger] = useState(0);
   const [miniChatCreateTrigger, setMiniChatCreateTrigger] = useState(0);
-  const [billingConfigured, setBillingConfigured] = useState(null); // null = unknown yet
 
   // --- Voice call state ---
   // call is one of: null | { status: 'incoming', fromUserId, fromUsername, fromAvatarColor, fromAvatarUrl }
@@ -166,13 +165,6 @@ export default function App() {
     }).catch(() => {});
   }, [token]);
 
-  // Lets Settings show "payments aren't set up yet" instead of a button
-  // that silently fails when STRIPE_PAYMENT_LINK / STRIPE_SECRET_KEY isn't
-  // configured on the server yet.
-  useEffect(() => {
-    if (!token) return;
-    api.getBillingStatus(token).then((s) => setBillingConfigured(s.configured)).catch(() => setBillingConfigured(false));
-  }, [token]);
 
   // Accent color: MK PLUS's account-level color (synced across devices,
   // also available to MK ULTRA since ULTRA includes every PLUS perk) takes
@@ -549,24 +541,6 @@ export default function App() {
       localStorage.setItem('user', JSON.stringify(updated));
       return updated;
     });
-  }
-
-  async function handleBuyPlus() {
-    const res = await api.createPlusCheckout(token);
-    if (res.url) window.location.href = res.url;
-    else throw new Error('No checkout URL returned');
-  }
-
-  async function handleBuyPremium() {
-    const res = await api.createPremiumCheckout(token);
-    if (res.url) window.location.href = res.url;
-    else throw new Error('No checkout URL returned');
-  }
-
-  async function handleBuyUltra() {
-    const res = await api.createUltraCheckout(token);
-    if (res.url) window.location.href = res.url;
-    else throw new Error('No checkout URL returned');
   }
 
   async function handleCreateMegaChat(name) {
@@ -956,16 +930,12 @@ export default function App() {
         currentUser={user}
         onUploadRingtone={handleUploadRingtone}
         onResetRingtone={handleResetRingtone}
-        onBuyPlus={handleBuyPlus}
-        onBuyPremium={handleBuyPremium}
-        onBuyUltra={handleBuyUltra}
         onSetUltraColor={handleSetUltraColor}
         onSetNameColor={handleSetNameColor}
         onUploadCustomEmoji={handleUploadCustomEmoji}
         onRemoveCustomEmoji={handleRemoveCustomEmoji}
         onRevealToken={handleRevealToken}
         onRegenerateToken={handleRegenerateToken}
-        billingConfigured={billingConfigured}
         onCreateMegaChat={handleTriggerCreateMegaChat}
         onCreateMiniChat={handleTriggerCreateMiniChat}
         onFetchStats={() => api.getMyStats(token)}
