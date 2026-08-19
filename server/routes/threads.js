@@ -180,6 +180,31 @@ router.get('/:threadId/read-state', asyncHandler(async (req, res) => {
   res.json({ theirLastRead: row?.lastReadMessageId || 0 });
 }));
 
+// Marks this thread as read up to a given message id for the current user.
+// Powers both the read-receipt "Seen" indicator (via the endpoint above,
+// read by the *other* participant) and unread badge counts on the friends
+// list -- without this, last_read_message_id never moves and both features
+// are silently broken.
+router.patch('/:threadId/read-state', asyncHandler(async (req, res) => {
+  const { threadId } = req.params;
+  const thread = await userInThread(req.user.id, threadId);
+  if (!thread) return res.status(403).json({ error: 'No access to this conversation' });
+  const lastMessageId = Number(req.body?.lastMessageId);
+  if (!Number.isFinite(lastMessageId) || lastMessageId < 0) {
+    return res.status(400).json({ error: 'lastMessageId must be a non-negative number' });
+  }
+  // Never move backwards -- a stale/out-of-order request shouldn't un-read
+  // messages that were already marked read by a more recent call.
+  await db.prepare(`
+    INSERT INTO dm_read_state (thread_id, user_id, last_read_message_id, updated_at)
+    VALUES (?, ?, ?, datetime('now'))
+    ON CONFLICT(thread_id, user_id) DO UPDATE SET
+      last_read_message_id = MAX(last_read_message_id, excluded.last_read_message_id),
+      updated_at = datetime('now')
+  `).run(threadId, req.user.id, lastMessageId);
+  res.json({ ok: true });
+}));
+
 // upload an image or mp3 to attach to a message you're about to send
 router.post('/:threadId/attachments', upload.single('image'), asyncHandler(async (req, res) => {
   const { threadId } = req.params;

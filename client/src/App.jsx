@@ -317,6 +317,11 @@ export default function App() {
     // window is unfocused/minimized, still gets a chime + OS notification.
     function onNotifyMessage({ threadId, fromUserId, fromUsername, preview }) {
       const isActiveThread = friendsRef.current.find((f) => f.id === activeFriendIdRef.current)?.threadId === threadId;
+      // Refresh the friends list so the unread badge updates even for a
+      // thread that isn't currently open (ChatArea only marks-as-read the
+      // thread it has mounted, so this is the only place a background
+      // thread's count gets bumped).
+      if (!isActiveThread) refreshFriends();
       if (isActiveThread && document.hasFocus()) return;
 
       playMessageChime();
@@ -1028,6 +1033,7 @@ export default function App() {
                 chatLayout={settings.chatLayout}
                 openSettingsTrigger={chatSettingsTrigger}
                 onBack={handleMobileBack}
+                onThreadRead={refreshFriends}
                 t={t}
               />
             )}

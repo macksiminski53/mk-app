@@ -60,7 +60,7 @@ function fileExtLabel(url) {
   return m ? m[1].toUpperCase() : 'FILE';
 }
 
-export default function ChatArea({ token, friend, currentUser, onRemoveFriend, onStartCall, callActive, chatLayout = 'bubble', openSettingsTrigger, onBack, t }) {
+export default function ChatArea({ token, friend, currentUser, onRemoveFriend, onStartCall, callActive, chatLayout = 'bubble', openSettingsTrigger, onBack, onThreadRead, t }) {
   const [messages, setMessages] = useState([]);
   const [messagesLoading, setMessagesLoading] = useState(false);
   const [draft, setDraft] = useState('');
@@ -118,6 +118,14 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
     setDeleteVotes({ myVote: false, otherVote: false, autoReset: false });
     api.listMessages(token, threadId).then((msgs) => {
       if (!cancelled) setMessages(msgs);
+      // Mark read as soon as messages load, using the newest message's id.
+      // Also fires when a live message arrives while this thread is the
+      // one currently open (see onNewMessage below) so the badge never
+      // shows a stale unread count for a thread you're actively viewing.
+      if (msgs.length > 0) {
+        const lastId = msgs[msgs.length - 1].id;
+        api.markThreadRead(token, threadId, lastId).then(() => onThreadRead?.(threadId)).catch(() => {});
+      }
     }).finally(() => {
       if (!cancelled) setMessagesLoading(false);
     });
@@ -137,7 +145,15 @@ export default function ChatArea({ token, friend, currentUser, onRemoveFriend, o
     socket.emit('thread:join', threadId);
 
     function onNewMessage({ threadId: tid, message }) {
-      if (tid === threadId) setMessages((prev) => [...prev, message]);
+      if (tid !== threadId) return;
+      setMessages((prev) => [...prev, message]);
+      // Only auto-mark-read for messages from the other person -- our own
+      // outgoing messages don't need a read-state bump (we obviously "read"
+      // what we just sent), and re-marking on every own-message would just
+      // be an extra no-op request.
+      if (message.username !== currentUser.username) {
+        api.markThreadRead(token, threadId, message.id).then(() => onThreadRead?.(threadId)).catch(() => {});
+      }
     }
     function onTyping({ threadId: tid, username, isTyping }) {
       if (tid !== threadId || username === currentUser.username) return;

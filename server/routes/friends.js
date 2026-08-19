@@ -43,6 +43,7 @@ router.get('/', asyncHandler(async (req, res) => {
   `).all(meId, meId);
 
   const friends = [];
+  const threadIds = [];
   for (const r of rows) {
     const otherId = r.from_id === meId ? r.to_id : r.from_id;
     const otherUsername = r.from_id === meId ? r.toUsername : r.fromUsername;
@@ -61,6 +62,7 @@ router.get('/', asyncHandler(async (req, res) => {
     const otherNameColor = r.from_id === meId ? r.toNameColor : r.fromNameColor;
     const otherBannerUrl = r.from_id === meId ? r.toBannerUrl : r.fromBannerUrl;
     const thread = await getOrCreateThread(meId, otherId);
+    threadIds.push(thread.id);
     friends.push({
       id: otherId,
       username: otherUsername,
@@ -80,8 +82,29 @@ router.get('/', asyncHandler(async (req, res) => {
       bannerUrl: otherUltra ? otherBannerUrl : null,
       online: isOnline(otherId),
       threadId: thread.id,
+      unreadCount: 0,
     });
   }
+
+  // Unread counts: for each thread, count messages from the other person
+  // with id greater than this user's last_read_message_id (0 if they've
+  // never read it at all). One query total via a correlated subquery,
+  // rather than N+1 lookups per friend.
+  if (threadIds.length > 0) {
+    const placeholders = threadIds.map(() => '?').join(',');
+    const unreadRows = await db.prepare(`
+      SELECT thread_id as threadId, COUNT(*) as unread
+      FROM messages
+      WHERE thread_id IN (${placeholders}) AND user_id != ?
+        AND id > COALESCE((SELECT last_read_message_id FROM dm_read_state WHERE dm_read_state.thread_id = messages.thread_id AND dm_read_state.user_id = ?), 0)
+      GROUP BY thread_id
+    `).all(...threadIds, meId, meId);
+    const unreadByThread = new Map(unreadRows.map((r) => [r.threadId, r.unread]));
+    for (const f of friends) {
+      f.unreadCount = unreadByThread.get(f.threadId) || 0;
+    }
+  }
+
   res.json(friends);
 }));
 

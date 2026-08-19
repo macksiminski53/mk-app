@@ -99,6 +99,7 @@ export const api = {
   },
   listPinnedDm: (token, threadId) => request(`/threads/${threadId}/pinned`, { token }),
   getReadState: (token, threadId) => request(`/threads/${threadId}/read-state`, { token }),
+  markThreadRead: (token, threadId, lastMessageId) => request(`/threads/${threadId}/read-state`, { method: 'PATCH', body: { lastMessageId }, token }),
 
   // ---- Mega Chats ----
   createMegaChatCheckout: (token, name) => request('/billing/mega-chat-checkout', { method: 'POST', body: { name }, token }),

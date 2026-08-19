@@ -3,6 +3,7 @@ import Avatar from './Avatar.jsx';
 import ProfileCard from './ProfileCard.jsx';
 import AvatarCropper from './AvatarCropper.jsx';
 import { groupDisplayName } from './MiniChatView.jsx';
+import { PersonAddIcon } from './Icons.jsx';
 
 export default function FriendsSidebar({
   friends, activeFriendId, onSelect, currentUser, token, onLogout, onChangeAvatar, onSetBio, onSetDisplayName,
@@ -157,7 +158,13 @@ export default function FriendsSidebar({
 
       <div className="friends-list">
         {friends.length === 0 && (
-          <div className="friends-empty">No friends yet. Add one from the Friend Request panel above.</div>
+          <div className="friends-empty">
+            <PersonAddIcon size={32} />
+            <div className="friends-empty-title">No friends yet</div>
+            <div className="friends-empty-desc">
+              Tap the <PersonAddIcon size={13} /> icon in the top right to send a friend request.
+            </div>
+          </div>
         )}
         {friends.map((f) => (
           <div
@@ -179,6 +186,9 @@ export default function FriendsSidebar({
               </span>
               {f.statusSource === 'music' && f.statusText && <span className="friend-status">{f.statusText}</span>}
             </div>
+            {f.unreadCount > 0 && (
+              <span className="friend-unread-badge">{f.unreadCount > 99 ? '99+' : f.unreadCount}</span>
+            )}
           </div>
         ))}
       </div>
