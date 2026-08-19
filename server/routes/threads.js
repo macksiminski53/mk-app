@@ -31,12 +31,21 @@ const storage = multer.diskStorage({
   },
 });
 
-// Any file type is allowed -- the client picks a renderer (image, audio,
-// video, or a generic download link) based on the file extension in the
-// stored URL. Same upload endpoint and same `image_url` DB column for all
-// attachment types regardless of kind.
-function isAllowedAttachment(_file) {
-  return true;
+// Blocks file types that can execute as active content if opened directly
+// (HTML/SVG/JS can run scripts in the browser; these are the realistic
+// stored-XSS vector for a "share any file" feature like this one). Images,
+// audio, video, PDFs, zips, etc. are all still allowed -- this only blocks
+// the small set of types that are dangerous specifically because a browser
+// will execute them rather than just display/play them.
+const BLOCKED_EXTENSIONS = new Set([
+  '.html', '.htm', '.xhtml', '.svg', '.js', '.mjs', '.jsx',
+  '.php', '.phtml', '.exe', '.bat', '.cmd', '.sh', '.ps1', '.msi',
+  '.jar', '.wsf', '.hta',
+]);
+
+function isAllowedAttachment(file) {
+  const ext = path.extname(file.originalname || '').toLowerCase();
+  return !BLOCKED_EXTENSIONS.has(ext);
 }
 
 // Large attachments (>50MB) are allowed but get auto-deleted after an hour

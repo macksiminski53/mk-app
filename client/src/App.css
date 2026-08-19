@@ -38,8 +38,8 @@ html, body, #root {
   --shadow-soft: 0 2px 10px rgba(0,0,0,0.28);
   --shadow-lift: 0 10px 30px rgba(0,0,0,0.4);
 
-  --font-display: 'Manrope', 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif;
-  --font-body: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --font-display: 'IBM Plex Mono', 'JetBrains Mono', 'Courier New', monospace;
+  --font-body: 'IBM Plex Sans', 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif;
 }
 
 body {
@@ -3352,79 +3352,13 @@ h1, h2, h3, .app-brand, .auth-card h1 {
   background: var(--bg-deepest);
 }
 
-/* RGB-split "glitch" wordmark: the real white text sits on top, with a
-   red-shifted and blue-shifted copy peeking out from behind it via
-   ::before/::after using the same content (set from the `data-text`
-   attribute so it's one source of truth, no duplicated markup). */
 .app-loading-brand {
-  position: relative;
   font-family: var(--font-display);
   font-weight: 800;
   font-size: 96px;
   line-height: 1;
   letter-spacing: 2px;
   color: #ffffff;
-  animation: app-loading-bass 2.4s ease-in-out infinite;
-  will-change: transform;
-}
-
-/* Punches the whole wordmark on a beat -- a quick snap out and a slightly
-   slower settle back, like it's reacting to a kick drum rather than just
-   drifting. Timed to land on the same beats as the red/blue glitch below
-   (20%/40%/60%/80%) so the color-split and the shake read as one hit.
-   More keyframes + ease-in-out (rather than default/step timing) keeps
-   the motion smooth instead of choppy. */
-@keyframes app-loading-bass {
-  0%, 10% { transform: scale(1) translateY(0); }
-  16% { transform: scale(1.05) translateY(-3px); }
-  24% { transform: scale(0.99) translateY(1px); }
-  30% { transform: scale(1.01) translateY(0); }
-  36% { transform: scale(1.04) translateY(-2px); }
-  44% { transform: scale(0.995) translateY(0.5px); }
-  50% { transform: scale(1) translateY(0); }
-  56% { transform: scale(1.03) translateY(-2px); }
-  64% { transform: scale(0.99) translateY(1px); }
-  70% { transform: scale(1.005) translateY(0); }
-  76% { transform: scale(1.05) translateY(-3px); }
-  86% { transform: scale(0.99) translateY(1px); }
-  94%, 100% { transform: scale(1) translateY(0); }
-}
-
-.app-loading-brand::before,
-.app-loading-brand::after {
-  content: attr(data-text);
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  color: #ffffff;
-  will-change: transform;
-}
-
-.app-loading-brand::before {
-  color: #ff3b3b;
-  animation: app-loading-glitch-red 2.4s ease-in-out infinite;
-}
-
-.app-loading-brand::after {
-  color: #3fa9f5;
-  animation: app-loading-glitch-blue 2.4s ease-in-out infinite;
-}
-
-@keyframes app-loading-glitch-red {
-  0%, 100% { transform: translate(0, 0); opacity: 0.8; }
-  20% { transform: translate(-4px, 1px); opacity: 0.6; }
-  40% { transform: translate(2px, -1px); opacity: 0.8; }
-  60% { transform: translate(-2px, 0); opacity: 0.5; }
-  80% { transform: translate(3px, 1px); opacity: 0.7; }
-}
-
-@keyframes app-loading-glitch-blue {
-  0%, 100% { transform: translate(0, 0); opacity: 0.8; }
-  20% { transform: translate(4px, -1px); opacity: 0.6; }
-  40% { transform: translate(-2px, 1px); opacity: 0.8; }
-  60% { transform: translate(2px, 0); opacity: 0.5; }
-  80% { transform: translate(-3px, -1px); opacity: 0.7; }
 }
 
 .app-loading-spinner {

@@ -23,16 +23,60 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const uploadsDir = path.join(__dirname, 'uploads');
 fs.mkdirSync(uploadsDir, { recursive: true });
 
+// SECURITY: this used to fall back to '*' (any website) when CLIENT_ORIGIN
+// wasn't set on Render, which let any page on the internet make requests
+// to this API using a visitor's browser. Now it defaults to the actual
+// production domain plus localhost (for local dev) instead of wide open.
+// Set CLIENT_ORIGIN on Render to override this -- supports a comma-separated
+// list if you ever need to allow more than one origin (e.g. a custom domain
+// alongside the onrender.com one).
+const DEFAULT_ALLOWED_ORIGINS = [
+  'https://mk-app-1.onrender.com',
+  'http://localhost:5173',
+  'http://localhost:4173',
+];
+const allowedOrigins = process.env.CLIENT_ORIGIN
+  ? process.env.CLIENT_ORIGIN.split(',').map((o) => o.trim())
+  : DEFAULT_ALLOWED_ORIGINS;
+
+function corsOriginCheck(origin, callback) {
+  // No Origin header at all (server-to-server requests, curl, some mobile
+  /// Electron webviews) -- allow, since CORS is a browser-enforced concept
+  // and there's no cross-site risk without a browser context.
+  if (!origin) return callback(null, true);
+  if (allowedOrigins.includes(origin)) return callback(null, true);
+  callback(new Error(`Origin ${origin} not allowed by CORS`));
+}
+
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: { origin: process.env.CLIENT_ORIGIN || '*' },
+  cors: { origin: corsOriginCheck },
 });
 
-app.use(cors({ origin: process.env.CLIENT_ORIGIN || '*' }));
+app.use(cors({ origin: corsOriginCheck }));
 
 app.use(express.json());
-app.use('/uploads', express.static(uploadsDir));
+
+// Defense in depth: even with the upload filter blocking known-dangerous
+// extensions (see routes/threads.js), force any file type the browser
+// would otherwise execute (rather than just display/play) to download
+// instead of render inline. This neutralizes stored-XSS from an uploaded
+// attachment even in edge cases the extension filter doesn't anticipate.
+const SAFE_INLINE_EXTENSIONS = new Set([
+  '.png', '.jpg', '.jpeg', '.gif', '.webp', '.avif', '.bmp', '.ico',
+  '.mp3', '.wav', '.ogg', '.m4a', '.flac', '.aac',
+  '.mp4', '.webm', '.mov', '.avi', '.mkv',
+  '.pdf', '.txt', '.csv',
+]);
+app.use('/uploads', (req, res, next) => {
+  const ext = path.extname(req.path).toLowerCase();
+  if (!SAFE_INLINE_EXTENSIONS.has(ext)) {
+    res.setHeader('Content-Disposition', 'attachment');
+  }
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  next();
+}, express.static(uploadsDir));
 
 app.get('/api/health', (req, res) => res.json({ ok: true }));
 app.use('/api/auth', authRoutes);
@@ -43,6 +87,18 @@ app.use('/api/servers', serverRoutes);
 app.use('/api/groups', groupRoutes);
 app.use('/api/gifs', gifRoutes);
 app.use('/api/admin', adminRoutes);
+
+// Catch-all error handler -- without this, any thrown error (including a
+// rejected CORS origin) falls through to Express's default handler, which
+// sends back a raw HTML stack-trace-shaped page. This keeps every error
+// response as clean JSON instead, and logs the real error server-side.
+app.use((err, req, res, next) => {
+  if (err && /not allowed by CORS/.test(err.message || '')) {
+    return res.status(403).json({ error: 'Origin not allowed' });
+  }
+  console.error('Unhandled error:', err);
+  res.status(500).json({ error: 'Server error' });
+});
 
 io.use((socket, next) => {
   const token = socket.handshake.auth?.token;
