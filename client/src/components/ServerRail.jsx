@@ -1,5 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 
+// Set to true to bring the Podcast tab back -- everything it needs (the
+// route in App.jsx, the usePodcast hook, the server routes/DB tables) is
+// still fully in place, this just hides the entry point into it. Shelved
+// after testing showed the WebRTC mesh wasn't reliable enough to ship.
+const PODCAST_FEATURE_ENABLED = false;
+
 // The vertical strip of Mega Chat icons down the left edge, Discord-style.
 // "Home" always goes back to the regular friends/DM view; each server is a
 // colored circle with its initial; "+" opens the create-a-Mega-Chat modal.
@@ -50,14 +56,16 @@ export default function ServerRail({ servers, activeServerId, onSelectHome, onSe
         MK
       </div>
 
-      <div
-        className={`server-rail-icon server-rail-podcast ${activeServerId === 'podcast' ? 'active' : ''}`}
-        onClick={onSelectPodcast}
-        title={podcastLive ? 'Podcast is live' : 'Podcast'}
-      >
-        🎙️
-        {podcastLive && <span className="server-rail-live-dot" />}
-      </div>
+      {PODCAST_FEATURE_ENABLED && (
+        <div
+          className={`server-rail-icon server-rail-podcast ${activeServerId === 'podcast' ? 'active' : ''}`}
+          onClick={onSelectPodcast}
+          title={podcastLive ? 'Podcast is live' : 'Podcast'}
+        >
+          🎙️
+          {podcastLive && <span className="server-rail-live-dot" />}
+        </div>
+      )}
 
       {servers.length > 0 && <div className="server-rail-divider" />}
 
