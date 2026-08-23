@@ -998,6 +998,7 @@ export default function App() {
             role={podcast.role}
             pendingRequest={podcast.pendingRequest}
             incomingRequests={podcast.incomingRequests}
+            remoteStreams={podcast.remoteStreams}
             isAdmin={!!user.isAdmin}
             currentUser={user}
             onStart={podcast.startPodcast}

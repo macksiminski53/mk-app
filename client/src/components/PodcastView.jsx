@@ -4,7 +4,7 @@ import Avatar from './Avatar.jsx';
 // Discord Stage / Twitter Spaces style: anyone can listen to a live
 // broadcast freely, but becoming a co-speaker (your mic joins the mesh)
 // needs the host's approval. Only the host (an admin) can start one.
-export default function PodcastView({ session, role, pendingRequest, incomingRequests, isAdmin, currentUser, onStart, onEnd, onStartListening, onStopListening, onRequestJoin, onLeaveStage, onAcceptRequest, onDeclineRequest }) {
+export default function PodcastView({ session, role, pendingRequest, incomingRequests, remoteStreams, isAdmin, currentUser, onStart, onEnd, onStartListening, onStopListening, onRequestJoin, onLeaveStage, onAcceptRequest, onDeclineRequest }) {
   const [title, setTitle] = useState('');
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState('');
@@ -51,6 +51,21 @@ export default function PodcastView({ session, role, pendingRequest, incomingReq
 
   return (
     <div className="podcast-view">
+      {/* One real, DOM-mounted <audio> element per connected peer -- not
+          rendered as visible UI, purely for playback. Matches the same
+          pattern the working 1:1 call feature uses (a real mounted
+          <audio autoPlay> element), rather than a JS-only detached Audio()
+          object, since some browsers are stricter about autoplay for
+          elements that were never actually inserted into the page. */}
+      {Object.entries(remoteStreams || {}).map(([peerId, stream]) => (
+        <audio
+          key={peerId}
+          autoPlay
+          ref={(el) => {
+            if (el && el.srcObject !== stream) el.srcObject = stream;
+          }}
+        />
+      ))}
       <div className="podcast-header">
         <span className="podcast-live-pill"><span className="podcast-live-dot" /> LIVE</span>
         <div className="podcast-title">{session.title || 'Untitled Podcast'}</div>

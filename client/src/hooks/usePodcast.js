@@ -33,15 +33,19 @@ export function usePodcast(token, currentUser) {
   useEffect(() => { sessionRef.current = session; }, [session]);
 
   const peersRef = useRef(new Map()); // userId -> RTCPeerConnection
-  const audioElsRef = useRef(new Map()); // userId -> HTMLAudioElement (remote playback)
+  const [remoteStreams, setRemoteStreams] = useState({}); // { [userId]: MediaStream } -- rendered as real <audio> elements by PodcastView, NOT held as detached Audio() objects here. Detached (never-mounted) audio elements are inconsistently exempted from browser autoplay restrictions -- the working 1:1 call feature uses a real DOM-mounted <audio autoPlay> element for exactly this reason, so this mirrors that proven pattern instead.
   const iceQueuesRef = useRef(new Map()); // userId -> pending ICE candidates before remoteDescription is set
   const localStreamRef = useRef(null); // mic stream, only set while speaking
 
   const closePeer = useCallback((peerId) => {
     const pc = peersRef.current.get(peerId);
     if (pc) { pc.close(); peersRef.current.delete(peerId); }
-    const el = audioElsRef.current.get(peerId);
-    if (el) { el.srcObject = null; audioElsRef.current.delete(peerId); }
+    setRemoteStreams((prev) => {
+      if (!(peerId in prev)) return prev;
+      const next = { ...prev };
+      delete next[peerId];
+      return next;
+    });
     iceQueuesRef.current.delete(peerId);
   }, []);
 
@@ -56,13 +60,7 @@ export function usePodcast(token, currentUser) {
         getSocket()?.emit('podcast:signal', { toUserId: peerId, data: { type: 'candidate', candidate } });
       },
       onTrack: (stream) => {
-        let el = audioElsRef.current.get(peerId);
-        if (!el) {
-          el = new Audio();
-          el.autoplay = true;
-          audioElsRef.current.set(peerId, el);
-        }
-        el.srcObject = stream;
+        setRemoteStreams((prev) => ({ ...prev, [peerId]: stream }));
       },
       onConnectionStateChange: (state) => {
         if (state === 'failed' || state === 'closed') closePeer(peerId);
@@ -291,6 +289,7 @@ export function usePodcast(token, currentUser) {
     role,
     pendingRequest,
     incomingRequests,
+    remoteStreams,
     startPodcast,
     endPodcast: endPodcastAction,
     startListening,
