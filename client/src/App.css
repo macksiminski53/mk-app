@@ -3413,3 +3413,178 @@ h1, h2, h3, .app-brand, .auth-card h1 {
   justify-content: center;
   padding: 40px 0;
 }
+
+/* ---- Podcast (Stage-style live audio broadcast) ---- */
+.server-rail-podcast { background: var(--bg-elevated); font-size: 18px; }
+.server-rail-live-dot {
+  position: absolute;
+  bottom: -1px;
+  right: -1px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--danger);
+  border: 2px solid var(--bg-rail);
+  animation: podcast-pulse 1.6s ease-in-out infinite;
+}
+@keyframes podcast-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(0.85); }
+}
+
+.podcast-view {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 32px;
+  overflow-y: auto;
+  gap: 24px;
+}
+
+.podcast-view-empty {
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 12px;
+}
+.podcast-empty-icon { font-size: 48px; }
+.podcast-view-empty h2 { margin: 0; color: var(--text-primary); }
+.podcast-empty-hint { color: var(--text-secondary); font-size: 14px; }
+
+.podcast-start-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  max-width: 320px;
+  margin-top: 8px;
+}
+.podcast-start-form input {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.podcast-start-form button,
+.podcast-controls button,
+.podcast-request-actions button {
+  background: var(--accent-gradient);
+  border: none;
+  color: var(--on-accent);
+  border-radius: 6px;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+}
+.podcast-start-form button:hover,
+.podcast-controls button:hover,
+.podcast-request-actions button:hover {
+  filter: brightness(1.08);
+}
+.podcast-start-form button:disabled,
+.podcast-controls button:disabled,
+.podcast-request-actions button:disabled {
+  opacity: 0.6;
+  cursor: default;
+  filter: none;
+}
+.podcast-controls button.secondary,
+.podcast-request-actions button.secondary {
+  background: transparent;
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+}
+.podcast-controls button.danger {
+  background: var(--danger);
+}
+
+.podcast-header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.podcast-live-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-surface);
+  color: var(--danger);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 3px 10px;
+  border-radius: 999px;
+  width: fit-content;
+}
+.podcast-live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--danger);
+  animation: podcast-pulse 1.6s ease-in-out infinite;
+}
+.podcast-title { font-size: 22px; font-weight: 800; color: var(--text-primary); }
+.podcast-host { font-size: 13px; color: var(--text-secondary); }
+
+.podcast-section-label {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+}
+
+.podcast-speakers-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.podcast-speaker-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 90px;
+  text-align: center;
+}
+.podcast-speaker-name {
+  font-size: 12px;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 90px;
+}
+.podcast-host-badge {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: var(--bg-surface);
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.podcast-controls {
+  display: flex;
+  gap: 10px;
+}
+
+.podcast-requests {
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}
+.podcast-request-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+}
+.podcast-request-name { flex: 1; font-size: 13px; color: var(--text-primary); }
+.podcast-request-actions { display: flex; gap: 8px; }

@@ -8,11 +8,13 @@ import ActiveCallView from './components/ActiveCallView.jsx';
 import ServerRail from './components/ServerRail.jsx';
 import MegaChatView from './components/MegaChatView.jsx';
 import MiniChatView from './components/MiniChatView.jsx';
+import PodcastView from './components/PodcastView.jsx';
 import { api, setUnauthorizedHandler } from './api.js';
 import { connectSocket, disconnectSocket, getSocket } from './socket.js';
 import { getTranslator } from './i18n.js';
 import { createPeerConnection, getMicStream, getCamStream, getScreenStream, stopStream } from './webrtc.js';
 import { playMessageChime } from './notifySound.js';
+import { usePodcast } from './hooks/usePodcast.js';
 import './App.css';
 
 const DEFAULT_SETTINGS = { language: 'en', chatLayout: 'bubble', micDeviceId: '', speakerDeviceId: '', customAccent: '' };
@@ -47,6 +49,7 @@ export default function App() {
   const [activeFriendId, setActiveFriendId] = useState(null);
   const [servers, setServers] = useState([]);
   const [activeServerId, setActiveServerId] = useState(null);
+  const podcast = usePodcast(token, user);
   const [groups, setGroups] = useState([]);
   const [activeGroupId, setActiveGroupId] = useState(null);
   const [settings, setSettings] = useState(loadSettings);
@@ -986,8 +989,27 @@ export default function App() {
           isPremium={!!user.isPremium}
           onCreate={handleCreateMegaChat}
           createTrigger={megaChatCreateTrigger}
+          podcastLive={podcast.session.isLive}
+          onSelectPodcast={() => setActiveServerId('podcast')}
         />
-        {activeServerId === null ? (
+        {activeServerId === 'podcast' ? (
+          <PodcastView
+            session={podcast.session}
+            role={podcast.role}
+            pendingRequest={podcast.pendingRequest}
+            incomingRequests={podcast.incomingRequests}
+            isAdmin={!!user.isAdmin}
+            currentUser={user}
+            onStart={podcast.startPodcast}
+            onEnd={podcast.endPodcast}
+            onStartListening={podcast.startListening}
+            onStopListening={podcast.stopListening}
+            onRequestJoin={podcast.requestJoin}
+            onLeaveStage={podcast.leaveStage}
+            onAcceptRequest={podcast.acceptRequest}
+            onDeclineRequest={podcast.declineRequest}
+          />
+        ) : activeServerId === null ? (
           <>
             <FriendsSidebar
               friends={friends}

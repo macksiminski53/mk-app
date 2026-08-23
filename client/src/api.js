@@ -67,6 +67,16 @@ export const api = {
   adminSetAdmin: (token, userId, value) => request(`/admin/users/${userId}/admin`, { method: 'PATCH', body: { value }, token }),
   adminDeleteUser: (token, userId) => request(`/admin/users/${userId}`, { method: 'DELETE', token }),
   adminDeleteMessage: (token, messageType, messageId, roomId) => request(`/admin/messages/${messageType}/${messageId}?roomId=${roomId}`, { method: 'DELETE', token }),
+
+  // ---- Podcast ----
+  podcastStatus: (token) => request('/podcast/status', { token }),
+  podcastStart: (token, title) => request('/podcast/start', { method: 'POST', body: { title }, token }),
+  podcastEnd: (token) => request('/podcast/end', { method: 'POST', token }),
+  podcastRequestJoin: (token) => request('/podcast/request-join', { method: 'POST', token }),
+  podcastRequests: (token) => request('/podcast/requests', { token }),
+  podcastAcceptRequest: (token, userId) => request(`/podcast/requests/${userId}/accept`, { method: 'POST', token }),
+  podcastDeclineRequest: (token, userId) => request(`/podcast/requests/${userId}/decline`, { method: 'POST', token }),
+  podcastLeave: (token) => request('/podcast/leave', { method: 'POST', token }),
   setStatus: (token, statusText) => request('/auth/status', { method: 'PATCH', body: { statusText }, token }),
   setBio: (token, bio) => request('/auth/bio', { method: 'PATCH', body: { bio }, token }),
   setDisplayName: (token, displayName) => request('/auth/display-name', { method: 'PATCH', body: { displayName }, token }),

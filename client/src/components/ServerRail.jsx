@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 // The vertical strip of Mega Chat icons down the left edge, Discord-style.
 // "Home" always goes back to the regular friends/DM view; each server is a
 // colored circle with its initial; "+" opens the create-a-Mega-Chat modal.
-export default function ServerRail({ servers, activeServerId, onSelectHome, onSelectServer, isPremium, onCreate, createTrigger }) {
+export default function ServerRail({ servers, activeServerId, onSelectHome, onSelectServer, isPremium, onCreate, createTrigger, podcastLive, onSelectPodcast }) {
   const [showCreate, setShowCreate] = useState(false);
   const [name, setName] = useState('');
   const [creating, setCreating] = useState(false);
@@ -48,6 +48,15 @@ export default function ServerRail({ servers, activeServerId, onSelectHome, onSe
         title="Friends"
       >
         MK
+      </div>
+
+      <div
+        className={`server-rail-icon server-rail-podcast ${activeServerId === 'podcast' ? 'active' : ''}`}
+        onClick={onSelectPodcast}
+        title={podcastLive ? 'Podcast is live' : 'Podcast'}
+      >
+        🎙️
+        {podcastLive && <span className="server-rail-live-dot" />}
       </div>
 
       {servers.length > 0 && <div className="server-rail-divider" />}

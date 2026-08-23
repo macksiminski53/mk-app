@@ -17,6 +17,7 @@ import serverRoutes, { isMember } from './routes/servers.js';
 import groupRoutes, { isMember as isGroupMember } from './routes/groups.js';
 import gifRoutes from './routes/gifs.js';
 import adminRoutes from './routes/admin.js';
+import podcastRoutes, { handlePodcastDisconnect } from './routes/podcast.js';
 import { getReactionsFor, getReactionsForMany } from './reactions.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -87,6 +88,7 @@ app.use('/api/servers', serverRoutes);
 app.use('/api/groups', groupRoutes);
 app.use('/api/gifs', gifRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/podcast', podcastRoutes);
 
 // Catch-all error handler -- without this, any thrown error (including a
 // rejected CORS origin) falls through to Express's default handler, which
@@ -153,6 +155,36 @@ events.on('group:avatar-changed', ({ memberIds, groupId, avatarUrl }) => {
   for (const memberId of memberIds) {
     io.to(`user:${memberId}`).emit('group:updated', { groupId, avatarUrl });
   }
+});
+
+// ---- Podcast ----
+// started/ended and the speaker roster are relevant to EVERY connected
+// client (anyone can tune in to listen, no membership gating), so these
+// go out unscoped rather than to a specific room. Join-request
+// notifications and accept/decline resolutions are per-user, same
+// user:{id} room pattern as everything else above.
+events.on('podcast:started', (session) => {
+  io.emit('podcast:started', session);
+});
+
+events.on('podcast:ended', () => {
+  io.emit('podcast:ended', {});
+});
+
+events.on('podcast:join-request', ({ hostId, requester }) => {
+  io.to(`user:${hostId}`).emit('podcast:join-request', { requester });
+});
+
+events.on('podcast:request-resolved', ({ userId, accepted }) => {
+  io.to(`user:${userId}`).emit('podcast:request-resolved', { accepted });
+});
+
+events.on('podcast:speaker-joined', ({ speaker }) => {
+  io.emit('podcast:speaker-joined', { speaker });
+});
+
+events.on('podcast:speaker-left', ({ userId }) => {
+  io.emit('podcast:speaker-left', { userId });
 });
 
 async function loadMessageRow(id) {
@@ -643,6 +675,18 @@ io.on('connection', (socket) => {
     io.to(`user:${toUserId}`).emit('call:signal', { fromUserId: userId, data });
   });
 
+  // ---- Podcast mesh signaling ----
+  // Same pure-relay pattern as 1:1 call signaling above, except any
+  // participant can signal any other participant directly (it's a mesh,
+  // not a single pair) -- the server never inspects who's actually
+  // allowed to be in the mesh here, that's enforced by the REST routes
+  // (only accepted speakers get told about each other via
+  // podcast:speaker-joined in the first place, and listeners only ever
+  // initiate toward known speakers).
+  socket.on('podcast:signal', ({ toUserId, data }) => {
+    io.to(`user:${toUserId}`).emit('podcast:signal', { fromUserId: userId, data });
+  });
+
   // ---- Mutual-consent "delete chat" ----
   // Either user can toggle their own vote; once both are yes, every message
   // in the thread is wiped and both votes reset to 0. Each participant gets
@@ -689,6 +733,7 @@ io.on('connection', (socket) => {
     setTimeout(() => {
       broadcastPresence(userId, false).catch((err) => console.error('broadcastPresence error', err));
     }, 300);
+    handlePodcastDisconnect(userId).catch((err) => console.error('handlePodcastDisconnect error', err));
   });
 });
 

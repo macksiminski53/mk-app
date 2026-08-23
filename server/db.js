@@ -538,6 +538,39 @@ UPDATE users SET avatar_icon = CASE ABS(RANDOM()) % 10
 END
 WHERE avatar_icon IS NULL
    OR avatar_icon NOT IN ('usb-a', 'usb-c', 'firewire', 'lightning', 'micro-usb', 'hdmi', 'ethernet', 'displayport', 'aux', 'vga')`);
+
+  // ---- Podcast: one global live audio broadcast at a time ----
+  // Admin-only to start ("go live"); any user can request to join as a
+  // co-speaker (mic joins the mesh, like Discord Stage / Twitter Spaces),
+  // subject to host approval. Plain listening needs no approval at all --
+  // only speaking does. A singleton row (id=1) holds current live state;
+  // speakers/requests get wiped whenever the broadcast ends, ready for a
+  // fresh session next time.
+  await client.execute(`
+CREATE TABLE IF NOT EXISTS podcast_session (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  is_live INTEGER NOT NULL DEFAULT 0,
+  host_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  title TEXT,
+  started_at TEXT
+)`);
+  // Ensure the singleton row exists so UPDATE-based start/end logic
+  // always has a row to act on (INSERT OR IGNORE is a no-op after the
+  // first boot).
+  await client.execute('INSERT OR IGNORE INTO podcast_session (id, is_live) VALUES (1, 0)');
+
+  await client.execute(`
+CREATE TABLE IF NOT EXISTS podcast_speakers (
+  user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  joined_at TEXT NOT NULL DEFAULT (datetime('now'))
+)`);
+
+  await client.execute(`
+CREATE TABLE IF NOT EXISTS podcast_join_requests (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+)`);
 }
 
 export default db;

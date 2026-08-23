@@ -30,3 +30,32 @@ export function emitGroupAvatarChanged(memberIds, groupId, avatarUrl) {
 export function emitAdminMessageDeleted(messageType, messageId, roomId) {
   events.emit('admin:message-deleted', { messageType, messageId, roomId });
 }
+
+// ---- Podcast ----
+// Global broadcast-to-everyone events (started/ended, speaker roster
+// changes) go out to all connected clients; per-user events (a join
+// request being accepted/declined, or the host being notified of a new
+// request) target just that one user's socket room.
+export function emitPodcastStarted(session) {
+  events.emit('podcast:started', session);
+}
+
+export function emitPodcastEnded() {
+  events.emit('podcast:ended', {});
+}
+
+export function emitPodcastJoinRequest(hostId, requester) {
+  events.emit('podcast:join-request', { hostId, requester });
+}
+
+export function emitPodcastRequestResolved(userId, accepted) {
+  events.emit('podcast:request-resolved', { userId, accepted });
+}
+
+export function emitPodcastSpeakerJoined(speaker) {
+  events.emit('podcast:speaker-joined', { speaker });
+}
+
+export function emitPodcastSpeakerLeft(userId) {
+  events.emit('podcast:speaker-left', { userId });
+}
